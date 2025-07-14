@@ -1,7 +1,7 @@
 
 from mcp.server.fastmcp import FastMCP
-from incident_tools import similarincidentsfortext, getshortdescforincident, similarincidentsforincident
-from change_tools import changesfortext, getshortdescforchange, similarchangefortext
+from incident_tools import similarincidentsfortext, getshortdescforincident, similarincidentsforincident, getincidentdetails
+from change_tools import changesfortext, getshortdescforchange, similarchangefortext, getchangedetails
 from table_tools import nowtestauth, nowtestauthInput
 from utility_tools import nowtest
 
@@ -17,3 +17,5 @@ mcp.tool()(similarincidentsforincident)
 mcp.tool()(changesfortext)
 mcp.tool()(getshortdescforchange)
 mcp.tool()(similarchangefortext)
+mcp.tool()(getincidentdetails)
+mcp.tool()(getchangedetails)
