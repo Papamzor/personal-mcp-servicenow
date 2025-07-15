@@ -1,7 +1,15 @@
 import httpx
 from typing import Any
+from dotenv import load_dotenv
+import os
 
-NWS_API_BASE = "https://matecodev.service-now.com"
+# Load environment variables from .env file
+load_dotenv()
+SERVICENOW_USERNAME = os.getenv("SERVICENOW_USERNAME")
+SERVICENOW_PASSWORD = os.getenv("SERVICENOW_PASSWORD") 
+SERVICENOW_INSTANCE = os.getenv("SERVICENOW_INSTANCE")
+
+NWS_API_BASE = SERVICENOW_INSTANCE
 
 async def make_nws_request(url: str) -> dict[str, Any] | None:
     """Make a request to the NWS API with proper error handling."""
@@ -9,7 +17,8 @@ async def make_nws_request(url: str) -> dict[str, Any] | None:
         "Accept": "application/json",
         "Content-Type": "application/json"
     }
-    auth = ("redacted", "redacted")
+    # Use the loaded environment variables for authentication
+    auth = (SERVICENOW_USERNAME, SERVICENOW_PASSWORD)
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(url, auth=auth, headers=headers, timeout=30.0)
