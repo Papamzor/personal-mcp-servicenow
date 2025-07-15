@@ -1,7 +1,7 @@
 import httpx
 from typing import Any
 
-NWS_API_BASE = "https://mateco.service-now.com"
+NWS_API_BASE = "https://matecodev.service-now.com"
 
 async def make_nws_request(url: str) -> dict[str, Any] | None:
     """Make a request to the NWS API with proper error handling."""
