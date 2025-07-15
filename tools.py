@@ -1,11 +1,12 @@
 
 from mcp.server.fastmcp import FastMCP
 from incident_tools import similarincidentsfortext, getshortdescforincident, similarincidentsforincident, getincidentdetails
-from change_tools import changesfortext, getshortdescforchange, similarchangefortext, getchangedetails
+from change_tools import similarchangesfortext, getshortdescforchange, similarchangeforchange, getchangedetails
+from ur_tools import similarURfortext, getshortdescforUR, similarURforUR, getURdetails
 from table_tools import nowtestauth, nowtestauthInput
 from utility_tools import nowtest
 
-mcp = FastMCP("mcpnowsimilarity", version="1.0.0", description="MCP Now Similarity Service")
+mcp = FastMCP("personalmcpservicenow", version="1.0.0", description="MCP ServiceNow Service")
 
 # Register all tools with the MCP server
 mcp.tool()(nowtest)
@@ -22,7 +23,7 @@ mcp.tool()(getshortdescforincident)
 mcp.tool()(similarincidentsforincident)
 mcp.tool()(getincidentdetails)
 # Change tools
-mcp.tool()(changesfortext)
+mcp.tool()(similarchangesfortext)
 mcp.tool()(getshortdescforchange)
-mcp.tool()(similarchangefortext)
+mcp.tool()(similarchangeforchange)
 mcp.tool()(getchangedetails)
