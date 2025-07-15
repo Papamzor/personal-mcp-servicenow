@@ -31,7 +31,7 @@ async def getincidentdetails(inputincident: str) -> dict[str, Any] | str:
     """Get detailed information for a given incident based on input incident number.
     
     Args:
-        inputincident: The incident number (e.g., 'INC0010001').
+        inputincident: The incident number (e.g., 'INC0127661').
     
     Returns:
         A dictionary containing incident details or an error message if the request fails.
@@ -52,6 +52,6 @@ async def getincidentdetails(inputincident: str) -> dict[str, Any] | str:
     ]
     url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields={','.join(fields)}&sysparm_query=number={inputincident}"
     data = await make_nws_request(url)
-    if data and data.get('result'):
-        return data['result']
+    if data and data.get('result') and isinstance(data['result'], list) and len(data['result']) > 0:
+        return data['result'][0]  # Extract the first (and only) incident dictionary
     return "Unable to fetch incident details or no incident found."
