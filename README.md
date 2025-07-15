@@ -1,6 +1,6 @@
 # Personal MCP ServiceNow
 
-A personal project to integrate an MCP (Multi-Cloud Platform) server with a ServiceNow instance to enable similarity-based incident retrieval and table description queries within the ServiceNow workflow.
+A personal project to integrate an MCP (Model Context Protocol) server with a ServiceNow instance to enable similarity-based incident retrieval and table description queries within the ServiceNow workflow.
 
 ## Table of Contents
 - [Overview](#overview)
