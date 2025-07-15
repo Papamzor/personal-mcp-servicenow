@@ -27,7 +27,7 @@ async def similarURsforUR(inputincident: str):
     inputText = await getshortdescforUR(inputincident)
     return await similarURfortext(inputText)
 
-async def geturdetails(inputUR: str) -> dict[str, Any] | str:
+async def getURdetails(inputUR: str) -> dict[str, Any] | str:
     """Get detailed information for a given universal request based on input universal request number.
     
     Args:
