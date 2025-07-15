@@ -2,7 +2,7 @@ from service_now_api import make_nws_request, NWS_API_BASE
 from typing import Any
 from utils import getKeywords
 
-async def changesfortext(inputText: str):
+async def similarchangesfortext(inputText: str):
     """Get changes based on input text."""
     keywords = getKeywords(inputText)
     for keyword in keywords:
@@ -22,10 +22,10 @@ async def getshortdescforchange(inputincident: str):
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def similarchangefortext(inputincident: str):
+async def similarchangesforchange(inputincident: str):
     """Get similar changes based on given change."""
     inputText = await getshortdescforchange(inputincident)
-    return await similarchangefortext(inputText)
+    return await similarchangesfortext(inputText)
 
 async def getchangedetails(inputchange: str) -> dict[str, Any] | str:
     """Get detailed information for a given change based on input change number.

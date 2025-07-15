@@ -1,8 +1,8 @@
 
 from mcp.server.fastmcp import FastMCP
 from incident_tools import similarincidentsfortext, getshortdescforincident, similarincidentsforincident, getincidentdetails
-from change_tools import similarchangesfortext, getshortdescforchange, similarchangeforchange, getchangedetails
-from ur_tools import similarURfortext, getshortdescforUR, similarURforUR, getURdetails
+from change_tools import similarchangesfortext, getshortdescforchange, similarchangesforchange, getchangedetails
+from ur_tools import similarURfortext, getshortdescforUR, similarURsforUR, getURdetails
 from table_tools import nowtestauth, nowtestauthInput
 from utility_tools import nowtest
 
@@ -15,7 +15,7 @@ mcp.tool()(nowtestauthInput)
 # Universal Request tools
 mcp.tool()(similarURfortext)
 mcp.tool()(getshortdescforUR)
-mcp.tool()(similarURforUR)
+mcp.tool()(similarURsforUR)
 mcp.tool()(getURdetails)
 # Incident tools
 mcp.tool()(similarincidentsfortext)
@@ -25,5 +25,5 @@ mcp.tool()(getincidentdetails)
 # Change tools
 mcp.tool()(similarchangesfortext)
 mcp.tool()(getshortdescforchange)
-mcp.tool()(similarchangeforchange)
+mcp.tool()(similarchangesforchange)
 mcp.tool()(getchangedetails)

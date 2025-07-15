@@ -22,7 +22,7 @@ async def getshortdescforUR(inputincident: str):
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def similarURforUR(inputincident: str):
+async def similarURsforUR(inputincident: str):
     """Get similar universal requests based on given universal request."""
     inputText = await getshortdescforUR(inputincident)
     return await similarURfortext(inputText)
