@@ -11,6 +11,11 @@ mcp = FastMCP("mcpnowsimilarity", version="1.0.0", description="MCP Now Similari
 mcp.tool()(nowtest)
 mcp.tool()(nowtestauth)
 mcp.tool()(nowtestauthInput)
+# Universal Request tools
+mcp.tool()(similarURfortext)
+mcp.tool()(getshortdescforUR)
+mcp.tool()(similarURforUR)
+mcp.tool()(getURdetails)
 # Incident tools
 mcp.tool()(similarincidentsfortext)
 mcp.tool()(getshortdescforincident)
