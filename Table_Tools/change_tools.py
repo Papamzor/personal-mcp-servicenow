@@ -46,8 +46,6 @@ async def getchangedetails(inputchange: str) -> dict[str, Any] | str:
         "priority",
         "state",
         "work_notes",
-        "close_code",
-        "close_notes",
         "sys_updated_on"
     ]
     url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields={','.join(fields)}&sysparm_query=number={inputchange}"
