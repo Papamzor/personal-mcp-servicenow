@@ -12,19 +12,19 @@ async def similarURfortext(inputText: str):
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def getshortdescforUR(inputincident: str):
+async def getshortdescforUR(inputUR: str):
     """Get short_description for a given universal request based on input universal request number."""
-    keywords = getKeywords(inputincident)
+    keywords = getKeywords(inputUR)
     for keyword in keywords:
-        url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields=short_description&sysparm_query=number={inputincident}"
+        url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields=short_description&sysparm_query=number={inputUR}"
         data = await make_nws_request(url)
         if data:
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def similarURsforUR(inputincident: str):
+async def similarURsforUR(inputUR: str):
     """Get similar universal requests based on given universal request."""
-    inputText = await getshortdescforUR(inputincident)
+    inputText = await getshortdescforUR(inputUR)
     return await similarURfortext(inputText)
 
 async def getURdetails(inputUR: str) -> dict[str, Any] | str:
