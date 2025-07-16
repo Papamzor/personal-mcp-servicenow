@@ -12,19 +12,19 @@ async def similarchangesfortext(inputText: str):
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def getshortdescforchange(inputincident: str):
+async def getshortdescforchange(inputchange: str):
     """Get short_description for a given change based on input change number."""
-    keywords = getKeywords(inputincident)
+    keywords = getKeywords(inputchange)
     for keyword in keywords:
-        url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields=short_description&sysparm_query=number={inputincident}"
+        url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields=short_description&sysparm_query=number={inputchange}"
         data = await make_nws_request(url)
         if data:
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def similarchangesforchange(inputincident: str):
+async def similarchangesforchange(inputchange: str):
     """Get similar changes based on given change."""
-    inputText = await getshortdescforchange(inputincident)
+    inputText = await getshortdescforchange(inputchange)
     return await similarchangesfortext(inputText)
 
 async def getchangedetails(inputchange: str) -> dict[str, Any] | str:
@@ -40,16 +40,30 @@ async def getchangedetails(inputchange: str) -> dict[str, Any] | str:
         "number",
         "short_description",
         "description",
+        "state",
         "comments",
+        "priority",
         "assigned_to",
         "assignment_group",
-        "priority",
-        "state",
+        "start_date",
+        "end_date",
+        "reason",
+        "risk",
+        "type",
         "work_notes",
+        "close_code",
+        "close_notes",
         "sys_updated_on"
     ]
     url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields={','.join(fields)}&sysparm_query=number={inputchange}"
     data = await make_nws_request(url)
     if data and data.get('result'):
-        return data['result']
+        results = data['result']
+        # If results is a non-empty list, return the first item (robust for MCP validation)
+        if isinstance(results, list) and results:
+            return results[0]
+        # If results is a dict, return it directly (handles edge cases from API)
+        elif isinstance(results, dict):
+            return results
+    # Return error string if no valid result found
     return "Unable to fetch change details or no change found."
