@@ -72,3 +72,10 @@ def refine_query(input_text: str) -> tuple[str, Optional[str]]:
     # Join keywords for refined query
     refined_query = " ".join(keywords)
     return refined_query, None
+
+
+
+# # TO DO :
+# mcp.tool()(similar_knowledge_for_text)
+# mcp.tool()(get_knowledge_details)
+# mcp.tool()(similarkbsforkb)
