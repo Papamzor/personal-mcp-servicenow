@@ -1,10 +1,10 @@
 from service_now_api import make_nws_request, NWS_API_BASE
 from typing import Any
-from utils import getKeywords
+from utils import extract_keywords
 
 async def similarchangesfortext(inputText: str):
     """Get changes based on input text."""
-    keywords = getKeywords(inputText)
+    keywords = extract_keywords(inputText)
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields=number,short_description&sysparm_query=short_descriptionCONTAINS{keyword}"
         data = await make_nws_request(url)
@@ -14,7 +14,7 @@ async def similarchangesfortext(inputText: str):
 
 async def getshortdescforchange(inputchange: str):
     """Get short_description for a given change based on input change number."""
-    keywords = getKeywords(inputchange)
+    keywords = extract_keywords(inputchange)
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields=short_description&sysparm_query=number={inputchange}"
         data = await make_nws_request(url)

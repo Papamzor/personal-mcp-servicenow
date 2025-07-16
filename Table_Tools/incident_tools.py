@@ -1,10 +1,10 @@
 from service_now_api import make_nws_request, NWS_API_BASE
-from utils import getKeywords
+from utils import extract_keywords
 from typing import Any
 
 async def similarincidentsfortext(inputText: str):
     """Get incidents based on input text."""
-    keywords = getKeywords(inputText)
+    keywords = extract_keywords(inputText)
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields=number,short_description&sysparm_query=short_descriptionCONTAINS{keyword}"
         data = await make_nws_request(url)
@@ -14,7 +14,7 @@ async def similarincidentsfortext(inputText: str):
 
 async def getshortdescforincident(inputincident: str):
     """Get short_description for a given incident based on input incident number."""
-    keywords = getKeywords(inputincident)
+    keywords = extract_keywords(inputincident)
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields=short_description&sysparm_query=number={inputincident}"
         data = await make_nws_request(url)

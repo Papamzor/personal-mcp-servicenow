@@ -1,10 +1,10 @@
 from service_now_api import make_nws_request, NWS_API_BASE
 from typing import Any
-from utils import getKeywords
+from utils import extract_keywords
 
 async def similarURfortext(inputText: str):
     """Get universal requests based on input text."""
-    keywords = getKeywords(inputText)
+    keywords = extract_keywords(inputText)
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields=number,short_description&sysparm_query=short_descriptionCONTAINS{keyword}"
         data = await make_nws_request(url)
@@ -14,7 +14,7 @@ async def similarURfortext(inputText: str):
 
 async def getshortdescforUR(inputUR: str):
     """Get short_description for a given universal request based on input universal request number."""
-    keywords = getKeywords(inputUR)
+    keywords = extract_keywords(inputUR)
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields=short_description&sysparm_query=number={inputUR}"
         data = await make_nws_request(url)
