@@ -1,9 +1,9 @@
 
 from mcp.server.fastmcp import FastMCP
-from Tools.incident_tools import similarincidentsfortext, getshortdescforincident, similarincidentsforincident, getincidentdetails
-from Tools.change_tools import similarchangesfortext, getshortdescforchange, similarchangesforchange, getchangedetails
-from Tools.ur_tools import similarURfortext, getshortdescforUR, similarURsforUR, getURdetails
-from Tools.table_tools import nowtestauth, nowtestauthInput
+from Table_Tools.incident_tools import similarincidentsfortext, getshortdescforincident, similarincidentsforincident, getincidentdetails
+from Table_Tools.change_tools import similarchangesfortext, getshortdescforchange, similarchangesforchange, getchangedetails
+from Table_Tools.ur_tools import similarURfortext, getshortdescforUR, similarURsforUR, getURdetails
+from Table_Tools.table_tools import nowtestauth, nowtestauthInput
 from utility_tools import nowtest
 
 mcp = FastMCP("personalmcpservicenow", version="1.0.0", description="MCP ServiceNow Service")
