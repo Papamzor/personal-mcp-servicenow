@@ -52,6 +52,13 @@ async def getincidentdetails(inputincident: str) -> dict[str, Any] | str:
     ]
     url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields={','.join(fields)}&sysparm_query=number={inputincident}"
     data = await make_nws_request(url)
-    if data and data.get('result') and isinstance(data['result'], list) and len(data['result']) > 0:
-        return data['result'][0]  # Extract the first (and only) incident dictionary
+    if data and data.get('result'):
+        results = data['result']
+        # If results is a non-empty list, return the first item (robust for MCP validation)
+        if isinstance(results, list) and results:
+            return results[0]
+        # If results is a dict, return it directly (handles edge cases from API)
+        elif isinstance(results, dict):
+            return results
+    # Return error string if no valid result found
     return "Unable to fetch incident details or no incident found."

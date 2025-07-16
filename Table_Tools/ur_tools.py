@@ -53,5 +53,12 @@ async def getURdetails(inputUR: str) -> dict[str, Any] | str:
     url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields={','.join(fields)}&sysparm_query=number={inputUR}"
     data = await make_nws_request(url)
     if data and data.get('result'):
-        return data['result']
+        results = data['result']
+        # If results is a non-empty list, return the first item (robust for MCP validation)
+        if isinstance(results, list) and results:
+            return results[0]
+        # If results is a dict, return it directly (handles edge cases from API)
+        elif isinstance(results, dict):
+            return results
+    # Return error string if no valid result found
     return "Unable to fetch change details or no change found."
