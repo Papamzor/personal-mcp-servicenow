@@ -46,7 +46,7 @@ def extract_keywords(input_text: str, context: str = "general") -> List[str]:
     # Remove duplicates while preserving order
     return list(dict.fromkeys(keywords))
 
-def refine_query(input_text: str) -> tuple[str, Optional[str]]:
+async def refine_query(input_text: str) -> tuple[str, Optional[str]]:
     """Refine unclear input text and suggest clarifications if needed.
     
     Args:
