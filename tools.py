@@ -1,9 +1,8 @@
-
 from mcp.server.fastmcp import FastMCP
 from Table_Tools.incident_tools import similarincidentsfortext, getshortdescforincident, similarincidentsforincident, getincidentdetails
 from Table_Tools.change_tools import similarchangesfortext, getshortdescforchange, similarchangesforchange, getchangedetails
 from Table_Tools.ur_tools import similarURfortext, getshortdescforUR, similarURsforUR, getURdetails
-from Table_Tools.kb_tools import similar_knowledge_for_text, get_knowledge_details, similarkbsforkb
+from Table_Tools.kb_tools import similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles
 from Table_Tools.table_tools import nowtestauth, nowtestauthInput
 from utility_tools import nowtest
 
@@ -28,7 +27,8 @@ mcp.tool()(similarchangesfortext)
 mcp.tool()(getshortdescforchange)
 mcp.tool()(similarchangesforchange)
 mcp.tool()(getchangedetails)
-# Knowledge Base tools
+# Knowledge tools
 mcp.tool()(similar_knowledge_for_text)
+mcp.tool()(get_knowledge_by_category)
+mcp.tool()(get_active_knowledge_articles)
 mcp.tool()(get_knowledge_details)
-mcp.tool()(similarkbsforkb)
