@@ -32,3 +32,7 @@ mcp.tool()(similar_knowledge_for_text)
 mcp.tool()(get_knowledge_by_category)
 mcp.tool()(get_active_knowledge_articles)
 mcp.tool()(get_knowledge_details)
+
+#Additional tools can be registered here as needed
+#Ideas: Fetch comments for incidents, changes, or URs; Fetch knowledge articles by author; Fetch active incidents or changes.
+#
