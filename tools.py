@@ -1,5 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-from Table_Tools.incident_tools import similarincidentsfortext, getshortdescforincident, similarincidentsforincident, getincidentdetails
+from Table_Tools.incident_tools import similarincidentsfortext, getshortdescforincident, similarincidentsforincident, getincidentdetails, getIncidentsByFilter
 from Table_Tools.change_tools import similarchangesfortext, getshortdescforchange, similarchangesforchange, getchangedetails
 from Table_Tools.ur_tools import similarURfortext, getshortdescforUR, similarURsforUR, getURdetails
 from Table_Tools.kb_tools import similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles
@@ -22,6 +22,7 @@ mcp.tool()(similarincidentsfortext)
 mcp.tool()(getshortdescforincident)
 mcp.tool()(similarincidentsforincident)
 mcp.tool()(getincidentdetails)
+mcp.tool()(getIncidentsByFilter)  # Registering the filter function as a tool
 # Change tools
 mcp.tool()(similarchangesfortext)
 mcp.tool()(getshortdescforchange)

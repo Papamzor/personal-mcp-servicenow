@@ -2,11 +2,22 @@ from service_now_api import make_nws_request, NWS_API_BASE
 from typing import Any
 from utils import extract_keywords
 
+# Define a common set of fields for all change functions
+COMMON_CHANGE_FIELDS = [
+    "number",
+    "short_description",
+    "priority",
+    "sys_created_on",
+    "state",
+    "assigned_to",
+    "assignment_group"
+]
+
 async def similarchangesfortext(inputText: str):
     """Get changes based on input text."""
     keywords = extract_keywords(inputText)
     for keyword in keywords:
-        url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields=number,short_description&sysparm_query=short_descriptionCONTAINS{keyword}"
+        url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields={','.join(COMMON_CHANGE_FIELDS)}&sysparm_query=short_descriptionCONTAINS{keyword}"
         data = await make_nws_request(url)
         if data:
             return data
@@ -36,20 +47,9 @@ async def getchangedetails(inputchange: str) -> dict[str, Any] | str:
     Returns:
         A dictionary containing change request details or an error message if the request fails.
     """
-    fields = [
-        "number",
-        "short_description",
+    fields = COMMON_CHANGE_FIELDS + [
         "description",
-        "state",
         "comments",
-        "priority",
-        "assigned_to",
-        "assignment_group",
-        "start_date",
-        "end_date",
-        "reason",
-        "risk",
-        "type",
         "work_notes",
         "close_code",
         "close_notes",
