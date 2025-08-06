@@ -1,6 +1,12 @@
 from service_now_api import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
+from pydantic import BaseModel, Field
+
+
+class IncidentFilterParams(BaseModel):
+    filters: Optional[Dict[str, str]] = Field(None, description="Field-value pairs for filtering")
+    fields: Optional[List[str]] = Field(None, description="Fields to return")
 
 # Define a common set of fields for all incident functions
 COMMON_INCIDENT_FIELDS = [
@@ -65,25 +71,11 @@ async def getincidentdetails(inputincident: str) -> dict[str, Any] | str:
             return results
     return "Unable to fetch incident details or no incident found."
 
-async def getIncidentsByFilter(
-    filters: Optional[Dict[str, str]] = None,
-    fields: Optional[List[str]] = None
-) -> dict[str, Any] | str:
-    """Get incidents filtered by a dictionary of field-value pairs.
-    
-    Args:
-        filters: A dictionary of field names and their values for filtering (e.g., {'priority': '1', 'state': 'New'}).
-                 Supports date ranges with 'gte' and 'lte' suffixes (e.g., {'sys_created_on_gte': '2025-07-01'}).
-        fields: List of fields to return (defaults to COMMON_INCIDENT_FIELDS if None).
-    
-    Returns:
-        A dictionary containing a list of incidents or an error message if the request fails.
-    """
-    fields = fields or COMMON_INCIDENT_FIELDS
+async def getIncidentsByFilter(params: IncidentFilterParams) -> dict[str, Any] | str:
+    fields = params.fields or COMMON_INCIDENT_FIELDS
     query_parts = []
-
-    if filters:
-        for field, value in filters.items():
+    if params.filters:
+        for field, value in params.filters.items():
             if field.endswith('_gte'):
                 base_field = field[:-4]
                 query_parts.append(f"{base_field}>={value}")
@@ -92,11 +84,9 @@ async def getIncidentsByFilter(
                 query_parts.append(f"{base_field}<={value}")
             else:
                 query_parts.append(f"{field}={value}")
-
     sysparm_query = "^".join(query_parts) if query_parts else ""
     url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields={','.join(fields)}&sysparm_query={sysparm_query}"
     data = await make_nws_request(url)
-    
     if data and data.get('result'):
         return data
     return "Unable to fetch incidents or no incidents found."
