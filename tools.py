@@ -6,7 +6,7 @@ from Table_Tools.kb_tools import similar_knowledge_for_text, get_knowledge_detai
 from Table_Tools.table_tools import nowtestauth, nowtestauthInput
 from utility_tools import nowtest
 
-mcp = FastMCP("personalmcpservicenow", version="1.0.0", description="MCP ServiceNow Service")
+mcp = FastMCP("personalmcpservicenow")
 
 # Register all tools with the MCP server
 mcp.tool()(nowtest)
