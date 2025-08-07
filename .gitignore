@@ -4,3 +4,8 @@ __pycache__/
 /.env
 /.venv
 /Table_Tools/__pycache__/
+
+# ...existing code...
+*.egg-info/
+dist/
+build/
