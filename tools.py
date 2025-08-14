@@ -1,39 +1,30 @@
 from mcp.server.fastmcp import FastMCP
-from Table_Tools.incident_tools import similarincidentsfortext, getshortdescforincident, similarincidentsforincident, getincidentdetails, getIncidentsByFilter
-from Table_Tools.change_tools import similarchangesfortext, getshortdescforchange, similarchangesforchange, getchangedetails
-from Table_Tools.ur_tools import similarURfortext, getshortdescforUR, similarURsforUR, getURdetails
-from Table_Tools.kb_tools import similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles
-from Table_Tools.table_tools import nowtestauth, nowtestauthInput
+from Table_Tools.consolidated_tools import (
+    # Incident tools
+    similarincidentsfortext, getshortdescforincident, similarincidentsforincident, 
+    getincidentdetails, getIncidentsByFilter,
+    # Change tools  
+    similarchangesfortext, getshortdescforchange, similarchangesforchange, getchangedetails,
+    # UR tools
+    similarURfortext, getshortdescforUR, similarURsforUR, getURdetails,
+    # Knowledge tools
+    similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles,
+    # Table tools
+    nowtestauth, nowtestauthInput
+)
 from utility_tools import nowtest
 
 mcp = FastMCP("personalmcpservicenow")
 
-# Register all tools with the MCP server
-mcp.tool()(nowtest)
-mcp.tool()(nowtestauth)
-mcp.tool()(nowtestauthInput)
-# Universal Request tools
-mcp.tool()(similarURfortext)
-mcp.tool()(getshortdescforUR)
-mcp.tool()(similarURsforUR)
-mcp.tool()(getURdetails)
-# Incident tools
-mcp.tool()(similarincidentsfortext)
-mcp.tool()(getshortdescforincident)
-mcp.tool()(similarincidentsforincident)
-mcp.tool()(getincidentdetails)
-mcp.tool()(getIncidentsByFilter)  # Registering the filter function as a tool
-# Change tools
-mcp.tool()(similarchangesfortext)
-mcp.tool()(getshortdescforchange)
-mcp.tool()(similarchangesforchange)
-mcp.tool()(getchangedetails)
-# Knowledge tools
-mcp.tool()(similar_knowledge_for_text)
-mcp.tool()(get_knowledge_by_category)
-mcp.tool()(get_active_knowledge_articles)
-mcp.tool()(get_knowledge_details)
+# Register optimized tools
+tools = [
+    nowtest, nowtestauth, nowtestauthInput,
+    similarURfortext, getshortdescforUR, similarURsforUR, getURdetails,
+    similarincidentsfortext, getshortdescforincident, similarincidentsforincident, 
+    getincidentdetails, getIncidentsByFilter,
+    similarchangesfortext, getshortdescforchange, similarchangesforchange, getchangedetails,
+    similar_knowledge_for_text, get_knowledge_by_category, get_active_knowledge_articles, get_knowledge_details
+]
 
-#Additional tools can be registered here as needed
-#Ideas: Fetch comments for incidents, changes, or URs; Fetch knowledge articles by author; Fetch active incidents or changes.
-#
+for tool in tools:
+    mcp.tool()(tool)

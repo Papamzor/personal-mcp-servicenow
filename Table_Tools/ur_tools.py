@@ -16,7 +16,7 @@ async def similarURfortext(inputText: str):
     """Get universal requests based on input text."""
     keywords = extract_keywords(inputText)
     for keyword in keywords:
-        url = f"{NWS_API_BASE}/api/now/table/u_request?sysparm_fields={','.join(COMMON_UR_FIELDS)}&sysparm_query=short_descriptionCONTAINS{keyword}"
+        url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields={','.join(COMMON_UR_FIELDS)}&sysparm_query=short_descriptionCONTAINS{keyword}"
         data = await make_nws_request(url)
         if data:
             return data
@@ -26,7 +26,7 @@ async def getshortdescforUR(inputUR: str):
     """Get short_description for a given universal request based on input universal request number."""
     keywords = extract_keywords(inputUR)
     for keyword in keywords:
-        url = f"{NWS_API_BASE}/api/now/table/u_request?sysparm_fields=short_description&sysparm_query=number={inputUR}"
+        url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields=short_description&sysparm_query=number={inputUR}"
         data = await make_nws_request(url)
         if data:
             return data

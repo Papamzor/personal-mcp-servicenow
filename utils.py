@@ -9,77 +9,54 @@ except OSError:
     print("Error: SpaCy model 'en_core_web_sm' not found. Please run 'python -m spacy download en_core_web_sm'.", file=sys.stderr)
     raise
 
-def extract_keywords(input_text: str, context: str = "general") -> List[str]:
+def extract_keywords(input_text: str, context: str = "general", max_keywords: int = 3) -> List[str]:
     """Extract relevant keywords from input text using spaCy.
     
     Args:
         input_text: The raw input text to process.
-        context: The context for keyword extraction (e.g., 'knowledge' for knowledge articles).
+        context: The context for keyword extraction.
+        max_keywords: Maximum number of keywords to return.
     
     Returns:
-        A list of cleaned and relevant keywords.
+        A list of top keywords limited by max_keywords.
     """
-    # Normalize input text
     input_text = input_text.strip().lower()
     
-    # Process text with spaCy
-    doc = nlp(input_text)
-    
-    # Extract tokens, excluding stop words, punctuation, and short tokens
-    keywords = [
-        token.lemma_ for token in doc 
-        if not token.is_stop and not token.is_punct and len(token.text) > 2
-    ]
-    
-    # Add specific identifiers based on context
-    number_patterns = [r'chg\d+', r'inc\d+', r'kb\d+']
-    matches = []
-    for pattern in number_patterns:
-        matches.extend(re.findall(pattern, input_text, re.IGNORECASE))
-    
-    # Knowledge-specific terms
-    if context == "knowledge":
-        matches.extend(re.findall(r'it|hr|facilities|sla|ritm', input_text, re.IGNORECASE))
-    
-    keywords.extend(matches)
-    
-    # Remove duplicates while preserving order
-    return list(dict.fromkeys(keywords))
-
-async def refine_query(input_text: str) -> tuple[str, Optional[str]]:
-    """Refine unclear input text and suggest clarifications if needed.
-    
-    Args:
-        input_text: The raw input text to refine.
-    
-    Returns:
-        A tuple of (refined query, clarification message or None).
-    """
-    # Normalize input
-    input_text = " ".join(input_text.strip().lower().split())
-    
-    # Check for empty or very short input
-    if not input_text or len(input_text) < 3:
-        return "", "Input is too short or empty. Please provide more details."
-    
-    # Check for specific identifiers (e.g., CHG, INC, KB numbers)
-    number_patterns = [r'chg\d+', r'inc\d+', r'kb\d+']
-    identifiers = []
+    # Quick regex check for record numbers first
+    number_patterns = [r'chg\d+', r'inc\d+', r'kb\d+', r'ritm\d+']
     for pattern in number_patterns:
         matches = re.findall(pattern, input_text, re.IGNORECASE)
-        identifiers.extend(matches)
+        if matches:
+            return matches[:1]  # Return only first match
     
-    # If an identifier is found, prioritize it
-    if identifiers:
-        return identifiers[0], None
+    # Process with spaCy for content keywords
+    doc = nlp(input_text)
     
-    # Process with spaCy for keyword extraction
-    keywords = extract_keywords(input_text, context="general")
+    # Prioritize NOUN and ADJ tokens, filter more aggressively
+    keywords = [
+        token.lemma_ for token in doc 
+        if (token.pos_ in ['NOUN', 'ADJ'] and 
+            not token.is_stop and 
+            not token.is_punct and 
+            len(token.text) > 3 and
+            token.text.isalpha())
+    ]
     
-    # If no meaningful keywords, request clarification
+    # Remove duplicates and limit results
+    unique_keywords = list(dict.fromkeys(keywords))
+    return unique_keywords[:max_keywords]
+
+async def refine_query(input_text: str) -> tuple[str, Optional[str]]:
+    """Refine input text for search queries."""
+    input_text = " ".join(input_text.strip().lower().split())
+    
+    if not input_text or len(input_text) < 3:
+        return "", "Input too short."
+    
+    # Use optimized keyword extraction
+    keywords = extract_keywords(input_text, max_keywords=2)
+    
     if not keywords:
-        return input_text, "Input is unclear. Please provide specific terms or identifiers (e.g., KB0000001, incident description)."
+        return input_text, "Please provide specific terms."
     
-    # Join keywords for refined query
-    refined_query = " ".join(keywords)
-    return refined_query, None
+    return " ".join(keywords), None
