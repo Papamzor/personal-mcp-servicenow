@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python test_connection_fix.py:*)"
+      "Bash(python test_connection_fix.py:*)",
+      "WebSearch",
+      "WebFetch(domain:www.servicenow.com)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

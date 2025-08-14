@@ -12,13 +12,13 @@ from Table_Tools.consolidated_tools import (
     # Table tools
     nowtestauth, nowtestauthInput
 )
-from utility_tools import nowtest
+from utility_tools import nowtest, nowtestoauth, nowauthinfo
 
 mcp = FastMCP("personalmcpservicenow")
 
 # Register optimized tools
 tools = [
-    nowtest, nowtestauth, nowtestauthInput,
+    nowtest, nowtestoauth, nowauthinfo, nowtestauth, nowtestauthInput,
     similarURfortext, getshortdescforUR, similarURsforUR, getURdetails,
     similarincidentsfortext, getshortdescforincident, similarincidentsforincident, 
     getincidentdetails, getIncidentsByFilter,

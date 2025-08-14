@@ -2,5 +2,7 @@ fastapi
 uvicorn
 pydantic
 spacy
+httpx
+python-dotenv
 mcp-server
 en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.0/en_core_web_sm-3.7.0.tar.gz

@@ -1,5 +1,5 @@
 
-from service_now_api import make_nws_request, NWS_API_BASE
+from service_now_api_oauth import make_nws_request, NWS_API_BASE
 from typing import Any, List, Optional
 from utils import extract_keywords, refine_query
 import re

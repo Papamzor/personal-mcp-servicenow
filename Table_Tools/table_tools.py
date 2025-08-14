@@ -1,4 +1,4 @@
-from service_now_api import make_nws_request, NWS_API_BASE
+from service_now_api_oauth import make_nws_request, NWS_API_BASE
 
 async def nowtestauth():
     """Test function to verify nowauth is running with authentication."""
