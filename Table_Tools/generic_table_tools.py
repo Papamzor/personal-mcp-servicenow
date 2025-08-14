@@ -26,7 +26,8 @@ async def query_table_by_text(table_name: str, input_text: str, detailed: bool =
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=short_descriptionCONTAINS{keyword}"
         data = await make_nws_request(url)
-        if data:
+        # Check if we got data AND it contains actual results
+        if data and data.get('result') and len(data['result']) > 0:
             return data
     return "No records found."
 
