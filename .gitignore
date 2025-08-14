@@ -4,6 +4,7 @@ __pycache__/
 /.env
 /.venv
 /Table_Tools/__pycache__/
+**/pyvenv.cfg
 
 # ...existing code...
 *.egg-info/
