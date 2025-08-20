@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 /.env
 /.venv
+/venv
 /Table_Tools/__pycache__/
 **/pyvenv.cfg
 

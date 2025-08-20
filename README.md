@@ -35,21 +35,36 @@ Before setting up the project, ensure you have the following:
 ## Installation
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/your-username/personal-mcp-servicenow.git
+   git clone https://github.com/Papamzor/personal-mcp-servicenow.git
    cd personal-mcp-servicenow
    ```
 
-2. **Install Dependencies**:
-   Install the required Python packages using pip:
+2. **Create and Activate Virtual Environment**:
    ```bash
-   pip install httpx fastmcp
+   python -m venv venv
+   
+   # On Windows:
+   venv\Scripts\activate
+   
+   # On macOS/Linux:
+   source venv/bin/activate
    ```
-   Note: Ensure the `fastmcp` package is available or install it as per its documentation.
 
-3. **Set Up ServiceNow Instance**:
+3. **Install Dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   python -m spacy download en_core_web_sm
+   ```
+
+4. **Test the Setup**:
+   ```bash
+   python Testing/test_connection_fix.py
+   ```
+
+5. **Set Up ServiceNow Instance**:
    - Log in to your ServiceNow instance.
    - Verify that the REST API is enabled (e.g., IntegrationHub plugin or equivalent).
-   - Ensure you have valid credentials with access to the `incident` table and custom API endpoints (e.g., `/api/x_146833_awesomevi/test`).
+   - Ensure you have valid credentials with access to the `incident` table and custom API endpoints.
 
 ## Configuration
 1. **Environment Setup**:
