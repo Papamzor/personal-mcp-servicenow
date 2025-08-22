@@ -26,45 +26,45 @@ DETAILED_VTB_TASK_FIELDS = COMMON_VTB_TASK_FIELDS + [
     "parent"
 ]
 
-async def similarvtbtasksfortext(inputText: str) -> dict[str, Any] | str:
-    """Get vtb_task records based on input text."""
+async def similarprivatetasksfortext(inputText: str) -> dict[str, Any] | str:
+    """Get private task records based on input text."""
     keywords = extract_keywords(inputText)
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields={','.join(COMMON_VTB_TASK_FIELDS)}&sysparm_query=short_descriptionCONTAINS{keyword}"
         data = await make_nws_request(url)
         if data and data.get('result') and len(data['result']) > 0:
             return data
-    return "No vtb_task records found."
+    return "No private task records found."
 
-async def getshortdescforvtbtask(inputvtbtask: str) -> dict[str, Any] | str:
-    """Get short_description for a given vtb_task based on input vtb_task number."""
-    url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields=short_description&sysparm_query=number={inputvtbtask}"
+async def getshortdescforprivatetask(inputprivatetask: str) -> dict[str, Any] | str:
+    """Get short_description for a given private task based on input private task number."""
+    url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields=short_description&sysparm_query=number={inputprivatetask}"
     data = await make_nws_request(url)
-    return data if data else "VTB Task not found."
+    return data if data else "Private Task not found."
 
-async def similarvtbtasksforvtbtask(inputvtbtask: str) -> dict[str, Any] | str:
-    """Get similar vtb_task records based on given vtb_task."""
+async def similarprivatetasksforprivatetask(inputprivatetask: str) -> dict[str, Any] | str:
+    """Get similar private task records based on given private task."""
     try:
-        desc_data = await getshortdescforvtbtask(inputvtbtask)
+        desc_data = await getshortdescforprivatetask(inputprivatetask)
         if isinstance(desc_data, dict) and desc_data.get('result'):
             if len(desc_data['result']) > 0:
                 desc_text = desc_data['result'][0].get('short_description', '')
                 if desc_text:
-                    return await similarvtbtasksfortext(desc_text)
+                    return await similarprivatetasksfortext(desc_text)
         return "No description found."
     except Exception as e:
         return f"Connection error: {str(e)}"
 
-async def getvtbtaskdetails(inputvtbtask: str) -> dict[str, Any] | str:
-    """Get detailed information for a given vtb_task based on input vtb_task number.
+async def getprivatetaskdetails(inputprivatetask: str) -> dict[str, Any] | str:
+    """Get detailed information for a given private task based on input private task number.
     
     Args:
-        inputvtbtask: The vtb_task number.
+        inputprivatetask: The private task number.
     
     Returns:
-        A dictionary containing vtb_task details or an error message if the request fails.
+        A dictionary containing private task details or an error message if the request fails.
     """
-    url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields={','.join(DETAILED_VTB_TASK_FIELDS)}&sysparm_query=number={inputvtbtask}"
+    url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields={','.join(DETAILED_VTB_TASK_FIELDS)}&sysparm_query=number={inputprivatetask}"
     data = await make_nws_request(url)
     if data and data.get('result'):
         results = data['result']
@@ -72,21 +72,21 @@ async def getvtbtaskdetails(inputvtbtask: str) -> dict[str, Any] | str:
             return results[0]
         elif isinstance(results, dict):
             return results
-    return "Unable to fetch vtb_task details or no vtb_task found."
+    return "Unable to fetch private task details or no private task found."
 
-async def createvtbtask(task_data: Dict[str, Any]) -> dict[str, Any] | str:
-    """Create a new vtb_task record in ServiceNow.
+async def createprivatetask(task_data: Dict[str, Any]) -> dict[str, Any] | str:
+    """Create a new private task record in ServiceNow.
     
     Args:
-        task_data: Dictionary containing the vtb_task data to create.
+        task_data: Dictionary containing the private task data to create.
                   Required fields: short_description
                   Optional fields: description, priority, assigned_to, assignment_group, due_date, parent, etc.
     
     Returns:
-        A dictionary containing the created vtb_task details or an error message if the request fails.
+        A dictionary containing the created private task details or an error message if the request fails.
     """
     if not task_data.get('short_description'):
-        return "Error: short_description is required to create a vtb_task."
+        return "Error: short_description is required to create a private task."
     
     # Validate required fields and set defaults
     create_data = {
@@ -135,22 +135,22 @@ async def createvtbtask(task_data: Dict[str, Any]) -> dict[str, Any] | str:
             if result and result.get('result'):
                 return result['result']
             else:
-                return result if result else "VTB Task created but no data returned."
+                return result if result else "Private Task created but no data returned."
                 
         except httpx.HTTPStatusError as e:
-            return f"HTTP error creating vtb_task: {e.response.status_code} - {e.response.text}"
+            return f"HTTP error creating private task: {e.response.status_code} - {e.response.text}"
         except Exception as e:
-            return f"Error creating vtb_task: {str(e)}"
+            return f"Error creating private task: {str(e)}"
 
-async def updatevtbtask(task_number: str, update_data: Dict[str, Any]) -> dict[str, Any] | str:
-    """Update an existing vtb_task record in ServiceNow.
+async def updateprivatetask(task_number: str, update_data: Dict[str, Any]) -> dict[str, Any] | str:
+    """Update an existing private task record in ServiceNow.
     
     Args:
-        task_number: The vtb_task number to update.
+        task_number: The private task number to update.
         update_data: Dictionary containing the fields to update.
     
     Returns:
-        A dictionary containing the updated vtb_task details or an error message if the request fails.
+        A dictionary containing the updated private task details or an error message if the request fails.
     """
     if not update_data:
         return "Error: No update data provided."
@@ -160,7 +160,7 @@ async def updatevtbtask(task_number: str, update_data: Dict[str, Any]) -> dict[s
     sys_id_data = await make_nws_request(sys_id_url)
     
     if not sys_id_data or not sys_id_data.get('result') or not sys_id_data['result']:
-        return "VTB Task not found for update."
+        return "Private Task not found for update."
     
     sys_id = sys_id_data['result'][0]['sys_id']
     
@@ -194,22 +194,22 @@ async def updatevtbtask(task_number: str, update_data: Dict[str, Any]) -> dict[s
             if result and result.get('result'):
                 return result['result']
             else:
-                return result if result else "VTB Task updated but no data returned."
+                return result if result else "Private Task updated but no data returned."
                 
         except httpx.HTTPStatusError as e:
-            return f"HTTP error updating vtb_task: {e.response.status_code} - {e.response.text}"
+            return f"HTTP error updating private task: {e.response.status_code} - {e.response.text}"
         except Exception as e:
-            return f"Error updating vtb_task: {str(e)}"
+            return f"Error updating private task: {str(e)}"
 
-async def getvtbtasksbyfilter(filters: Dict[str, str], fields: Optional[List[str]] = None) -> dict[str, Any] | str:
-    """Get vtb_task records with custom filters.
+async def getprivatetasksbyfilter(filters: Dict[str, str], fields: Optional[List[str]] = None) -> dict[str, Any] | str:
+    """Get private task records with custom filters.
     
     Args:
         filters: Dictionary of field-value pairs for filtering.
         fields: Optional list of fields to return.
     
     Returns:
-        A dictionary containing filtered vtb_task records or an error message.
+        A dictionary containing filtered private task records or an error message.
     """
     query_fields = fields or COMMON_VTB_TASK_FIELDS
     query_parts = []
@@ -232,4 +232,4 @@ async def getvtbtasksbyfilter(filters: Dict[str, str], fields: Optional[List[str
         url += f"&sysparm_query={sysparm_query}"
     
     data = await make_nws_request(url)
-    return data if data else "No vtb_task records found."
+    return data if data else "No private task records found."

@@ -125,15 +125,15 @@ from .kb_tools import (
     get_active_knowledge_articles
 )
 
-# VTB_TASK TOOLS - New
+# PRIVATE TASK TOOLS (vtb_task table) - New
 from .vtb_task_tools import (
-    similarvtbtasksfortext,
-    getshortdescforvtbtask,
-    similarvtbtasksforvtbtask,
-    getvtbtaskdetails,
-    createvtbtask,
-    updatevtbtask,
-    getvtbtasksbyfilter
+    similarprivatetasksfortext,
+    getshortdescforprivatetask,
+    similarprivatetasksforprivatetask,
+    getprivatetaskdetails,
+    createprivatetask,
+    updateprivatetask,
+    getprivatetasksbyfilter
 )
 
 # TABLE TOOLS - Keep existing

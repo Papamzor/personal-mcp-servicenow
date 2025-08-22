@@ -75,6 +75,44 @@ Expected Results:
 - Should handle optional parameters (kb_base, category) correctly
 ```
 
+## Test Prompt 6: Private Task Management Tools (CRUD Operations)
+```
+Test Private Task functionality with full CRUD operations (vtb_task table):
+
+### Read Operations:
+1. Call `similarprivatetasksfortext("server maintenance database backup")` to find private tasks matching text
+2. Call `getshortdescforprivatetask("VTB0001234")` to get description of a specific private task
+3. Call `getprivatetaskdetails("VTB0001234")` to get full private task details
+4. Call `similarprivatetasksforprivatetask("VTB0001234")` to find similar private tasks
+5. Call `getprivatetasksbyfilter({"state": "1", "priority": "2"}, ["number", "short_description", "assigned_to"])` with custom filters
+
+### Create Operation:
+6. Call `createprivatetask({
+    "short_description": "Test private task creation",
+    "description": "This is a test private task created via MCP",
+    "priority": "3",
+    "assigned_to": "admin"
+})` to create a new private task
+
+### Update Operation:
+7. Call `updateprivatetask("VTB0001234", {
+    "state": "2",
+    "comments": "Updated via MCP test",
+    "priority": "1"
+})` to update an existing private task
+
+Expected Results:
+- Text search should return private tasks matching keywords or "No private task records found."
+- Description lookup should return short_description field or "Private Task not found."
+- Details should return comprehensive private task information with extended fields
+- Similar task search should work based on the reference task's description
+- Filter search should return private tasks matching the specified criteria
+- Create operation should return the newly created private task details with generated number
+- Update operation should return the updated private task details or error if task not found
+- All operations should work with both OAuth 2.0 and Basic Auth
+- Note: Uses vtb_task table internally but presents as "Private Tasks" to users
+```
+
 ## Validation Checklist
 
 After running each test prompt, verify:
