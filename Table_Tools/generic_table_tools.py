@@ -8,14 +8,16 @@ ESSENTIAL_FIELDS = {
     "incident": ["number", "short_description", "priority", "state"],
     "change_request": ["number", "short_description", "priority", "state"], 
     "universal_request": ["number", "short_description", "priority", "state"],
-    "kb_knowledge": ["number", "short_description", "kb_category", "state"]
+    "kb_knowledge": ["number", "short_description", "kb_category", "state"],
+    "vtb_task": ["number", "short_description", "priority", "state"]
 }
 
 DETAIL_FIELDS = {
     "incident": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group"],
     "change_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group"],
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group"],
-    "kb_knowledge": ["number", "short_description", "kb_category", "state", "sys_created_on", "assigned_to"]
+    "kb_knowledge": ["number", "short_description", "kb_category", "state", "sys_created_on", "assigned_to"],
+    "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group"]
 }
 
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any] | str:

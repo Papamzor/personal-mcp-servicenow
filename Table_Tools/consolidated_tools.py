@@ -125,5 +125,16 @@ from .kb_tools import (
     get_active_knowledge_articles
 )
 
+# VTB_TASK TOOLS - New
+from .vtb_task_tools import (
+    similarvtbtasksfortext,
+    getshortdescforvtbtask,
+    similarvtbtasksforvtbtask,
+    getvtbtaskdetails,
+    createvtbtask,
+    updatevtbtask,
+    getvtbtasksbyfilter
+)
+
 # TABLE TOOLS - Keep existing
 from .table_tools import nowtestauth, nowtestauthInput
