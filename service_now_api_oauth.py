@@ -23,13 +23,43 @@ def _should_use_oauth():
     client_id, client_secret = _get_oauth_credentials()
     return bool(client_id and client_secret)
 
-async def make_nws_request(url: str) -> dict[str, Any] | None:
+def _extract_display_values(data: dict[str, Any]) -> dict[str, Any]:
+    """Extract display values from ServiceNow API response."""
+    if not isinstance(data, dict):
+        return data
+    
+    # Process the result array if it exists
+    if 'result' in data and isinstance(data['result'], list):
+        processed_results = []
+        for item in data['result']:
+            if isinstance(item, dict):
+                processed_item = {}
+                for key, value in item.items():
+                    if isinstance(value, dict) and 'display_value' in value:
+                        # Extract just the display value for reference fields
+                        processed_item[key] = value['display_value']
+                    else:
+                        processed_item[key] = value
+                processed_results.append(processed_item)
+            else:
+                processed_results.append(item)
+        data['result'] = processed_results
+    
+    return data
+
+async def make_nws_request(url: str, display_value: bool = True) -> dict[str, Any] | None:
     """Make a request to the ServiceNow API with OAuth or Basic Auth fallback."""
+    
+    # Add display value parameter if requested
+    if display_value and "sysparm_display_value" not in url:
+        separator = "&" if "?" in url else "?"
+        url = f"{url}{separator}sysparm_display_value=true"
     
     if _should_use_oauth():
         # Use OAuth 2.0 Client Credentials
         try:
-            return await make_oauth_request(url)
+            result = await make_oauth_request(url)
+            return _extract_display_values(result) if result and display_value else result
         except Exception as e:
             print(f"OAuth request failed, falling back to basic auth: {str(e)}")
             # Fall back to basic auth if OAuth fails
@@ -49,7 +79,8 @@ async def make_nws_request(url: str) -> dict[str, Any] | None:
         try:
             response = await client.get(url, auth=auth, headers=headers, timeout=30.0)
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+            return _extract_display_values(result) if result and display_value else result
         except Exception:
             return None
 

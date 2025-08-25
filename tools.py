@@ -9,6 +9,9 @@ from Table_Tools.consolidated_tools import (
     similarURfortext, getshortdescforUR, similarURsforUR, getURdetails,
     # Knowledge tools
     similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles,
+    # Private Task tools (vtb_task table)
+    similarprivatetasksfortext, getshortdescforprivatetask, similarprivatetasksforprivatetask, getprivatetaskdetails,
+    createprivatetask, updateprivatetask, getprivatetasksbyfilter,
     # Table tools
     nowtestauth, nowtestauthInput
 )
@@ -23,7 +26,9 @@ tools = [
     similarincidentsfortext, getshortdescforincident, similarincidentsforincident, 
     getincidentdetails, getIncidentsByFilter,
     similarchangesfortext, getshortdescforchange, similarchangesforchange, getchangedetails,
-    similar_knowledge_for_text, get_knowledge_by_category, get_active_knowledge_articles, get_knowledge_details
+    similar_knowledge_for_text, get_knowledge_by_category, get_active_knowledge_articles, get_knowledge_details,
+    similarprivatetasksfortext, getshortdescforprivatetask, similarprivatetasksforprivatetask, getprivatetaskdetails,
+    createprivatetask, updateprivatetask, getprivatetasksbyfilter
 ]
 
 for tool in tools:

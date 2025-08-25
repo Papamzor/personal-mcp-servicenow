@@ -125,5 +125,16 @@ from .kb_tools import (
     get_active_knowledge_articles
 )
 
+# PRIVATE TASK TOOLS (vtb_task table) - New
+from .vtb_task_tools import (
+    similarprivatetasksfortext,
+    getshortdescforprivatetask,
+    similarprivatetasksforprivatetask,
+    getprivatetaskdetails,
+    createprivatetask,
+    updateprivatetask,
+    getprivatetasksbyfilter
+)
+
 # TABLE TOOLS - Keep existing
 from .table_tools import nowtestauth, nowtestauthInput
