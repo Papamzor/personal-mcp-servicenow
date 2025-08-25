@@ -67,19 +67,55 @@ class TableFilterParams(BaseModel):
     fields: Optional[List[str]] = Field(None, description="Fields to return")
 
 async def query_table_with_filters(table_name: str, params: TableFilterParams) -> dict[str, Any] | str:
-    """Generic function to query table with custom filters and fields."""
+    """Generic function to query table with custom filters and fields.
+    
+    Supports multiple date filtering formats:
+    - Standard dates: "2024-01-01" or "2024-01-01 12:00:00"
+    - ServiceNow JavaScript: ">=javascript:gs.daysAgoStart(14)"
+    - Relative operators: field_gte, field_lte, field_gt, field_lt
+    
+    Examples:
+    - sys_created_on_gte: "2024-01-01"
+    - sys_created_on: ">=javascript:gs.daysAgoStart(14)"
+    """
     fields = params.fields or ESSENTIAL_FIELDS.get(table_name, ["number", "short_description"])
     
     query_parts = []
     if params.filters:
         for field, value in params.filters.items():
-            query_parts.append(f"{field}={value}")
+            # Handle direct operator syntax (e.g., ">=javascript:gs.daysAgoStart(14)")
+            if isinstance(value, str) and any(op in value for op in ['>=', '<=', '>', '<', '=']):
+                # Value already contains the operator, use as-is
+                query_parts.append(f"{field}{value}")
+            elif field.endswith('_gte'):
+                base_field = field[:-4]
+                query_parts.append(f"{base_field}>={value}")
+            elif field.endswith('_lte'):
+                base_field = field[:-4]
+                query_parts.append(f"{base_field}<={value}")
+            elif field.endswith('_gt'):
+                base_field = field[:-3]
+                query_parts.append(f"{base_field}>{value}")
+            elif field.endswith('_lt'):
+                base_field = field[:-3]
+                query_parts.append(f"{base_field}<{value}")
+            elif 'CONTAINS' in field.upper():
+                # Handle CONTAINS operations (field already formatted)
+                query_parts.append(f"{field}")
+            else:
+                # Exact match
+                query_parts.append(f"{field}={value}")
     
     query_string = "^".join(query_parts) if query_parts else ""
+    
+    # URL encode the query but preserve ServiceNow JavaScript functions
+    from urllib.parse import quote
+    encoded_query = quote(query_string, safe='=<>&^():.')
+    
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}"
     
-    if query_string:
-        url += f"&sysparm_query={query_string}"
+    if encoded_query:
+        url += f"&sysparm_query={encoded_query}"
     
     data = await make_nws_request(url)
     return data if data else "No records found."

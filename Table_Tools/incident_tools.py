@@ -72,20 +72,52 @@ async def getincidentdetails(inputincident: str) -> dict[str, Any] | str:
     return "Unable to fetch incident details or no incident found."
 
 async def getIncidentsByFilter(params: IncidentFilterParams) -> dict[str, Any] | str:
+    """Get incidents based on filters with proper date handling.
+    
+    Supports multiple date formats:
+    - Standard dates: "2024-01-01" or "2024-01-01 12:00:00"
+    - ServiceNow JavaScript: "javascript:gs.daysAgoStart(14)"
+    - Relative operators: sys_created_on_gte, sys_created_on_lte, etc.
+    
+    Examples:
+    - sys_created_on_gte: "2024-01-01"
+    - sys_created_on: ">=javascript:gs.daysAgoStart(14)"
+    """
     fields = params.fields or COMMON_INCIDENT_FIELDS
     query_parts = []
     if params.filters:
         for field, value in params.filters.items():
-            if field.endswith('_gte'):
+            # Handle direct operator syntax (e.g., ">=javascript:gs.daysAgoStart(14)")
+            if isinstance(value, str) and any(op in value for op in ['>=', '<=', '>', '<', '=']):
+                # Value already contains the operator, use as-is
+                query_parts.append(f"{field}{value}")
+            elif field.endswith('_gte'):
                 base_field = field[:-4]
                 query_parts.append(f"{base_field}>={value}")
             elif field.endswith('_lte'):
                 base_field = field[:-4]
                 query_parts.append(f"{base_field}<={value}")
+            elif field.endswith('_gt'):
+                base_field = field[:-3]
+                query_parts.append(f"{base_field}>{value}")
+            elif field.endswith('_lt'):
+                base_field = field[:-3]
+                query_parts.append(f"{base_field}<{value}")
+            elif 'CONTAINS' in field.upper():
+                # Handle CONTAINS operations
+                query_parts.append(f"{field}")
             else:
+                # Exact match or contains operator in value
                 query_parts.append(f"{field}={value}")
+    
     sysparm_query = "^".join(query_parts) if query_parts else ""
-    url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields={','.join(fields)}&sysparm_query={sysparm_query}"
+    
+    # URL encode the query, but preserve ServiceNow JavaScript functions
+    from urllib.parse import quote
+    # Don't encode javascript: functions and common operators
+    encoded_query = quote(sysparm_query, safe='=<>&^():.')
+    
+    url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields={','.join(fields)}&sysparm_query={encoded_query}"
     data = await make_nws_request(url)
     if data and data.get('result'):
         return data
