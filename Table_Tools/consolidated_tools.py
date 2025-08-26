@@ -138,3 +138,13 @@ from .vtb_task_tools import (
 
 # TABLE TOOLS - Keep existing
 from .table_tools import nowtestauth, nowtestauthInput
+
+# CMDB TOOLS - CI Discovery & Search
+from .cmdb_tools import (
+    findCIsByType,
+    searchCIsByAttributes,
+    getCIDetails,
+    similarCIsForCI,
+    getAllCITypes,
+    quickCISearch
+)

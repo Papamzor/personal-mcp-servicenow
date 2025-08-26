@@ -13,7 +13,9 @@ from Table_Tools.consolidated_tools import (
     similarprivatetasksfortext, getshortdescforprivatetask, similarprivatetasksforprivatetask, getprivatetaskdetails,
     createprivatetask, updateprivatetask, getprivatetasksbyfilter,
     # Table tools
-    nowtestauth, nowtestauthInput
+    nowtestauth, nowtestauthInput,
+    # CMDB tools
+    findCIsByType, searchCIsByAttributes, getCIDetails, similarCIsForCI, getAllCITypes, quickCISearch
 )
 from utility_tools import nowtest, nowtestoauth, nowauthinfo
 
@@ -28,7 +30,9 @@ tools = [
     similarchangesfortext, getshortdescforchange, similarchangesforchange, getchangedetails,
     similar_knowledge_for_text, get_knowledge_by_category, get_active_knowledge_articles, get_knowledge_details,
     similarprivatetasksfortext, getshortdescforprivatetask, similarprivatetasksforprivatetask, getprivatetaskdetails,
-    createprivatetask, updateprivatetask, getprivatetasksbyfilter
+    createprivatetask, updateprivatetask, getprivatetasksbyfilter,
+    # CMDB tools
+    findCIsByType, searchCIsByAttributes, getCIDetails, similarCIsForCI, getAllCITypes, quickCISearch
 ]
 
 for tool in tools:
