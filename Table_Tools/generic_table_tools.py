@@ -60,7 +60,7 @@ async def find_similar_records(table_name: str, record_number: str) -> dict[str,
                 return await query_table_by_text(table_name, desc_text)
         return "No description found."
     except Exception as e:
-        return f"Connection error: {str(e)}"
+        return "Connection error: Request failed"
 
 class TableFilterParams(BaseModel):
     filters: Optional[Dict[str, str]] = Field(None, description="Field-value pairs for filtering")

@@ -53,7 +53,7 @@ async def similarprivatetasksforprivatetask(inputprivatetask: str) -> dict[str, 
                     return await similarprivatetasksfortext(desc_text)
         return "No description found."
     except Exception as e:
-        return f"Connection error: {str(e)}"
+        return "Connection error: Request failed"
 
 async def getprivatetaskdetails(inputprivatetask: str) -> dict[str, Any] | str:
     """Get detailed information for a given private task based on input private task number.
@@ -116,7 +116,7 @@ async def createprivatetask(task_data: Dict[str, Any]) -> dict[str, Any] | str:
     
     url = f"{NWS_API_BASE}/api/now/table/vtb_task"
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(verify=True) as client:
         try:
             if _should_use_oauth():
                 # Use OAuth authentication
@@ -140,7 +140,7 @@ async def createprivatetask(task_data: Dict[str, Any]) -> dict[str, Any] | str:
         except httpx.HTTPStatusError as e:
             return f"HTTP error creating private task: {e.response.status_code} - {e.response.text}"
         except Exception as e:
-            return f"Error creating private task: {str(e)}"
+            return "Error creating private task: Request failed"
 
 async def updateprivatetask(task_number: str, update_data: Dict[str, Any]) -> dict[str, Any] | str:
     """Update an existing private task record in ServiceNow.
@@ -175,7 +175,7 @@ async def updateprivatetask(task_number: str, update_data: Dict[str, Any]) -> di
     
     url = f"{NWS_API_BASE}/api/now/table/vtb_task/{sys_id}"
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(verify=True) as client:
         try:
             if _should_use_oauth():
                 # Use OAuth authentication
@@ -199,7 +199,7 @@ async def updateprivatetask(task_number: str, update_data: Dict[str, Any]) -> di
         except httpx.HTTPStatusError as e:
             return f"HTTP error updating private task: {e.response.status_code} - {e.response.text}"
         except Exception as e:
-            return f"Error updating private task: {str(e)}"
+            return "Error updating private task: Request failed"
 
 async def getprivatetasksbyfilter(filters: Dict[str, str], fields: Optional[List[str]] = None) -> dict[str, Any] | str:
     """Get private task records with custom filters.

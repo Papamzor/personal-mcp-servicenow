@@ -61,7 +61,7 @@ async def make_nws_request(url: str, display_value: bool = True) -> dict[str, An
             result = await make_oauth_request(url)
             return _extract_display_values(result) if result and display_value else result
         except Exception as e:
-            print(f"OAuth request failed, falling back to basic auth: {str(e)}")
+            print("OAuth request failed, falling back to basic auth: [Error details omitted for security]")
             # Fall back to basic auth if OAuth fails
     
     # Basic Auth fallback
@@ -75,7 +75,7 @@ async def make_nws_request(url: str, display_value: bool = True) -> dict[str, An
     }
     auth = (SERVICENOW_USERNAME, SERVICENOW_PASSWORD)
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(verify=True) as client:
         try:
             response = await client.get(url, auth=auth, headers=headers, timeout=30.0)
             response.raise_for_status()

@@ -49,7 +49,7 @@ async def make_nws_request(url: str, display_value: bool = True) -> dict[str, An
         separator = "&" if "?" in url else "?"
         url = f"{url}{separator}sysparm_display_value=true"
     
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(verify=True) as client:
         try:
             response = await client.get(url, auth=auth, headers=headers, timeout=30.0)
             response.raise_for_status()

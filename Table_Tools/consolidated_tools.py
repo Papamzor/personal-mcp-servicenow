@@ -38,7 +38,7 @@ async def similarincidentsforincident(inputincident: str) -> dict[str, Any] | st
                     return await similarincidentsfortext(desc_text)
         return "No description found."
     except Exception as e:
-        return f"Connection error: {str(e)}"
+        return "Connection error: Request failed"
 
 async def getincidentdetails(inputincident: str) -> dict[str, Any] | str:
     """Get detailed incident information."""
@@ -77,7 +77,7 @@ async def similarchangesforchange(inputchange: str) -> dict[str, Any] | str:
                     return await similarchangesfortext(desc_text)
         return "No description found."
     except Exception as e:
-        return f"Connection error: {str(e)}"
+        return "Connection error: Request failed"
 
 async def getchangedetails(inputchange: str) -> dict[str, Any] | str:
     """Get detailed change information."""
@@ -111,7 +111,7 @@ async def similarURsforUR(inputUR: str) -> dict[str, Any] | str:
                     return await similarURfortext(desc_text)
         return "No description found."
     except Exception as e:
-        return f"Connection error: {str(e)}"
+        return "Connection error: Request failed"
 
 async def getURdetails(inputUR: str) -> dict[str, Any] | str:
     """Get detailed UR information."""

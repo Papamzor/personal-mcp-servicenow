@@ -48,7 +48,7 @@ class ServiceNowOAuthClient:
         
         data = "grant_type=client_credentials"
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=True) as client:
             try:
                 response = await client.post(
                     self.token_endpoint,
@@ -105,7 +105,7 @@ class ServiceNowOAuthClient:
             headers.update(kwargs["headers"])
         kwargs["headers"] = headers
         
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=True) as client:
             try:
                 response = await client.request(method, url, timeout=30.0, **kwargs)
                 response.raise_for_status()
