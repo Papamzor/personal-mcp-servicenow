@@ -138,7 +138,14 @@ async def createprivatetask(task_data: Dict[str, Any]) -> dict[str, Any] | str:
                 return result if result else "Private Task created but no data returned."
                 
         except httpx.HTTPStatusError as e:
-            return f"HTTP error creating private task: {e.response.status_code} - {e.response.text}"
+            if e.response.status_code == 401:
+                return "Error creating private task: Authentication failed"
+            elif e.response.status_code == 403:
+                return "Error creating private task: Access denied"
+            elif e.response.status_code == 400:
+                return "Error creating private task: Invalid request data"
+            else:
+                return "Error creating private task: Server error"
         except Exception as e:
             return "Error creating private task: Request failed"
 
@@ -197,7 +204,16 @@ async def updateprivatetask(task_number: str, update_data: Dict[str, Any]) -> di
                 return result if result else "Private Task updated but no data returned."
                 
         except httpx.HTTPStatusError as e:
-            return f"HTTP error updating private task: {e.response.status_code} - {e.response.text}"
+            if e.response.status_code == 401:
+                return "Error updating private task: Authentication failed"
+            elif e.response.status_code == 403:
+                return "Error updating private task: Access denied"
+            elif e.response.status_code == 400:
+                return "Error updating private task: Invalid request data"
+            elif e.response.status_code == 404:
+                return "Error updating private task: Task not found"
+            else:
+                return "Error updating private task: Server error"
         except Exception as e:
             return "Error updating private task: Request failed"
 

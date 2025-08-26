@@ -59,9 +59,14 @@ class ServiceNowOAuthClient:
                 response.raise_for_status()
                 return response.json()
             except httpx.HTTPStatusError as e:
-                raise Exception(f"OAuth token request failed: {e.response.status_code} {e.response.text}")
+                if e.response.status_code == 401:
+                    raise Exception("OAuth token request failed: Invalid client credentials")
+                elif e.response.status_code == 403:
+                    raise Exception("OAuth token request failed: Access denied")
+                else:
+                    raise Exception("OAuth token request failed: Server error")
             except Exception as e:
-                raise Exception(f"OAuth token request error: {str(e)}")
+                raise Exception("OAuth token request error: Connection failed")
     
     async def _get_valid_token(self) -> str:
         """Get a valid access token, refreshing if necessary."""
