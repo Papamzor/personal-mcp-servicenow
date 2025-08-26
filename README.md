@@ -12,11 +12,11 @@ This project implements a production-ready MCP server using the FastMCP framewor
 
 ## ✨ Key Features
 
-### 🔐 **Advanced Authentication**
-- **OAuth 2.0 Client Credentials** - Primary authentication with automatic token management
-- **Basic Authentication Fallback** - Seamless fallback for environments without OAuth
-- **Automatic Token Refresh** - Built-in token expiration handling with 5-minute buffer
-- **Multi-Auth Detection** - Automatically selects best available authentication method
+### 🔐 **Secure OAuth 2.0 Authentication**
+- **OAuth 2.0 Client Credentials** - Exclusive authentication method for maximum security
+- **Automatic Token Management** - Built-in token refresh and expiration handling
+- **Zero Password Storage** - No username/password credentials required or stored
+- **Enterprise Security** - Industry-standard OAuth 2.0 implementation
 
 ### 🗄️ **Comprehensive Table Support**
 - **Incidents** - Full similarity search, details, and filtering capabilities
@@ -112,9 +112,7 @@ Applications           Facilities                  Specialized Equipment
 - **Python 3.8+**
 - **ServiceNow Instance** (Developer, Enterprise, or higher)
 - **API Access** - REST API enabled with appropriate permissions
-- **Authentication Credentials**:
-  - OAuth 2.0: `CLIENT_ID` and `CLIENT_SECRET` (recommended)
-  - Basic Auth: `USERNAME` and `PASSWORD` (fallback)
+- **OAuth 2.0 Credentials**: `CLIENT_ID` and `CLIENT_SECRET` (contact maintainer)
 
 ## 🚀 Quick Start
 
@@ -135,18 +133,16 @@ python -m spacy download en_core_web_sm
 ### 2. **Configuration**
 Create `.env` file in project root:
 ```bash
-# Primary: OAuth 2.0 Authentication (Recommended)
+# OAuth 2.0 Authentication (Required)
 SERVICENOW_INSTANCE=https://your-instance.service-now.com
 SERVICENOW_CLIENT_ID=your_oauth_client_id
 SERVICENOW_CLIENT_SECRET=your_oauth_client_secret
-
-# Fallback: Basic Authentication
-SERVICENOW_USERNAME=your_username
-SERVICENOW_PASSWORD=your_password
 ```
 
-### 3. **OAuth 2.0 Setup** (Recommended)
-See [OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md) for complete ServiceNow OAuth configuration.
+⚠️ **OAuth 2.0 Credentials Required**: This application exclusively uses OAuth 2.0 authentication for security. Contact the project maintainer to obtain OAuth client credentials for your ServiceNow instance.
+
+### 3. **OAuth 2.0 Setup**
+See [OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md) for complete ServiceNow OAuth configuration, or contact the maintainer for pre-configured credentials.
 
 ### 4. **Verification**
 ```bash
@@ -269,18 +265,19 @@ Contributions welcome! Please see [Contributing Guidelines](CONTRIBUTING.md).
 
 ## 🔐 Security
 
-- OAuth 2.0 best practices with automatic token management
-- Secure credential storage via environment variables
-- No hardcoded secrets or credentials
-- Proper API scope management and permissions
-- Comprehensive error handling without information disclosure
+- **OAuth 2.0 Exclusive** - No username/password authentication supported
+- **Zero Password Storage** - Enhanced security through OAuth-only approach
+- **Automatic Token Management** - Secure token refresh and expiration handling
+- **Environment-Based Config** - All credentials via environment variables only
+- **Proper API Scoping** - Controlled permissions and access management
+- **No Credential Exposure** - Comprehensive error handling without information disclosure
 
 ## 📊 Project Statistics
 
 - **100+ CMDB CI Types** automatically discovered and supported
 - **50-60% Token Usage Reduction** through optimization
 - **6 Major ServiceNow Tables** fully supported with CRUD operations
-- **5 Authentication Methods** supported with automatic fallback
+- **OAuth 2.0 Exclusive** - Enhanced security with single authentication method
 - **20+ Available Tools** for comprehensive ServiceNow operations
 - **Full Test Coverage** with 10+ test scenarios
 
