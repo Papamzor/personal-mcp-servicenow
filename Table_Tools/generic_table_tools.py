@@ -13,11 +13,11 @@ ESSENTIAL_FIELDS = {
 }
 
 DETAIL_FIELDS = {
-    "incident": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group"],
-    "change_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group"],
-    "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group"],
+    "incident": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
+    "change_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
+    "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments"],
     "kb_knowledge": ["number", "short_description", "kb_category", "state", "sys_created_on", "assigned_to"],
-    "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group"]
+    "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"]
 }
 
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any] | str:
@@ -42,7 +42,7 @@ async def get_record_description(table_name: str, record_number: str) -> dict[st
 async def get_record_details(table_name: str, record_number: str) -> dict[str, Any] | str:
     """Generic function to get detailed information for any record."""
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
-    url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=number={record_number}"
+    url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=number={record_number}&sysparm_display_value=true"
     data = await make_nws_request(url)
     return data if data else "Record not found."
 
@@ -112,7 +112,7 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
     from urllib.parse import quote
     encoded_query = quote(query_string, safe='=<>&^():.')
     
-    url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}"
+    url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
     
     if encoded_query:
         url += f"&sysparm_query={encoded_query}"
