@@ -161,7 +161,52 @@ python -c "import asyncio; from utility_tools import nowtestoauth; print(asyncio
 - **Step 2**: Tests actual ServiceNow API connectivity and CMDB functionality
 - **Step 3**: Tests OAuth authentication flow with your ServiceNow instance
 
-### 5. **Run MCP Server**
+### 5. **Claude Desktop Integration**
+
+To use this MCP server with Claude Desktop, add the following configuration to your Claude Desktop settings:
+
+**Location of config file:**
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+**Add this configuration:**
+```json
+{
+  "mcpServers": {
+    "servicenow": {
+      "command": "python",
+      "args": ["/full/path/to/personal-mcp-servicenow/tools.py"],
+      "env": {
+        "SERVICENOW_INSTANCE": "https://your-instance.service-now.com",
+        "SERVICENOW_CLIENT_ID": "your_oauth_client_id",
+        "SERVICENOW_CLIENT_SECRET": "your_oauth_client_secret"
+      }
+    }
+  }
+}
+```
+
+**Important Notes:**
+- Replace `/full/path/to/personal-mcp-servicenow/` with your actual installation path
+- Replace the environment variables with your actual ServiceNow credentials
+- Restart Claude Desktop after adding this configuration
+- The server will auto-start when Claude Desktop launches
+
+**Alternative: Using .env file (Recommended)**
+If you prefer to keep credentials in your `.env` file:
+```json
+{
+  "mcpServers": {
+    "servicenow": {
+      "command": "python",
+      "args": ["/full/path/to/personal-mcp-servicenow/tools.py"]
+    }
+  }
+}
+```
+
+### 6. **Standalone Server (Optional)**
+To run the MCP server independently:
 ```bash
 python tools.py
 ```
