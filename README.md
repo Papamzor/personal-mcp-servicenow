@@ -197,25 +197,17 @@ MCP Server (FastMCP Framework)
 The project includes comprehensive testing capabilities:
 
 ### **Test Categories**
-- **OAuth Testing** - Complete OAuth 2.0 flow validation
-- **Connection Testing** - API connectivity and authentication
-- **CMDB Testing** - Configuration Item discovery and search
-- **Date Filtering** - Advanced query parameter testing
-- **Integration Testing** - End-to-end workflow validation
+- **OAuth Testing** - OAuth 2.0 client creation and environment validation
+- **CMDB Testing** - Configuration Item discovery and ServiceNow connectivity
+- **Integration Testing** - End-to-end OAuth authentication with ServiceNow
 
 ### **Run Tests**
 ```bash
-# Quick connectivity test
-python Testing/test_connection_fix.py
+# Test environment setup (offline)
+python -m Testing.test_oauth_simple
 
-# OAuth authentication test
-python Testing/test_oauth_simple.py
-
-# CMDB functionality test
-python Testing/test_cmdb_tools.py
-
-# Comprehensive OAuth test
-python Testing/test_oauth.py
+# Test ServiceNow connectivity and CMDB functionality
+python -m Testing.test_cmdb_tools
 ```
 
 ## 📈 Performance & Optimization
