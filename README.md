@@ -146,15 +146,20 @@ See [OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md) for complete ServiceNow OAuth c
 
 ### 4. **Verification**
 ```bash
-# Test basic connectivity
-python Testing/test_connection_fix.py
+# Test environment setup (local test - no ServiceNow connection needed), expected result 2/3 pass (.env file should not be readable)
+python -m Testing.test_oauth_simple
 
-# Test OAuth authentication
-python Testing/test_oauth_simple.py
+# Test actual ServiceNow connectivity by running some CMDB tools (requires valid .env configuration)
+python -m Testing.test_cmdb_tools
 
-# Test CMDB functionality
-python Testing/test_cmdb_tools.py
+# Test OAuth with your ServiceNow instance (requires OAuth setup), should return token validity details
+python -c "import asyncio; from utility_tools import nowtestoauth; print(asyncio.run(nowtestoauth()))"
 ```
+
+**Verification Steps Explained:**
+- **Step 1**: Tests OAuth client creation and environment variables (offline test)
+- **Step 2**: Tests actual ServiceNow API connectivity and CMDB functionality
+- **Step 3**: Tests OAuth authentication flow with your ServiceNow instance
 
 ### 5. **Run MCP Server**
 ```bash
