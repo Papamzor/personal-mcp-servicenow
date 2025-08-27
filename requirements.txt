@@ -1,4 +1,5 @@
-fastapi>=0.100.0
+fastapi>=0.109.1
+starlette>=0.40.0
 uvicorn>=0.23.0
 pydantic>=2.0.0
 spacy>=3.7.0
@@ -7,4 +8,5 @@ httpcore>=1.0.9
 h11>=0.16.0
 python-dotenv>=1.0.0
 mcp-server>=0.1.0
+zipp>=3.19.1
 en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.0/en_core_web_sm-3.7.0.tar.gz
