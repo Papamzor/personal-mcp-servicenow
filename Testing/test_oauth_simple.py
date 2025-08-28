@@ -31,7 +31,7 @@ def test_environment_setup():
         print("All OAuth environment variables are configured")
         return True
 
-async def test_oauth_client_creation():
+def test_oauth_client_creation():
     """Test OAuth client creation and configuration."""
     print("\n=== Testing OAuth Client Creation ===")
     

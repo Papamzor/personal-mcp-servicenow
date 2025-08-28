@@ -46,7 +46,7 @@ def extract_keywords(input_text: str, context: str = "general", max_keywords: in
     unique_keywords = list(dict.fromkeys(keywords))
     return unique_keywords[:max_keywords]
 
-async def refine_query(input_text: str) -> tuple[str, Optional[str]]:
+def refine_query(input_text: str) -> tuple[str, Optional[str]]:
     """Refine input text for search queries."""
     input_text = " ".join(input_text.strip().lower().split())
     

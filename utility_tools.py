@@ -1,6 +1,6 @@
 from service_now_api_oauth import test_oauth_connection, get_auth_info
 
-async def nowtest():
+def nowtest():
     """Test function to verify mcp is running."""
     return "Server is running and ready to handle requests!"
 
