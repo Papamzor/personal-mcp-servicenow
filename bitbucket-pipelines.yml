@@ -11,16 +11,13 @@ definitions:
     sonar: ~/.sonar/cache
 
 pipelines:
-  branches:
-    "Feature/SonarCloud":
+  default:
     - step:
         name: Security & Quality Scan
         caches:
           - sonar
           - docker
         script:
-        
-
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
               SONAR_TOKEN: $SONAR_TOKEN
