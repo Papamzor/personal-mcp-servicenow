@@ -158,7 +158,7 @@ async def findCIsByType(ci_type: str, detailed: bool = False) -> dict[str, Any] 
             }
         return f"No CIs found for type: {ci_type}"
         
-    except Exception as e:
+    except Exception:
         return "Error searching CIs by type: Request failed"
 
 async def searchCIsByAttributes(
@@ -223,7 +223,7 @@ async def searchCIsByAttributes(
             }
         return "No CIs found matching search criteria"
         
-    except Exception as e:
+    except Exception:
         return "Error searching CIs: Request failed"
 
 async def getCIDetails(ci_number: str, ci_type: Optional[str] = None) -> dict[str, Any] | str:
@@ -315,7 +315,7 @@ async def similarCIsForCI(ci_number: str) -> dict[str, Any] | str:
         
         return f"No similar CIs found for {ci_number}"
         
-    except Exception as e:
+    except Exception:
         return "Error finding similar CIs: Request failed"
 
 async def getAllCITypes() -> dict[str, Any] | str:
@@ -348,7 +348,7 @@ async def getAllCITypes() -> dict[str, Any] | str:
         
         return "No CI types found"
         
-    except Exception as e:
+    except Exception:
         return "Error getting CI types: Request failed"
 
 # Convenience function for quick CI search
@@ -386,5 +386,5 @@ async def quickCISearch(search_term: str) -> dict[str, Any] | str:
         
         return f"No CIs found for search term: {search_term}"
         
-    except Exception as e:
+    except Exception:
         return "Error in quick CI search: Request failed"
