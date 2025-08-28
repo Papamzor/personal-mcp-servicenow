@@ -20,7 +20,6 @@ pipelines:
           - docker
         script:
         
-          - pip install -r requirements.txt
 
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
