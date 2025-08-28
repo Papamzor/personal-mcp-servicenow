@@ -26,9 +26,9 @@ DETAILED_VTB_TASK_FIELDS = COMMON_VTB_TASK_FIELDS + [
     "parent"
 ]
 
-async def similarprivatetasksfortext(inputText: str) -> dict[str, Any] | str:
+async def similarprivatetasksfortext(input_text: str) -> dict[str, Any] | str:
     """Get private task records based on input text."""
-    keywords = extract_keywords(inputText)
+    keywords = extract_keywords(input_text)
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields={','.join(COMMON_VTB_TASK_FIELDS)}&sysparm_query=short_descriptionCONTAINS{keyword}"
         data = await make_nws_request(url)
@@ -36,35 +36,35 @@ async def similarprivatetasksfortext(inputText: str) -> dict[str, Any] | str:
             return data
     return "No private task records found."
 
-async def getshortdescforprivatetask(inputprivatetask: str) -> dict[str, Any] | str:
+async def getshortdescforprivatetask(input_private_task: str) -> dict[str, Any] | str:
     """Get short_description for a given private task based on input private task number."""
-    url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields=short_description&sysparm_query=number={inputprivatetask}"
+    url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields=short_description&sysparm_query=number={input_private_task}"
     data = await make_nws_request(url)
     return data if data else "Private Task not found."
 
-async def similarprivatetasksforprivatetask(inputprivatetask: str) -> dict[str, Any] | str:
+async def similarprivatetasksforprivatetask(input_private_task: str) -> dict[str, Any] | str:
     """Get similar private task records based on given private task."""
     try:
-        desc_data = await getshortdescforprivatetask(inputprivatetask)
+        desc_data = await getshortdescforprivatetask(input_private_task)
         if isinstance(desc_data, dict) and desc_data.get('result'):
             if len(desc_data['result']) > 0:
                 desc_text = desc_data['result'][0].get('short_description', '')
                 if desc_text:
                     return await similarprivatetasksfortext(desc_text)
         return "No description found."
-    except Exception as e:
+    except Exception:
         return "Connection error: Request failed"
 
-async def getprivatetaskdetails(inputprivatetask: str) -> dict[str, Any] | str:
+async def getprivatetaskdetails(input_private_task: str) -> dict[str, Any] | str:
     """Get detailed information for a given private task based on input private task number.
     
     Args:
-        inputprivatetask: The private task number.
+        input_private_task: The private task number.
     
     Returns:
         A dictionary containing private task details or an error message if the request fails.
     """
-    url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields={','.join(DETAILED_VTB_TASK_FIELDS)}&sysparm_query=number={inputprivatetask}"
+    url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields={','.join(DETAILED_VTB_TASK_FIELDS)}&sysparm_query=number={input_private_task}"
     data = await make_nws_request(url)
     if data and data.get('result'):
         results = data['result']
@@ -146,7 +146,7 @@ async def createprivatetask(task_data: Dict[str, Any]) -> dict[str, Any] | str:
                 return "Error creating private task: Invalid request data"
             else:
                 return "Error creating private task: Server error"
-        except Exception as e:
+        except Exception:
             return "Error creating private task: Request failed"
 
 async def updateprivatetask(task_number: str, update_data: Dict[str, Any]) -> dict[str, Any] | str:
@@ -214,7 +214,7 @@ async def updateprivatetask(task_number: str, update_data: Dict[str, Any]) -> di
                 return "Error updating private task: Task not found"
             else:
                 return "Error updating private task: Server error"
-        except Exception as e:
+        except Exception:
             return "Error updating private task: Request failed"
 
 async def getprivatetasksbyfilter(filters: Dict[str, str], fields: Optional[List[str]] = None) -> dict[str, Any] | str:

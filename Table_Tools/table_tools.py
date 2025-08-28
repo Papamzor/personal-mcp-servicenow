@@ -8,9 +8,9 @@ async def nowtestauth():
         return "Unable to fetch alerts or no alerts found."
     return data
 
-async def nowtestauthInput(tableName: str):
+async def nowtestauthInput(table_name: str):
     """Get ServiceNow table description for a given table."""
-    url = f"{NWS_API_BASE}/api/x_146833_awesomevi/test/{tableName}"
+    url = f"{NWS_API_BASE}/api/x_146833_awesomevi/test/{table_name}"
     data = await make_nws_request(url)
     if not data:
         return "Unable to fetch alerts or no alerts found."

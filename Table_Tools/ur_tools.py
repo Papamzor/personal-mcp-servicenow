@@ -12,9 +12,9 @@ COMMON_UR_FIELDS = [
     "assignment_group"
 ]
 
-async def similarURfortext(inputText: str):
+async def similarURfortext(input_text: str):
     """Get universal requests based on input text."""
-    keywords = extract_keywords(inputText)
+    keywords = extract_keywords(input_text)
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields={','.join(COMMON_UR_FIELDS)}&sysparm_query=short_descriptionCONTAINS{keyword}"
         data = await make_nws_request(url)
@@ -22,26 +22,26 @@ async def similarURfortext(inputText: str):
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def getshortdescforUR(inputUR: str):
+async def getshortdescforUR(input_ur: str):
     """Get short_description for a given universal request based on input universal request number."""
-    keywords = extract_keywords(inputUR)
+    keywords = extract_keywords(input_ur)
     for keyword in keywords:
-        url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields=short_description&sysparm_query=number={inputUR}"
+        url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields=short_description&sysparm_query=number={input_ur}"
         data = await make_nws_request(url)
         if data:
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def similarURsforUR(inputUR: str):
+async def similarURsforUR(input_ur: str):
     """Get similar universal requests based on given universal request."""
-    inputText = await getshortdescforUR(inputUR)
-    return await similarURfortext(inputText)
+    input_text = await getshortdescforUR(input_ur)
+    return await similarURfortext(input_text)
 
-async def getURdetails(inputUR: str) -> dict[str, Any] | str:
+async def getURdetails(input_ur: str) -> dict[str, Any] | str:
     """Get detailed information for a given universal request based on input universal request number.
     
     Args:
-        inputur: The universal request number (e.g., 'UR0000001').
+        input_ur: The universal request number (e.g., 'UR0000001').
     
     Returns:
         A dictionary containing universal request details or an error message if the request fails.
@@ -51,7 +51,7 @@ async def getURdetails(inputUR: str) -> dict[str, Any] | str:
         "comments",
         "sys_updated_on"
     ]
-    url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields={','.join(fields)}&sysparm_query=number={inputUR}"
+    url = f"{NWS_API_BASE}/api/now/table/universal_request?sysparm_fields={','.join(fields)}&sysparm_query=number={input_ur}"
     data = await make_nws_request(url)
     if data and data.get('result'):
         results = data['result']

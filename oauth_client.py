@@ -65,7 +65,7 @@ class ServiceNowOAuthClient:
                     raise Exception("OAuth token request failed: Access denied")
                 else:
                     raise Exception("OAuth token request failed: Server error")
-            except Exception as e:
+            except Exception:
                 raise Exception("OAuth token request error: Connection failed")
     
     async def _get_valid_token(self) -> str:

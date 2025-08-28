@@ -19,9 +19,9 @@ COMMON_INCIDENT_FIELDS = [
     "assignment_group"
 ]
 
-async def similarincidentsfortext(inputText: str):
+async def similarincidentsfortext(input_text: str):
     """Get incidents based on input text."""
-    keywords = extract_keywords(inputText)
+    keywords = extract_keywords(input_text)
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields={','.join(COMMON_INCIDENT_FIELDS)}&sysparm_query=short_descriptionCONTAINS{keyword}"
         data = await make_nws_request(url)

@@ -13,9 +13,9 @@ COMMON_CHANGE_FIELDS = [
     "assignment_group"
 ]
 
-async def similarchangesfortext(inputText: str):
+async def similarchangesfortext(input_text: str):
     """Get changes based on input text."""
-    keywords = extract_keywords(inputText)
+    keywords = extract_keywords(input_text)
     for keyword in keywords:
         url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields={','.join(COMMON_CHANGE_FIELDS)}&sysparm_query=short_descriptionCONTAINS{keyword}"
         data = await make_nws_request(url)
