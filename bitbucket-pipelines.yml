@@ -1,0 +1,34 @@
+image: alpine
+
+clone:
+  depth: full # SonarQube Cloud scanner needs the full history to assign issues properly
+
+definitions:
+  services:
+    docker:
+      memory: 2048
+  caches:
+    sonar: ~/.sonar/cache
+
+pipelines:
+  branches:
+    "Feature/SonarCloud":
+    - step:
+        name: Security & Quality Scan
+        caches:
+          - sonar
+          - docker
+        script:
+        
+          - pip install -r requirements.txt
+
+          - pipe: sonarsource/sonarcloud-scan:4.1.0
+            variables:
+              SONAR_TOKEN: $SONAR_TOKEN
+          - pipe: snyk/snyk-scan:1.0.2
+            variables:
+              SNYK_TOKEN: $SNYK_API_KEY
+              LANGUAGE: "node"
+              SEVERITY_THRESHOLD: "high"
+              CODE_INSIGHTS_RESULTS: "true"
+              DONT_BREAK_BUILD: "true"
