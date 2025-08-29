@@ -25,13 +25,9 @@ async def similarchangesfortext(input_text: str):
 
 async def getshortdescforchange(inputchange: str):
     """Get short_description for a given change based on input change number."""
-    keywords = extract_keywords(inputchange)
-    for keyword in keywords:
-        url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields=short_description&sysparm_query=number={inputchange}"
-        data = await make_nws_request(url)
-        if data:
-            return data
-    return "Unable to fetch alerts or no alerts found."
+    url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields=short_description&sysparm_query=number={inputchange}"
+    data = await make_nws_request(url)
+    return data if data else "Change not found."
 
 async def similarchangesforchange(inputchange: str):
     """Get similar changes based on given change."""

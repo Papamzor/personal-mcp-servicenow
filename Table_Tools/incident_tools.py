@@ -31,13 +31,9 @@ async def similarincidentsfortext(input_text: str):
 
 async def getshortdescforincident(inputincident: str):
     """Get short_description for a given incident based on input incident number."""
-    keywords = extract_keywords(inputincident)
-    for keyword in keywords:
-        url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields=short_description&sysparm_query=number={inputincident}"
-        data = await make_nws_request(url)
-        if data:
-            return data
-    return "Unable to fetch alerts or no alerts found."
+    url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields=short_description&sysparm_query=number={inputincident}"
+    data = await make_nws_request(url)
+    return data if data else "Incident not found."
 
 async def similarincidentsforincident(inputincident: str):
     """Get similar incidents based on given incident."""
