@@ -6,6 +6,7 @@ import json
 import asyncio
 from dotenv import load_dotenv
 import os
+from constants import APPLICATION_JSON, JSON_HEADERS
 
 # Load environment variables
 load_dotenv()
@@ -42,7 +43,7 @@ class ServiceNowOAuthClient:
         """Request a new access token from ServiceNow."""
         headers = {
             "Authorization": self._get_basic_auth_header(),
-            "Accept": "application/json",
+            "Accept": APPLICATION_JSON,
             "Content-Type": "application/x-www-form-urlencoded"
         }
         
@@ -92,8 +93,7 @@ class ServiceNowOAuthClient:
         token = await self._get_valid_token()
         return {
             "Authorization": f"Bearer {token}",
-            "Accept": "application/json",
-            "Content-Type": "application/json"
+            **JSON_HEADERS
         }
     
     async def make_authenticated_request(

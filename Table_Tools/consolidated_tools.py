@@ -7,7 +7,7 @@ from .generic_table_tools import (
     TableFilterParams
 )
 from typing import Any, Dict, Optional, List
-
+from constants import NO_DESCRIPTION_FOUND, CONNECTION_ERROR
 # INCIDENT TOOLS - Consolidated
 async def similar_incidents_for_text(input_text: str) -> dict[str, Any] | str:
     """Find incidents based on input text."""
@@ -36,9 +36,9 @@ async def similar_incidents_for_incident(input_incident: str) -> dict[str, Any] 
                 desc_text = desc_data['result'][0].get('short_description', '')
                 if desc_text:
                     return await similar_incidents_for_text(desc_text)
-        return "No description found."
+        return NO_DESCRIPTION_FOUND
     except Exception:
-        return "Connection error: Request failed"
+        return CONNECTION_ERROR
 
 async def get_incident_details(input_incident: str) -> dict[str, Any] | str:
     """Get detailed incident information."""
@@ -75,9 +75,9 @@ async def similar_changes_for_change(input_change: str) -> dict[str, Any] | str:
                 desc_text = desc_data['result'][0].get('short_description', '')
                 if desc_text:
                     return await similar_changes_for_text(desc_text)
-        return "No description found."
+        return NO_DESCRIPTION_FOUND
     except Exception:
-        return "Connection error: Request failed"
+        return CONNECTION_ERROR
 
 async def get_change_details(input_change: str) -> dict[str, Any] | str:
     """Get detailed change information."""
@@ -109,9 +109,9 @@ async def similar_urs_for_ur(input_ur: str) -> dict[str, Any] | str:
                 desc_text = desc_data['result'][0].get('short_description', '')
                 if desc_text:
                     return await similar_ur_for_text(desc_text)
-        return "No description found."
+        return NO_DESCRIPTION_FOUND
     except Exception:
-        return "Connection error: Request failed"
+        return CONNECTION_ERROR
 
 async def get_ur_details(input_ur: str) -> dict[str, Any] | str:
     """Get detailed UR information."""

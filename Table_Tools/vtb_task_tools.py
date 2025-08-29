@@ -2,6 +2,7 @@ from service_now_api_oauth import make_nws_request, NWS_API_BASE
 from typing import Any, Dict, Optional, List
 from utils import extract_keywords
 import httpx
+from constants import JSON_HEADERS
 
 # Define common fields for vtb_task table
 COMMON_VTB_TASK_FIELDS = [
@@ -105,10 +106,7 @@ async def create_private_task(task_data: Dict[str, Any]) -> dict[str, Any] | str
             create_data[field] = task_data[field]
     
     # Make POST request to create the record
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-    }
+    headers = JSON_HEADERS.copy()
     
     # Get authentication details from service_now_api_oauth
     from service_now_api_oauth import SERVICENOW_USERNAME, SERVICENOW_PASSWORD, _should_use_oauth
@@ -172,10 +170,7 @@ async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> 
     sys_id = sys_id_data['result'][0]['sys_id']
     
     # Make PUT request to update the record
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-    }
+    headers = JSON_HEADERS.copy()
     
     from service_now_api_oauth import SERVICENOW_USERNAME, SERVICENOW_PASSWORD, _should_use_oauth
     from oauth_client import get_oauth_client

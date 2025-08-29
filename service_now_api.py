@@ -2,6 +2,7 @@ import httpx
 from typing import Any
 from dotenv import load_dotenv
 import os
+from constants import JSON_HEADERS
 
 # Load environment variables from .env file
 load_dotenv()
@@ -35,10 +36,7 @@ def _extract_display_values(data: dict[str, Any]) -> dict[str, Any]:
 
 async def make_nws_request(url: str, display_value: bool = True) -> dict[str, Any] | None:
     """Make a request to the NWS API with proper error handling."""
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-    }
+    headers = JSON_HEADERS
     # Use the loaded environment variables for authentication
     auth = (SERVICENOW_USERNAME, SERVICENOW_PASSWORD)
     
