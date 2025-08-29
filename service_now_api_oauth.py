@@ -9,28 +9,26 @@ SERVICENOW_INSTANCE = os.getenv("SERVICENOW_INSTANCE")
 
 NWS_API_BASE = SERVICENOW_INSTANCE
 
+def _extract_field_value(value: Any) -> Any:
+    """Extract the appropriate value (display_value if available, otherwise raw value)."""
+    if isinstance(value, dict) and 'display_value' in value:
+        return value['display_value']
+    return value
+
+def _process_item_dict(item: dict) -> dict:
+    """Process a single dictionary item to extract display values."""
+    return {key: _extract_field_value(value) for key, value in item.items()}
+
 def _extract_display_values(data: dict[str, Any]) -> dict[str, Any]:
     """Extract display values from ServiceNow API response."""
     if not isinstance(data, dict):
         return data
     
-    # Process the result array if it exists
-    if 'result' in data and isinstance(data['result'], list):
-        processed_results = []
-        for item in data['result']:
-            if isinstance(item, dict):
-                processed_item = {}
-                for key, value in item.items():
-                    if isinstance(value, dict) and 'display_value' in value:
-                        # Extract just the display value for reference fields
-                        processed_item[key] = value['display_value']
-                    else:
-                        processed_item[key] = value
-                processed_results.append(processed_item)
-            else:
-                processed_results.append(item)
-        data['result'] = processed_results
+    if 'result' not in data or not isinstance(data['result'], list):
+        return data
     
+    data['result'] = [_process_item_dict(item) if isinstance(item, dict) else item 
+                      for item in data['result']]
     return data
 
 async def make_nws_request(url: str, display_value: bool = True) -> dict[str, Any] | None:
