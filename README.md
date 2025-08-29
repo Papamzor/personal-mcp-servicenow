@@ -54,44 +54,44 @@ This project implements a production-ready MCP server using the FastMCP framewor
 - `nowtestauth()` - ServiceNow API endpoint validation
 
 ### **Incident Management**
-- `similarincidentsfortext(text)` - Find incidents by description similarity
-- `getshortdescforincident(incident)` - Retrieve incident descriptions
-- `similarincidentsforincident(incident)` - Find related incidents
-- `getincidentdetails(incident)` - Complete incident information
-- `getIncidentsByFilter(filters)` - Advanced incident filtering
+- `similarincidentsfortext(input_text)` - Find incidents by description similarity
+- `getshortdescforincident(input_incident)` - Retrieve incident descriptions
+- `similarincidentsforincident(input_incident)` - Find related incidents
+- `getincidentdetails(input_incident)` - Complete incident information
+- `get_incidents_by_filter(filters)` - Advanced incident filtering
 
 ### **Change Management**
-- `similarchangesfortext(text)` - Change request similarity search
-- `getshortdescforchange(change)` - Change descriptions
-- `similarchangesforchange(change)` - Related change requests
-- `getchangedetails(change)` - Complete change information
+- `similarchangesfortext(input_text)` - Change request similarity search
+- `getshortdescforchange(input_change)` - Change descriptions
+- `similarchangesforchange(input_change)` - Related change requests
+- `getchangedetails(input_change)` - Complete change information
 
 ### **Service Requests**
-- `similarURfortext(text)` - User request similarity search
-- `getshortdescforUR(request)` - Request descriptions
-- `similarURsforUR(request)` - Related service requests
-- `getURdetails(request)` - Complete request details
+- `similar_ur_for_text(input_text)` - User request similarity search
+- `get_short_desc_for_ur(input_ur)` - Request descriptions
+- `similar_urs_for_ur(input_ur)` - Related service requests
+- `get_ur_details(input_ur)` - Complete request details
 
 ### **Knowledge Base**
-- `similar_knowledge_for_text(text)` - Article similarity search
-- `get_knowledge_details(article)` - Complete article information
+- `similar_knowledge_for_text(input_text)` - Article similarity search
+- `get_knowledge_details(kb_number)` - Complete article information
 - `get_knowledge_by_category(category)` - Category-based article retrieval
 - `get_active_knowledge_articles()` - All active knowledge articles
 
 ### **Private Task Management** (Full CRUD)
-- `similarprivatetasksfortext(text)` - Task similarity search
-- `getprivatetaskdetails(task)` - Complete task information
-- `createprivatetask(data)` - **Create new private tasks**
-- `updateprivatetask(task, data)` - **Update existing tasks**
+- `similarprivatetasksfortext(input_text)` - Task similarity search
+- `getprivatetaskdetails(input_private_task)` - Complete task information
+- `createprivatetask(task_data)` - **Create new private tasks**
+- `updateprivatetask(task_number, update_data)` - **Update existing tasks**
 - `getprivatetasksbyfilter(filters)` - Advanced task filtering
 
 ### **CMDB Configuration Items** 🆕
-- `findCIsByType(type)` - Discover CIs by type (servers, databases, etc.)
-- `searchCIsByAttributes(attrs)` - Multi-attribute CI search (name, IP, location, status)
-- `getCIDetails(ci_number)` - Comprehensive CI information
-- `similarCIsForCI(ci_number)` - Find similar configuration items
-- `getAllCITypes()` - List all available CI types (100+ supported)
-- `quickCISearch(term)` - Fast CI search by name, IP, or number
+- `find_cis_by_type(ci_type)` - Discover CIs by type (servers, databases, etc.)
+- `search_cis_by_attributes(name, ip_address, location, status)` - Multi-attribute CI search
+- `get_ci_details(ci_number)` - Comprehensive CI information
+- `similar_cis_for_ci(ci_number)` - Find similar configuration items
+- `get_all_ci_types()` - List all available CI types (100+ supported)
+- `quick_ci_search(search_term)` - Fast CI search by name, IP, or number
 
 ### **Supported CI Types** (Auto-Discovered)
 ```

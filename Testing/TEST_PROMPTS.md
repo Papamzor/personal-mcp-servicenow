@@ -5,12 +5,12 @@
 Test the following tools in sequence:
 1. Call `nowtest()` to verify the MCP server is running
 2. Call `nowtestauth()` to test authenticated access to ServiceNow custom API
-3. Call `nowtestauthInput("incident")` to get table description for the incident table
+3. Call `nowtest_auth_input("incident")` to get table description for the incident table
 
 Expected Results:
 - nowtest(): Should return "Server is running and ready to handle requests!"
 - nowtestauth(): Should return API response data or connection error message
-- nowtestauthInput(): Should return incident table description or "Record not found."
+- nowtest_auth_input(): Should return incident table description or "Record not found."
 ```
 
 ## Test Prompt 2: Incident Management Tools
@@ -20,7 +20,7 @@ Test incident-related functionality:
 2. Call `getshortdescforincident("INC0010001")` to get description of a specific incident
 3. Call `getincidentdetails("INC0010001")` to get full details of the same incident
 4. Call `similarincidentsforincident("INC0010001")` to find incidents similar to INC0010001
-5. Call `getIncidentsByFilter({"state": "1", "priority": "1"}, ["number", "short_description", "state"])` with custom filters
+5. Call `get_incidents_by_filter({"state": "1", "priority": "1"}, ["number", "short_description", "state"])` with custom filters
 
 Expected Results:
 - Text search should return incidents matching keywords or "No records found."
@@ -47,10 +47,10 @@ Expected Results:
 ## Test Prompt 4: Universal Request (UR) Management Tools
 ```
 Test Universal Request functionality:
-1. Call `similarURfortext("password reset account locked")` to find related URs
-2. Call `getshortdescforUR("UR0073721")` to get description of a specific UR
-3. Call `getURdetails("UR0073721")` to get full UR details  
-4. Call `similarURsforUR("UR0073721")` to find similar URs
+1. Call `similar_ur_for_text("password reset account locked")` to find related URs
+2. Call `get_short_desc_for_ur("UR0073721")` to get description of a specific UR
+3. Call `get_ur_details("UR0073721")` to get full UR details  
+4. Call `similar_urs_for_ur("UR0073721")` to find similar URs
 
 Expected Results:
 - All UR functions should mirror incident/change functionality for universal_request table

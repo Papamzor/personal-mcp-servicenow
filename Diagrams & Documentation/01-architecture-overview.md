@@ -53,5 +53,5 @@ graph TB
 - **FastMCP Server**: Core server handling tool registration and routing
 - **Tool Categories**: 35+ tools organized by ServiceNow table type
 - **Generic Layer**: Reusable functions to minimize code duplication
-- **OAuth Integration**: Secure authentication with automatic token management
+- **OAuth 2.0 Only**: Exclusive OAuth authentication with automatic token management
 - **NLP Processing**: spaCy-powered text analysis for similarity matching

@@ -4,7 +4,7 @@ This flowchart demonstrates how the MCP server processes text-based similarity s
 
 ```mermaid
 flowchart TD
-    A[User Query: 'Find similar incidents to network outage'] --> B[similarincidentsfortext]
+    A[User Query: 'Find similar incidents to network outage'] --> B[similarincidentsfortext(input_text)]
     B --> C[extract_keywords using spaCy NLP]
     C --> D{Keywords Found?}
     D -->|Yes| E[Loop through keywords by priority]
@@ -24,7 +24,7 @@ flowchart TD
         N[Essential Fields Only<br/>4 fields vs 50+ available]
         O[Keyword Priority<br/>Most relevant terms first]
         P[Early Exit Strategy<br/>Stop on first match]
-        Q[Cached OAuth Tokens<br/>Reuse for 3600 seconds]
+        Q[OAuth 2.0 Only<br/>Cached tokens, 1-hour expiry]
         R[Async Operations<br/>Non-blocking I/O]
     end
     

@@ -44,11 +44,11 @@ async def similarincidentsforincident(inputincident: str):
     inputText = await getshortdescforincident(inputincident)
     return await similarincidentsfortext(inputText)
 
-async def getincidentdetails(inputincident: str) -> dict[str, Any] | str:
+async def get_incident_details(input_incident: str) -> dict[str, Any] | str:
     """Get detailed information for a given incident based on input incident number.
     
     Args:
-        inputincident: The incident number (e.g., 'INC0127661').
+        input_incident: The incident number (e.g., 'INC0127661').
     
     Returns:
         A dictionary containing incident details or an error message if the request fails.
@@ -61,7 +61,7 @@ async def getincidentdetails(inputincident: str) -> dict[str, Any] | str:
         "close_notes",
         "sys_updated_on"
     ]
-    url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields={','.join(fields)}&sysparm_query=number={inputincident}"
+    url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields={','.join(fields)}&sysparm_query=number={input_incident}"
     data = await make_nws_request(url)
     if data and data.get('result'):
         results = data['result']
@@ -71,7 +71,7 @@ async def getincidentdetails(inputincident: str) -> dict[str, Any] | str:
             return results
     return "Unable to fetch incident details or no incident found."
 
-async def getIncidentsByFilter(params: IncidentFilterParams) -> dict[str, Any] | str:
+async def get_incidents_by_filter(params: IncidentFilterParams) -> dict[str, Any] | str:
     """Get incidents based on filters with proper date handling.
     
     Supports multiple date formats:

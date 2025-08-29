@@ -32,7 +32,7 @@ This folder contains Mermaid diagrams documenting the architecture and workflows
 The MCP ServiceNow server provides:
 
 - **35+ Tools** across 7 ServiceNow table types
-- **OAuth 2.0 Authentication** with automatic token management
+- **OAuth 2.0 Only Authentication** with automatic token management
 - **NLP-Powered Search** using spaCy for keyword extraction
 - **Performance Optimized** queries with minimal field selection
 - **Generic Architecture** reducing code duplication by 80%
@@ -76,5 +76,5 @@ The MCP ServiceNow server provides:
 
 ---
 
-*Last Updated: August 2024*
+*Last Updated: January 2025*
 *Project: Personal MCP ServiceNow Server*

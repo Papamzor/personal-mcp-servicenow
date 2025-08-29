@@ -129,7 +129,7 @@ DETAILED_CI_FIELDS = [
     "manufacturer", "model_number", "cost_center", "environment"
 ]
 
-async def findCIsByType(ci_type: str, detailed: bool = False) -> dict[str, Any] | str:
+async def find_cis_by_type(ci_type: str, detailed: bool = False) -> dict[str, Any] | str:
     """
     Find all Configuration Items of a specific type.
     
@@ -161,7 +161,7 @@ async def findCIsByType(ci_type: str, detailed: bool = False) -> dict[str, Any] 
     except Exception:
         return "Error searching CIs by type: Request failed"
 
-async def searchCIsByAttributes(
+async def search_cis_by_attributes(
     name: Optional[str] = None,
     ip_address: Optional[str] = None, 
     location: Optional[str] = None,
@@ -226,7 +226,7 @@ async def searchCIsByAttributes(
     except Exception:
         return "Error searching CIs: Request failed"
 
-async def getCIDetails(ci_number: str, ci_type: Optional[str] = None) -> dict[str, Any] | str:
+async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[str, Any] | str:
     """
     Get comprehensive details for a specific Configuration Item.
     
@@ -266,7 +266,7 @@ async def getCIDetails(ci_number: str, ci_type: Optional[str] = None) -> dict[st
     
     return f"CI {ci_number} not found in any CMDB table"
 
-async def similarCIsForCI(ci_number: str) -> dict[str, Any] | str:
+async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
     """
     Find Configuration Items similar to the specified CI based on attributes.
     
@@ -277,7 +277,7 @@ async def similarCIsForCI(ci_number: str) -> dict[str, Any] | str:
         Dictionary with similar CIs or error string
     """
     # First get the CI details
-    ci_details = await getCIDetails(ci_number)
+    ci_details = await get_ci_details(ci_number)
     
     if isinstance(ci_details, str):
         return ci_details
@@ -297,7 +297,7 @@ async def similarCIsForCI(ci_number: str) -> dict[str, Any] | str:
     
     # Search for similar CIs but exclude the original CI
     try:
-        similar_cis = await searchCIsByAttributes(**search_attrs, detailed=True)
+        similar_cis = await search_cis_by_attributes(**search_attrs, detailed=True)
         
         if isinstance(similar_cis, dict) and similar_cis.get('result'):
             # Filter out the original CI
@@ -318,7 +318,7 @@ async def similarCIsForCI(ci_number: str) -> dict[str, Any] | str:
     except Exception:
         return "Error finding similar CIs: Request failed"
 
-async def getAllCITypes() -> dict[str, Any] | str:
+async def get_all_ci_types() -> dict[str, Any] | str:
     """
     Get all available CI types/classes in the CMDB.
     
@@ -352,7 +352,7 @@ async def getAllCITypes() -> dict[str, Any] | str:
         return "Error getting CI types: Request failed"
 
 # Convenience function for quick CI search
-async def quickCISearch(search_term: str) -> dict[str, Any] | str:
+async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
     """
     Quick search for CIs by name, IP, or number.
     

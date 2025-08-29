@@ -38,11 +38,11 @@ async def similarchangesforchange(inputchange: str):
     inputText = await getshortdescforchange(inputchange)
     return await similarchangesfortext(inputText)
 
-async def getchangedetails(inputchange: str) -> dict[str, Any] | str:
+async def get_change_details(input_change: str) -> dict[str, Any] | str:
     """Get detailed information for a given change based on input change number.
     
     Args:
-        inputchange: The change number (e.g., 'CHG0000001').
+        input_change: The change number (e.g., 'CHG0000001').
     
     Returns:
         A dictionary containing change request details or an error message if the request fails.
@@ -55,7 +55,7 @@ async def getchangedetails(inputchange: str) -> dict[str, Any] | str:
         "close_notes",
         "sys_updated_on"
     ]
-    url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields={','.join(fields)}&sysparm_query=number={inputchange}"
+    url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields={','.join(fields)}&sysparm_query=number={input_change}"
     data = await make_nws_request(url)
     if data and data.get('result'):
         results = data['result']

@@ -12,7 +12,7 @@ COMMON_UR_FIELDS = [
     "assignment_group"
 ]
 
-async def similarURfortext(input_text: str):
+async def similar_ur_for_text(input_text: str):
     """Get universal requests based on input text."""
     keywords = extract_keywords(input_text)
     for keyword in keywords:
@@ -22,7 +22,7 @@ async def similarURfortext(input_text: str):
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def getshortdescforUR(input_ur: str):
+async def get_short_desc_for_ur(input_ur: str):
     """Get short_description for a given universal request based on input universal request number."""
     keywords = extract_keywords(input_ur)
     for keyword in keywords:
@@ -32,12 +32,12 @@ async def getshortdescforUR(input_ur: str):
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def similarURsforUR(input_ur: str):
+async def similar_urs_for_ur(input_ur: str):
     """Get similar universal requests based on given universal request."""
-    input_text = await getshortdescforUR(input_ur)
-    return await similarURfortext(input_text)
+    input_text = await get_short_desc_for_ur(input_ur)
+    return await similar_ur_for_text(input_text)
 
-async def getURdetails(input_ur: str) -> dict[str, Any] | str:
+async def get_ur_details(input_ur: str) -> dict[str, Any] | str:
     """Get detailed information for a given universal request based on input universal request number.
     
     Args:

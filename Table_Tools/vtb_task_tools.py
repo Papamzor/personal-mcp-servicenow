@@ -26,7 +26,7 @@ DETAILED_VTB_TASK_FIELDS = COMMON_VTB_TASK_FIELDS + [
     "parent"
 ]
 
-async def similarprivatetasksfortext(input_text: str) -> dict[str, Any] | str:
+async def similar_private_tasks_for_text(input_text: str) -> dict[str, Any] | str:
     """Get private task records based on input text."""
     keywords = extract_keywords(input_text)
     for keyword in keywords:
@@ -36,26 +36,26 @@ async def similarprivatetasksfortext(input_text: str) -> dict[str, Any] | str:
             return data
     return "No private task records found."
 
-async def getshortdescforprivatetask(input_private_task: str) -> dict[str, Any] | str:
+async def get_short_desc_for_private_task(input_private_task: str) -> dict[str, Any] | str:
     """Get short_description for a given private task based on input private task number."""
     url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields=short_description&sysparm_query=number={input_private_task}"
     data = await make_nws_request(url)
     return data if data else "Private Task not found."
 
-async def similarprivatetasksforprivatetask(input_private_task: str) -> dict[str, Any] | str:
+async def similar_private_tasks_for_private_task(input_private_task: str) -> dict[str, Any] | str:
     """Get similar private task records based on given private task."""
     try:
-        desc_data = await getshortdescforprivatetask(input_private_task)
+        desc_data = await get_short_desc_for_private_task(input_private_task)
         if isinstance(desc_data, dict) and desc_data.get('result'):
             if len(desc_data['result']) > 0:
                 desc_text = desc_data['result'][0].get('short_description', '')
                 if desc_text:
-                    return await similarprivatetasksfortext(desc_text)
+                    return await similar_private_tasks_for_text(desc_text)
         return "No description found."
     except Exception:
         return "Connection error: Request failed"
 
-async def getprivatetaskdetails(input_private_task: str) -> dict[str, Any] | str:
+async def get_private_task_details(input_private_task: str) -> dict[str, Any] | str:
     """Get detailed information for a given private task based on input private task number.
     
     Args:
@@ -74,7 +74,7 @@ async def getprivatetaskdetails(input_private_task: str) -> dict[str, Any] | str
             return results
     return "Unable to fetch private task details or no private task found."
 
-async def createprivatetask(task_data: Dict[str, Any]) -> dict[str, Any] | str:
+async def create_private_task(task_data: Dict[str, Any]) -> dict[str, Any] | str:
     """Create a new private task record in ServiceNow.
     
     Args:
@@ -149,7 +149,7 @@ async def createprivatetask(task_data: Dict[str, Any]) -> dict[str, Any] | str:
         except Exception:
             return "Error creating private task: Request failed"
 
-async def updateprivatetask(task_number: str, update_data: Dict[str, Any]) -> dict[str, Any] | str:
+async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> dict[str, Any] | str:
     """Update an existing private task record in ServiceNow.
     
     Args:
@@ -217,7 +217,7 @@ async def updateprivatetask(task_number: str, update_data: Dict[str, Any]) -> di
         except Exception:
             return "Error updating private task: Request failed"
 
-async def getprivatetasksbyfilter(filters: Dict[str, str], fields: Optional[List[str]] = None) -> dict[str, Any] | str:
+async def get_private_tasks_by_filter(filters: Dict[str, str], fields: Optional[List[str]] = None) -> dict[str, Any] | str:
     """Get private task records with custom filters.
     
     Args:
