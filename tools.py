@@ -42,5 +42,4 @@ tools = [
 for tool in tools:
     mcp.tool()(tool)
 
-# Triggering MCP Server Run - To prevent immediate MCP server closing in Claude Desktop
-mcp.run()  # Run using default transport (stdio) or supply transport="http" for web API
+# Note: mcp.run() is called from personal-mcp-servicenow-main.py

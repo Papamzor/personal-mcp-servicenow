@@ -18,7 +18,7 @@ Expected Results:
 Test incident-related functionality:
 1. Call `similar_incidents_for_text("server down database error")` to find similar incidents
 2. Call `get_short_desc_for_incident("INC0010001")` to get description of a specific incident
-3. Call `getincidentdetails("INC0010001")` to get full details of the same incident
+3. Call `get_incident_details("INC0010001")` to get full details of the same incident
 4. Call `similar_incidents_for_incident("INC0010001")` to find incidents similar to INC0010001
 5. Call `get_incidents_by_filter({"state": "1", "priority": "1"}, ["number", "short_description", "state"])` with custom filters
 
@@ -35,7 +35,7 @@ Expected Results:
 Test change request functionality:
 1. Call `similar_changes_for_text("system upgrade maintenance window")` to find related changes
 2. Call `get_short_desc_for_change("CHG0000001")` to get description of a specific change
-3. Call `getchangedetails("CHG0000001")` to get full change details
+3. Call `get_change_details("CHG0000001")` to get full change details
 4. Call `similar_changes_for_change("CHG0000001")` to find similar changes
 
 Expected Results:
