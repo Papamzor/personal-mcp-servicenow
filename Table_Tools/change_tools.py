@@ -13,7 +13,7 @@ COMMON_CHANGE_FIELDS = [
     "assignment_group"
 ]
 
-async def similarchangesfortext(input_text: str):
+async def similar_changes_for_text(input_text: str):
     """Get changes based on input text."""
     keywords = extract_keywords(input_text)
     for keyword in keywords:
@@ -23,16 +23,16 @@ async def similarchangesfortext(input_text: str):
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def getshortdescforchange(inputchange: str):
+async def get_short_desc_for_change(inputchange: str):
     """Get short_description for a given change based on input change number."""
     url = f"{NWS_API_BASE}/api/now/table/change_request?sysparm_fields=short_description&sysparm_query=number={inputchange}"
     data = await make_nws_request(url)
     return data if data else "Change not found."
 
-async def similarchangesforchange(inputchange: str):
+async def similar_changes_for_change(inputchange: str):
     """Get similar changes based on given change."""
-    input_text = await getshortdescforchange(inputchange)
-    return await similarchangesfortext(input_text)
+    input_text = await get_short_desc_for_change(inputchange)
+    return await similar_changes_for_text(input_text)
 
 async def get_change_details(input_change: str) -> dict[str, Any] | str:
     """Get detailed information for a given change based on input change number.

@@ -20,7 +20,7 @@ COMMON_INCIDENT_FIELDS = [
     "assignment_group"
 ]
 
-async def similarincidentsfortext(input_text: str):
+async def similar_incidents_for_text(input_text: str):
     """Get incidents based on input text."""
     keywords = extract_keywords(input_text)
     for keyword in keywords:
@@ -30,16 +30,16 @@ async def similarincidentsfortext(input_text: str):
             return data
     return "Unable to fetch alerts or no alerts found."
 
-async def getshortdescforincident(inputincident: str):
+async def get_short_desc_for_incident(inputincident: str):
     """Get short_description for a given incident based on input incident number."""
     url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields=short_description&sysparm_query=number={inputincident}"
     data = await make_nws_request(url)
     return data if data else "Incident not found."
 
-async def similarincidentsforincident(inputincident: str):
+async def similar_incidents_for_incident(inputincident: str):
     """Get similar incidents based on given incident."""
-    input_text = await getshortdescforincident(inputincident)
-    return await similarincidentsfortext(input_text)
+    input_text = await get_short_desc_for_incident(inputincident)
+    return await similar_incidents_for_text(input_text)
 
 async def get_incident_details(input_incident: str) -> dict[str, Any] | str:
     """Get detailed information for a given incident based on input incident number.

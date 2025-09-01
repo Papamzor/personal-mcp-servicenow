@@ -58,8 +58,8 @@ This project implements a production-ready MCP server using the FastMCP framewor
 ### **Server & Authentication**
 
 - `nowtest()` - Server connectivity verification
-- `nowtestoauth()` - OAuth 2.0 authentication testing
-- `nowauthinfo()` - Current authentication method information
+- `now_test_oauth()` - OAuth 2.0 authentication testing
+- `now_auth_info()` - Current authentication method information
 - `nowtestauth()` - ServiceNow API endpoint validation
 
 ### **Incident Management**
@@ -174,7 +174,7 @@ python -m Testing.test_oauth_simple
 python -m Testing.test_cmdb_tools
 
 # Test OAuth with your ServiceNow instance (requires OAuth setup), should return token validity details
-python -c "import asyncio; from utility_tools import nowtestoauth; print(asyncio.run(nowtestoauth()))"
+python -c "import asyncio; from utility_tools import now_test_oauth; print(asyncio.run(now_test_oauth()))"
 ```
 
 **Verification Steps Explained:**

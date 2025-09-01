@@ -99,10 +99,10 @@ Use the new OAuth testing tools:
 
 ```python
 # Test OAuth connection
-await nowtestoauth()
+await now_test_oauth()
 
 # Get authentication info  
-await nowauthinfo()
+await now_auth_info()
 ```
 
 Expected successful response:
@@ -123,7 +123,7 @@ Run your existing tools to verify they work with OAuth:
 # These should now use OAuth automatically
 await nowtest()
 await nowtestauth() 
-await similarincidentsfortext("test query")
+await similar_incidents_for_text("test query")
 ```
 
 ### Step 3: Monitor Token Usage
@@ -174,11 +174,11 @@ The OAuth client automatically:
 #### OAuth falls back to Basic Auth
 - **Check**: Environment variables are properly set
 - **Verify**: No typos in `SERVICENOW_CLIENT_ID` or `SERVICENOW_CLIENT_SECRET`
-- **Test**: Use `await nowauthinfo()` to verify OAuth configuration
+- **Test**: Use `await now_auth_info()` to verify OAuth configuration
 
 ### Debug Information
 
-Use the `nowauthinfo()` tool to get current authentication status:
+Use the `now_auth_info()` tool to get current authentication status:
 
 ```json
 {

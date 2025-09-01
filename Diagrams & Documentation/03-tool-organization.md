@@ -32,8 +32,8 @@ graph LR
 ```mermaid
 graph TB
     subgraph "Tool Pattern Examples (snake_case parameters)"
-        A1[similarincidentsfortext(input_text)] --> G1[query_table_by_text]
-        A2[similarchangesfortext(input_text)] --> G1
+        A1[similar_incidents_for_text(input_text)] --> G1[query_table_by_text]
+        A2[similar_changes_for_text(input_text)] --> G1
         A3[similar_knowledge_for_text(input_text)] --> G1
         A4[similar_ur_for_text(input_text)] --> G1
         

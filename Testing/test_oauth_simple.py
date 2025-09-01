@@ -120,7 +120,7 @@ async def run_tests():
         print("\nNext Steps:")
         print("1. Set up OAuth Application Registry in ServiceNow")
         print("2. Configure environment variables with real credentials")
-        print("3. Test with: await nowtestoauth()")
+        print("3. Test with: await now_test_oauth()")
     else:
         print(f"\n{len(results) - passed} tests failed. Please review the implementation.")
 
