@@ -1,3 +1,7 @@
+# Output MCP Server Start confirmation in stderr for Claude Desktop or CLI
+import sys
+print("Personnal ServiceNow MCP Server started...", file=sys.stderr)
+
 from mcp.server.fastmcp import FastMCP
 from Table_Tools.consolidated_tools import (
     # Incident tools
@@ -37,3 +41,6 @@ tools = [
 
 for tool in tools:
     mcp.tool()(tool)
+
+# Triggering MCP Server Run - To prevent immediate MCP server closing in Claude Desktop
+mcp.run()  # Run using default transport (stdio) or supply transport="http" for web API
