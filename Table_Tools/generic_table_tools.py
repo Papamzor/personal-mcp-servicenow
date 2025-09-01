@@ -50,6 +50,52 @@ class TableFilterParams(BaseModel):
     filters: Optional[Dict[str, str]] = Field(None, description="Field-value pairs for filtering")
     fields: Optional[List[str]] = Field(None, description="Fields to return")
 
+def _has_operator_in_value(value: str) -> bool:
+    """Check if value already contains a comparison operator."""
+    return isinstance(value, str) and any(op in value for op in ['>=', '<=', '>', '<', '='])
+
+def _build_query_condition(field: str, value: str) -> str:
+    """Build a single query condition based on field and value."""
+    # Handle direct operator syntax (e.g., ">=javascript:gs.daysAgoStart(14)")
+    if _has_operator_in_value(value):
+        return f"{field}{value}"
+    
+    # Handle suffix-based operators
+    if field.endswith('_gte'):
+        base_field = field[:-4]
+        return f"{base_field}>={value}"
+    elif field.endswith('_lte'):
+        base_field = field[:-4]
+        return f"{base_field}<={value}"
+    elif field.endswith('_gt'):
+        base_field = field[:-3]
+        return f"{base_field}>{value}"
+    elif field.endswith('_lt'):
+        base_field = field[:-3]
+        return f"{base_field}<{value}"
+    elif 'CONTAINS' in field.upper():
+        # Handle CONTAINS operations (field already formatted)
+        return f"{field}"
+    else:
+        # Exact match
+        return f"{field}={value}"
+
+def _build_query_string(filters: Dict[str, str]) -> str:
+    """Build the complete query string from filters."""
+    if not filters:
+        return ""
+    
+    query_parts = []
+    for field, value in filters.items():
+        query_parts.append(_build_query_condition(field, value))
+    
+    return "^".join(query_parts)
+
+def _encode_query_string(query_string: str) -> str:
+    """URL encode query string while preserving ServiceNow JavaScript functions."""
+    from urllib.parse import quote
+    return quote(query_string, safe='=<>&^():.')
+
 async def query_table_with_filters(table_name: str, params: TableFilterParams) -> dict[str, Any] | str:
     """Generic function to query table with custom filters and fields.
     
@@ -64,37 +110,8 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
     """
     fields = params.fields or ESSENTIAL_FIELDS.get(table_name, ["number", "short_description"])
     
-    query_parts = []
-    if params.filters:
-        for field, value in params.filters.items():
-            # Handle direct operator syntax (e.g., ">=javascript:gs.daysAgoStart(14)")
-            if isinstance(value, str) and any(op in value for op in ['>=', '<=', '>', '<', '=']):
-                # Value already contains the operator, use as-is
-                query_parts.append(f"{field}{value}")
-            elif field.endswith('_gte'):
-                base_field = field[:-4]
-                query_parts.append(f"{base_field}>={value}")
-            elif field.endswith('_lte'):
-                base_field = field[:-4]
-                query_parts.append(f"{base_field}<={value}")
-            elif field.endswith('_gt'):
-                base_field = field[:-3]
-                query_parts.append(f"{base_field}>{value}")
-            elif field.endswith('_lt'):
-                base_field = field[:-3]
-                query_parts.append(f"{base_field}<{value}")
-            elif 'CONTAINS' in field.upper():
-                # Handle CONTAINS operations (field already formatted)
-                query_parts.append(f"{field}")
-            else:
-                # Exact match
-                query_parts.append(f"{field}={value}")
-    
-    query_string = "^".join(query_parts) if query_parts else ""
-    
-    # URL encode the query but preserve ServiceNow JavaScript functions
-    from urllib.parse import quote
-    encoded_query = quote(query_string, safe='=<>&^():.')
+    query_string = _build_query_string(params.filters)
+    encoded_query = _encode_query_string(query_string)
     
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
     

@@ -31,8 +31,8 @@ async def getshortdescforchange(inputchange: str):
 
 async def similarchangesforchange(inputchange: str):
     """Get similar changes based on given change."""
-    inputText = await getshortdescforchange(inputchange)
-    return await similarchangesfortext(inputText)
+    input_text = await getshortdescforchange(inputchange)
+    return await similarchangesfortext(input_text)
 
 async def get_change_details(input_change: str) -> dict[str, Any] | str:
     """Get detailed information for a given change based on input change number.

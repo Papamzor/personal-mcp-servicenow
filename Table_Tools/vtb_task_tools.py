@@ -4,6 +4,95 @@ from utils import extract_keywords
 import httpx
 from constants import JSON_HEADERS, COMMON_VTB_TASK_FIELDS, DETAILED_VTB_TASK_FIELDS, NO_RECORDS_FOUND, RECORD_NOT_FOUND, CONNECTION_ERROR, NO_DESCRIPTION_FOUND
 
+async def _get_authenticated_headers() -> Dict[str, str]:
+    """Get headers with appropriate authentication."""
+    from service_now_api_oauth import _should_use_oauth
+    from oauth_client import get_oauth_client
+    
+    headers = JSON_HEADERS.copy()
+    
+    if _should_use_oauth():
+        oauth_client = get_oauth_client()
+        auth_headers = await oauth_client.get_auth_headers()
+        headers.update(auth_headers)
+    
+    return headers
+
+async def _make_authenticated_request(
+    method: str, 
+    url: str, 
+    json_data: Optional[Dict] = None,
+    operation: str = "operation"
+) -> Dict[str, Any] | str:
+    """Make an authenticated HTTP request with error handling."""
+    from service_now_api_oauth import SERVICENOW_USERNAME, SERVICENOW_PASSWORD, _should_use_oauth
+    
+    headers = await _get_authenticated_headers()
+    
+    async with httpx.AsyncClient(verify=True) as client:
+        try:
+            if _should_use_oauth():
+                response = await client.request(method, url, json=json_data, headers=headers, timeout=30.0)
+            else:
+                auth = (SERVICENOW_USERNAME, SERVICENOW_PASSWORD)
+                response = await client.request(method, url, json=json_data, headers=headers, auth=auth, timeout=30.0)
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            if result and result.get('result'):
+                return result['result']
+            else:
+                return result if result else f"Private Task {operation} successful but no data returned."
+                
+        except httpx.HTTPStatusError as e:
+            return _handle_http_error(e, operation)
+        except Exception:
+            return f"Error during private task {operation}: Request failed"
+
+def _handle_http_error(error: httpx.HTTPStatusError, operation: str) -> str:
+    """Handle HTTP errors consistently."""
+    status_code = error.response.status_code
+    
+    error_messages = {
+        401: f"Error during private task {operation}: Authentication failed",
+        403: f"Error during private task {operation}: Access denied", 
+        400: f"Error during private task {operation}: Invalid request data",
+        404: f"Error during private task {operation}: Task not found"
+    }
+    
+    return error_messages.get(status_code, f"Error during private task {operation}: Server error")
+
+def _prepare_task_create_data(task_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Prepare and validate data for task creation."""
+    create_data = {
+        'short_description': task_data['short_description'],
+        'state': task_data.get('state', '1'),  # Default to New/Open state
+        'priority': task_data.get('priority', '3'),  # Default to moderate priority
+    }
+    
+    # Add optional fields if provided
+    optional_fields = [
+        'description', 'assigned_to', 'assignment_group', 'due_date', 
+        'parent', 'comments', 'work_notes'
+    ]
+    
+    for field in optional_fields:
+        if field in task_data:
+            create_data[field] = task_data[field]
+    
+    return create_data
+
+async def _get_task_sys_id(task_number: str) -> str | None:
+    """Get the sys_id for a task by its number."""
+    sys_id_url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields=sys_id&sysparm_query=number={task_number}"
+    sys_id_data = await make_nws_request(sys_id_url)
+    
+    if not sys_id_data or not sys_id_data.get('result') or not sys_id_data['result']:
+        return None
+    
+    return sys_id_data['result'][0]['sys_id']
+
 async def similar_private_tasks_for_text(input_text: str) -> dict[str, Any] | str:
     """Get private task records based on input text."""
     keywords = extract_keywords(input_text)
@@ -66,63 +155,10 @@ async def create_private_task(task_data: Dict[str, Any]) -> dict[str, Any] | str
     if not task_data.get('short_description'):
         return "Error: short_description is required to create a private task."
     
-    # Validate required fields and set defaults
-    create_data = {
-        'short_description': task_data['short_description'],
-        'state': task_data.get('state', '1'),  # Default to New/Open state
-        'priority': task_data.get('priority', '3'),  # Default to moderate priority
-    }
-    
-    # Add optional fields if provided
-    optional_fields = [
-        'description', 'assigned_to', 'assignment_group', 'due_date', 
-        'parent', 'comments', 'work_notes'
-    ]
-    for field in optional_fields:
-        if field in task_data:
-            create_data[field] = task_data[field]
-    
-    # Make POST request to create the record
-    headers = JSON_HEADERS.copy()
-    
-    # Get authentication details from service_now_api_oauth
-    from service_now_api_oauth import SERVICENOW_USERNAME, SERVICENOW_PASSWORD, _should_use_oauth
-    from oauth_client import get_oauth_client
-    
+    create_data = _prepare_task_create_data(task_data)
     url = f"{NWS_API_BASE}/api/now/table/vtb_task"
     
-    async with httpx.AsyncClient(verify=True) as client:
-        try:
-            if _should_use_oauth():
-                # Use OAuth authentication
-                oauth_client = get_oauth_client()
-                auth_headers = await oauth_client.get_auth_headers()
-                headers.update(auth_headers)
-                response = await client.post(url, json=create_data, headers=headers, timeout=30.0)
-            else:
-                # Use basic authentication
-                auth = (SERVICENOW_USERNAME, SERVICENOW_PASSWORD)
-                response = await client.post(url, json=create_data, headers=headers, auth=auth, timeout=30.0)
-            
-            response.raise_for_status()
-            result = response.json()
-            
-            if result and result.get('result'):
-                return result['result']
-            else:
-                return result if result else "Private Task created but no data returned."
-                
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 401:
-                return "Error creating private task: Authentication failed"
-            elif e.response.status_code == 403:
-                return "Error creating private task: Access denied"
-            elif e.response.status_code == 400:
-                return "Error creating private task: Invalid request data"
-            else:
-                return "Error creating private task: Server error"
-        except Exception:
-            return "Error creating private task: Request failed"
+    return await _make_authenticated_request("POST", url, create_data, "creation")
 
 async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> dict[str, Any] | str:
     """Update an existing private task record in ServiceNow.
@@ -137,57 +173,12 @@ async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> 
     if not update_data:
         return "Error: No update data provided."
     
-    # First, get the sys_id of the record
-    sys_id_url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields=sys_id&sysparm_query=number={task_number}"
-    sys_id_data = await make_nws_request(sys_id_url)
-    
-    if not sys_id_data or not sys_id_data.get('result') or not sys_id_data['result']:
+    sys_id = await _get_task_sys_id(task_number)
+    if not sys_id:
         return "Private Task not found for update."
     
-    sys_id = sys_id_data['result'][0]['sys_id']
-    
-    # Make PUT request to update the record
-    headers = JSON_HEADERS.copy()
-    
-    from service_now_api_oauth import SERVICENOW_USERNAME, SERVICENOW_PASSWORD, _should_use_oauth
-    from oauth_client import get_oauth_client
-    
     url = f"{NWS_API_BASE}/api/now/table/vtb_task/{sys_id}"
-    
-    async with httpx.AsyncClient(verify=True) as client:
-        try:
-            if _should_use_oauth():
-                # Use OAuth authentication
-                oauth_client = get_oauth_client()
-                auth_headers = await oauth_client.get_auth_headers()
-                headers.update(auth_headers)
-                response = await client.put(url, json=update_data, headers=headers, timeout=30.0)
-            else:
-                # Use basic authentication
-                auth = (SERVICENOW_USERNAME, SERVICENOW_PASSWORD)
-                response = await client.put(url, json=update_data, headers=headers, auth=auth, timeout=30.0)
-            
-            response.raise_for_status()
-            result = response.json()
-            
-            if result and result.get('result'):
-                return result['result']
-            else:
-                return result if result else "Private Task updated but no data returned."
-                
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 401:
-                return "Error updating private task: Authentication failed"
-            elif e.response.status_code == 403:
-                return "Error updating private task: Access denied"
-            elif e.response.status_code == 400:
-                return "Error updating private task: Invalid request data"
-            elif e.response.status_code == 404:
-                return "Error updating private task: Task not found"
-            else:
-                return "Error updating private task: Server error"
-        except Exception:
-            return "Error updating private task: Request failed"
+    return await _make_authenticated_request("PUT", url, update_data, "update")
 
 async def get_private_tasks_by_filter(filters: Dict[str, str], fields: Optional[List[str]] = None) -> dict[str, Any] | str:
     """Get private task records with custom filters.

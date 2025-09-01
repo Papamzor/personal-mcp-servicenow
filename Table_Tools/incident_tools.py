@@ -2,6 +2,7 @@ from service_now_api_oauth import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 from pydantic import BaseModel, Field
+from .generic_table_tools import query_table_with_filters, TableFilterParams
 
 
 class IncidentFilterParams(BaseModel):
@@ -37,8 +38,8 @@ async def getshortdescforincident(inputincident: str):
 
 async def similarincidentsforincident(inputincident: str):
     """Get similar incidents based on given incident."""
-    inputText = await getshortdescforincident(inputincident)
-    return await similarincidentsfortext(inputText)
+    input_text = await getshortdescforincident(inputincident)
+    return await similarincidentsfortext(input_text)
 
 async def get_incident_details(input_incident: str) -> dict[str, Any] | str:
     """Get detailed information for a given incident based on input incident number.
@@ -79,42 +80,9 @@ async def get_incidents_by_filter(params: IncidentFilterParams) -> dict[str, Any
     - sys_created_on_gte: "2024-01-01"
     - sys_created_on: ">=javascript:gs.daysAgoStart(14)"
     """
+    # Use default incident fields if not specified
     fields = params.fields or COMMON_INCIDENT_FIELDS
-    query_parts = []
-    if params.filters:
-        for field, value in params.filters.items():
-            # Handle direct operator syntax (e.g., ">=javascript:gs.daysAgoStart(14)")
-            if isinstance(value, str) and any(op in value for op in ['>=', '<=', '>', '<', '=']):
-                # Value already contains the operator, use as-is
-                query_parts.append(f"{field}{value}")
-            elif field.endswith('_gte'):
-                base_field = field[:-4]
-                query_parts.append(f"{base_field}>={value}")
-            elif field.endswith('_lte'):
-                base_field = field[:-4]
-                query_parts.append(f"{base_field}<={value}")
-            elif field.endswith('_gt'):
-                base_field = field[:-3]
-                query_parts.append(f"{base_field}>{value}")
-            elif field.endswith('_lt'):
-                base_field = field[:-3]
-                query_parts.append(f"{base_field}<{value}")
-            elif 'CONTAINS' in field.upper():
-                # Handle CONTAINS operations
-                query_parts.append(f"{field}")
-            else:
-                # Exact match or contains operator in value
-                query_parts.append(f"{field}={value}")
     
-    sysparm_query = "^".join(query_parts) if query_parts else ""
-    
-    # URL encode the query, but preserve ServiceNow JavaScript functions
-    from urllib.parse import quote
-    # Don't encode javascript: functions and common operators
-    encoded_query = quote(sysparm_query, safe='=<>&^():.')
-    
-    url = f"{NWS_API_BASE}/api/now/table/incident?sysparm_fields={','.join(fields)}&sysparm_query={encoded_query}"
-    data = await make_nws_request(url)
-    if data and data.get('result'):
-        return data
-    return "Unable to fetch incidents or no incidents found."
+    # Convert IncidentFilterParams to TableFilterParams and delegate to generic function
+    table_params = TableFilterParams(filters=params.filters, fields=fields)
+    return await query_table_with_filters("incident", table_params)

@@ -11,6 +11,23 @@ from constants import APPLICATION_JSON, JSON_HEADERS
 # Load environment variables
 load_dotenv()
 
+# Custom exceptions for OAuth operations
+class ServiceNowOAuthError(Exception):
+    """Base exception for ServiceNow OAuth operations."""
+    pass
+
+class ServiceNowAuthenticationError(ServiceNowOAuthError):
+    """Exception raised when authentication fails."""
+    pass
+
+class ServiceNowConnectionError(ServiceNowOAuthError):
+    """Exception raised when connection to ServiceNow fails."""
+    pass
+
+class ServiceNowAuthorizationError(ServiceNowOAuthError):
+    """Exception raised when authorization is denied."""
+    pass
+
 class ServiceNowOAuthClient:
     """OAuth 2.0 Client Credentials implementation for ServiceNow."""
     
@@ -61,13 +78,15 @@ class ServiceNowOAuthClient:
                 return response.json()
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 401:
-                    raise Exception("OAuth token request failed: Invalid client credentials")
+                    raise ServiceNowAuthenticationError("OAuth token request failed: Invalid client credentials")
                 elif e.response.status_code == 403:
-                    raise Exception("OAuth token request failed: Access denied")
+                    raise ServiceNowAuthorizationError("OAuth token request failed: Access denied")
                 else:
-                    raise Exception("OAuth token request failed: Server error")
-            except Exception:
-                raise Exception("OAuth token request error: Connection failed")
+                    raise ServiceNowOAuthError(f"OAuth token request failed: Server error (status {e.response.status_code})")
+            except (httpx.RequestError, httpx.TimeoutException) as e:
+                raise ServiceNowConnectionError(f"OAuth token request error: Connection failed - {str(e)}")
+            except json.JSONDecodeError as e:
+                raise ServiceNowOAuthError(f"OAuth token response parsing failed: {str(e)}")
     
     async def _get_valid_token(self) -> str:
         """Get a valid access token, refreshing if necessary."""
@@ -131,10 +150,10 @@ class ServiceNowOAuthClient:
                         response = await client.request(method, url, timeout=30.0, **kwargs)
                         response.raise_for_status()
                         return response.json()
-                    except Exception:
+                    except (httpx.HTTPStatusError, httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
                         return None
                 return None
-            except Exception:
+            except (httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
                 return None
     
     async def test_connection(self) -> Dict[str, Any]:
