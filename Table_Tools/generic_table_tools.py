@@ -2,23 +2,7 @@ from service_now_api_oauth import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 from pydantic import BaseModel, Field
-
-# Optimized field sets - only essential fields
-ESSENTIAL_FIELDS = {
-    "incident": ["number", "short_description", "priority", "state"],
-    "change_request": ["number", "short_description", "priority", "state"], 
-    "universal_request": ["number", "short_description", "priority", "state"],
-    "kb_knowledge": ["number", "short_description", "kb_category", "state"],
-    "vtb_task": ["number", "short_description", "priority", "state"]
-}
-
-DETAIL_FIELDS = {
-    "incident": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
-    "change_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
-    "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments"],
-    "kb_knowledge": ["number", "short_description", "kb_category", "state", "sys_created_on", "assigned_to"],
-    "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"]
-}
+from constants import ESSENTIAL_FIELDS, DETAIL_FIELDS, NO_RECORDS_FOUND, RECORD_NOT_FOUND
 
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any] | str:
     """Generic function to query any ServiceNow table by text similarity."""
@@ -31,20 +15,20 @@ async def query_table_by_text(table_name: str, input_text: str, detailed: bool =
         # Check if we got data AND it contains actual results
         if data and data.get('result') and len(data['result']) > 0:
             return data
-    return "No records found."
+    return NO_RECORDS_FOUND
 
 async def get_record_description(table_name: str, record_number: str) -> dict[str, Any] | str:
     """Generic function to get short_description for any record."""
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query=number={record_number}"
     data = await make_nws_request(url)
-    return data if data else "Record not found."
+    return data if data else RECORD_NOT_FOUND
 
 async def get_record_details(table_name: str, record_number: str) -> dict[str, Any] | str:
     """Generic function to get detailed information for any record."""
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=number={record_number}&sysparm_display_value=true"
     data = await make_nws_request(url)
-    return data if data else "Record not found."
+    return data if data else RECORD_NOT_FOUND
 
 async def find_similar_records(table_name: str, record_number: str) -> dict[str, Any] | str:
     """Generic function to find similar records based on a given record's description."""
@@ -118,4 +102,4 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
         url += f"&sysparm_query={encoded_query}"
     
     data = await make_nws_request(url)
-    return data if data else "No records found."
+    return data if data else NO_RECORDS_FOUND

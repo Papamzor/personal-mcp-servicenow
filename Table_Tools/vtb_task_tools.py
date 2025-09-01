@@ -2,30 +2,7 @@ from service_now_api_oauth import make_nws_request, NWS_API_BASE
 from typing import Any, Dict, Optional, List
 from utils import extract_keywords
 import httpx
-from constants import JSON_HEADERS
-
-# Define common fields for vtb_task table
-COMMON_VTB_TASK_FIELDS = [
-    "number",
-    "short_description", 
-    "priority",
-    "sys_created_on",
-    "state",
-    "assigned_to",
-    "assignment_group"
-]
-
-# Extended fields for detailed queries
-DETAILED_VTB_TASK_FIELDS = COMMON_VTB_TASK_FIELDS + [
-    "description",
-    "comments",
-    "work_notes", 
-    "close_code",
-    "close_notes",
-    "sys_updated_on",
-    "due_date",
-    "parent"
-]
+from constants import JSON_HEADERS, COMMON_VTB_TASK_FIELDS, DETAILED_VTB_TASK_FIELDS, NO_RECORDS_FOUND, RECORD_NOT_FOUND, CONNECTION_ERROR, NO_DESCRIPTION_FOUND
 
 async def similar_private_tasks_for_text(input_text: str) -> dict[str, Any] | str:
     """Get private task records based on input text."""
@@ -35,13 +12,13 @@ async def similar_private_tasks_for_text(input_text: str) -> dict[str, Any] | st
         data = await make_nws_request(url)
         if data and data.get('result') and len(data['result']) > 0:
             return data
-    return "No private task records found."
+    return NO_RECORDS_FOUND
 
 async def get_short_desc_for_private_task(input_private_task: str) -> dict[str, Any] | str:
     """Get short_description for a given private task based on input private task number."""
     url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields=short_description&sysparm_query=number={input_private_task}"
     data = await make_nws_request(url)
-    return data if data else "Private Task not found."
+    return data if data else RECORD_NOT_FOUND
 
 async def similar_private_tasks_for_private_task(input_private_task: str) -> dict[str, Any] | str:
     """Get similar private task records based on given private task."""
@@ -52,9 +29,9 @@ async def similar_private_tasks_for_private_task(input_private_task: str) -> dic
                 desc_text = desc_data['result'][0].get('short_description', '')
                 if desc_text:
                     return await similar_private_tasks_for_text(desc_text)
-        return "No description found."
+        return NO_DESCRIPTION_FOUND
     except Exception:
-        return "Connection error: Request failed"
+        return CONNECTION_ERROR
 
 async def get_private_task_details(input_private_task: str) -> dict[str, Any] | str:
     """Get detailed information for a given private task based on input private task number.
@@ -243,4 +220,4 @@ async def get_private_tasks_by_filter(filters: Dict[str, str], fields: Optional[
         url += f"&sysparm_query={sysparm_query}"
     
     data = await make_nws_request(url)
-    return data if data else "No private task records found."
+    return data if data else NO_RECORDS_FOUND
