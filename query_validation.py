@@ -177,10 +177,7 @@ def validate_result_count(
     return result
 
 
-async def cross_verify_critical_incidents(
-    original_results: List[Dict[str, Any]], 
-    date_range: Optional[str] = None
-) -> Dict[str, Any]:
+def cross_verify_critical_incidents() -> Dict[str, Any]:
     """Cross-verify that no P1 Critical incidents are missing."""
     verification_result = {
         "missing_critical": [],
