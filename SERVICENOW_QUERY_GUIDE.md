@@ -7,6 +7,9 @@ This guide provides examples and best practices for ServiceNow API queries to av
 ### Multiple Priorities (OR Logic)
 ```python
 # ✅ CORRECT - Use ServiceNow's native OR syntax
+filters = {"priority": "priority=1^ORpriority=2"}
+
+# ❌ INCORRECT - Missing priority= prefix in first condition
 filters = {"priority": "1^ORpriority=2"}
 
 # ❌ INCORRECT - Separate API calls don't combine results properly
@@ -16,12 +19,17 @@ filters2 = {"priority": "2"}
 
 ### Date Ranges
 ```python
-# ✅ CORRECT - Complete date range
+# ✅ CORRECT - ServiceNow ON syntax for relative dates (preferred)
+filters = {
+    "_complete_query": "sys_created_onONLast week@javascript:gs.beginningOfLastWeek()@javascript:gs.endOfLastWeek()"
+}
+
+# ✅ CORRECT - Complete date range with standard operators
 filters = {
     "sys_created_on": ">=2025-08-25 00:00:00^<=2025-08-31 23:59:59"
 }
 
-# ✅ CORRECT - ServiceNow JavaScript functions
+# ✅ CORRECT - ServiceNow JavaScript functions with operators
 filters = {
     "sys_created_on": ">=javascript:gs.beginningOfLastWeek()^<=javascript:gs.endOfLastWeek()"
 }
@@ -40,9 +48,14 @@ filters = {
 
 ### Complex Combined Queries
 ```python
-# ✅ CORRECT - P1/P2 incidents from last week, excluding system users
+# ✅ CORRECT - P1/P2 incidents from last week using complete query syntax
 filters = {
-    "priority": "1^ORpriority=2",
+    "_complete_query": "sys_created_onONLast week@javascript:gs.beginningOfLastWeek()@javascript:gs.endOfLastWeek()^priority=1^ORpriority=2"
+}
+
+# ✅ CORRECT - Alternative with separate filters
+filters = {
+    "priority": "priority=1^ORpriority=2",
     "sys_created_on": ">=javascript:gs.beginningOfLastWeek()^<=javascript:gs.endOfLastWeek()",
     "caller_id": "!=1727339e47d99190c43d3171e36d43ad^caller_id!=479f2d3d475ad150c43d3171e36d43bc"
 }
@@ -52,10 +65,16 @@ filters = {
 
 ### Priority Incidents with Proper Syntax
 ```python
-# Use the new get_priority_incidents function
+# Use the enhanced get_priority_incidents function
 from Table_Tools.incident_tools import get_priority_incidents
 
-# Get P1 and P2 incidents with date range
+# Get P1 and P2 incidents from last week (recommended approach)
+incidents = await get_priority_incidents(
+    priorities=["1", "2"],
+    date_period="last_week"
+)
+
+# Alternative: Get P1 and P2 incidents with specific date range
 incidents = await get_priority_incidents(
     priorities=["1", "2"],
     sys_created_on=">=2025-08-25 00:00:00^<=2025-08-31 23:59:59"
@@ -68,7 +87,7 @@ from query_validation import ServiceNowQueryBuilder
 
 # Build proper OR syntax for multiple priorities
 priority_filter = ServiceNowQueryBuilder.build_priority_or_filter(["1", "2", "3"])
-# Result: "1^ORpriority=2^ORpriority=3"
+# Result: "priority=1^ORpriority=2^ORpriority=3"
 
 # Build date range filter
 date_filter = ServiceNowQueryBuilder.build_date_range_filter("2025-08-25", "2025-08-31")

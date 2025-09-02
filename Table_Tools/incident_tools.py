@@ -69,14 +69,38 @@ async def get_incident_details(input_incident: str) -> dict[str, Any] | str:
             return results
     return "Unable to fetch incident details or no incident found."
 
-async def get_priority_incidents(priorities: List[str], **additional_filters) -> dict[str, Any] | str:
-    """Get incidents by priority using proper ServiceNow OR syntax."""
-    # Build proper OR syntax for priorities
-    priority_filter = ServiceNowQueryBuilder.build_priority_or_filter(priorities)
+async def get_priority_incidents(
+    priorities: List[str], 
+    date_period: Optional[str] = None,
+    **additional_filters
+) -> dict[str, Any] | str:
+    """Get incidents by priority using proper ServiceNow OR syntax.
     
-    # Combine with additional filters
-    filters = {"priority": priority_filter}
-    filters.update(additional_filters)
+    Args:
+        priorities: List of priority values (e.g., ["1", "2"])
+        date_period: Optional date period ("last_week", "today", etc.)
+        **additional_filters: Additional filter conditions
+    
+    Returns:
+        Dictionary with incident results or error message
+    """
+    # Build complete filter using ServiceNowQueryBuilder
+    if date_period and date_period.lower() == "last_week":
+        # Use the complete filter builder for complex cases
+        complete_filter = ServiceNowQueryBuilder.build_complete_filter(
+            priorities=priorities,
+            date_period="last week",
+            additional_filters=additional_filters
+        )
+        # Pass as a single complete query
+        filters = {"_complete_query": complete_filter}
+    else:
+        # Build proper OR syntax for priorities
+        priority_filter = ServiceNowQueryBuilder.build_priority_or_filter(priorities)
+        
+        # Combine with additional filters
+        filters = {"priority": priority_filter}
+        filters.update(additional_filters)
     
     # Use the generic function with proper parameters
     table_params = TableFilterParams(filters=filters)

@@ -16,9 +16,9 @@ class ServiceNowQueryBuilder:
         if len(priorities) == 1:
             return priorities[0]
         
-        base_priority = priorities[0]
-        or_conditions = "^OR".join(f"priority={p}" for p in priorities[1:])
-        return f"{base_priority}^{or_conditions}"
+        # Correct ServiceNow OR syntax: priority=1^ORpriority=2
+        priority_conditions = [f"priority={p}" for p in priorities]
+        return "^OR".join(priority_conditions)
     
     @staticmethod
     def build_date_range_filter(start_date: str, end_date: str) -> str:
@@ -26,9 +26,51 @@ class ServiceNowQueryBuilder:
         return f">={start_date} 00:00:00^<={end_date} 23:59:59"
     
     @staticmethod
+    def build_relative_date_filter(period: str = "Last week") -> str:
+        """Build ServiceNow relative date filter with proper ON syntax."""
+        if period.lower() == "last week":
+            return "sys_created_onONLast week@javascript:gs.beginningOfLastWeek()@javascript:gs.endOfLastWeek()"
+        elif period.lower() == "today":
+            return "sys_created_onONToday@javascript:gs.beginningOfToday()@javascript:gs.endOfToday()"
+        elif period.lower() == "last 7 days":
+            return "sys_created_onONLast 7 Days@javascript:gs.daysAgoStart(7)@javascript:gs.daysAgoEnd(1)"
+        else:
+            # Fallback to standard range
+            return f"sys_created_on>={period}"
+    
+    @staticmethod
     def build_exclusion_filter(field: str, exclude_ids: List[str]) -> str:
         """Build exclusion filter for multiple IDs."""
         return "^".join(f"{field}!={exc_id}" for exc_id in exclude_ids)
+    
+    @staticmethod
+    def build_complete_filter(
+        priorities: Optional[List[str]] = None,
+        date_period: Optional[str] = None,
+        additional_filters: Optional[Dict[str, str]] = None
+    ) -> str:
+        """Build a complete ServiceNow filter string with proper syntax."""
+        filter_parts = []
+        
+        # Add relative date filter if specified
+        if date_period:
+            if date_period.lower() == "last week":
+                filter_parts.append(
+                    ServiceNowQueryBuilder.build_relative_date_filter("Last week")
+                )
+        
+        # Add priority filter if specified
+        if priorities and len(priorities) > 0:
+            priority_filter = ServiceNowQueryBuilder.build_priority_or_filter(priorities)
+            filter_parts.append(priority_filter)
+        
+        # Add any additional filters
+        if additional_filters:
+            for field, value in additional_filters.items():
+                if field not in ["sys_created_on", "priority"]:  # Avoid duplicates
+                    filter_parts.append(f"{field}={value}")
+        
+        return "^".join(filter_parts)
 
 
 class QueryValidationResult:

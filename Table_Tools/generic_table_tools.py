@@ -60,8 +60,20 @@ def _has_operator_in_value(value: str) -> bool:
     """Check if value already contains a comparison operator."""
     return isinstance(value, str) and any(op in value for op in ['>=', '<=', '>', '<', '='])
 
+def _is_complete_servicenow_filter(value: str) -> bool:
+    """Check if value is already a complete ServiceNow filter (e.g., priority=1^ORpriority=2)."""
+    return isinstance(value, str) and ('^OR' in value or 'ON' in value)
+
 def _build_query_condition(field: str, value: str) -> str:
     """Build a single query condition based on field and value."""
+    # Handle special complete query case
+    if field == "_complete_query":
+        return value
+    
+    # Handle complete ServiceNow filters (e.g., "priority=1^ORpriority=2")
+    if _is_complete_servicenow_filter(value):
+        return value
+    
     # Handle direct operator syntax (e.g., ">=javascript:gs.daysAgoStart(14)")
     if _has_operator_in_value(value):
         return f"{field}{value}"
