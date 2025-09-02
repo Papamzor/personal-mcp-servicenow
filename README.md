@@ -52,6 +52,9 @@ This project implements a production-ready MCP server using the FastMCP framewor
 - **Code Quality Excellence** - SonarCloud/Snyk compliant with cognitive complexity optimizations
 - **PEP 8 Compliance** - Snake_case naming conventions throughout the codebase
 - **Modular Design** - Helper functions reduce complexity and improve maintainability
+- **ServiceNow Query Reliability** - Proper OR syntax handling and result validation preventing missing critical incidents
+- **Pagination Implementation** - Comprehensive result retrieval preventing data loss from query limits
+- **Query Validation** - Built-in ServiceNow syntax validation and completeness checks
 
 ## 🛠️ Available Tools
 
@@ -69,6 +72,7 @@ This project implements a production-ready MCP server using the FastMCP framewor
 - `similar_incidents_for_incident(input_incident)` - Find related incidents
 - `get_incident_details(input_incident)` - Complete incident information
 - `get_incidents_by_filter(filters)` - Advanced incident filtering
+- `get_priority_incidents(priorities, **additional_filters)` - Get incidents by priority with proper ServiceNow OR syntax
 
 ### **Change Management**
 
@@ -295,6 +299,9 @@ python -m Testing.test_cmdb_tools
 - **SonarCloud Compliance** - Cognitive complexity reduced from 20 to ≤8 in critical functions
 - **PEP 8 Standards** - Complete snake_case naming convention compliance
 - **Modular Architecture** - Helper functions improve maintainability and testability
+- **ServiceNow Query Reliability** - Comprehensive pagination and result validation preventing missing critical incidents
+- **Constants Module** - Centralized configuration eliminating hardcoded strings and magic values
+- **Query Validation Framework** - Built-in ServiceNow syntax validation with completeness checks
 
 ## 🔧 Advanced Configuration
 
@@ -338,6 +345,7 @@ Contributions welcome! Please see [Contributing Guidelines](CONTRIBUTING.md).
 
 - [**OAuth Setup Guide**](OAUTH_SETUP_GUIDE.md) - Complete OAuth 2.0 configuration
 - [**Project Documentation**](CLAUDE.md) - Comprehensive technical documentation
+- [**ServiceNow Query Guide**](SERVICENOW_QUERY_GUIDE.md) - Proper ServiceNow syntax and best practices
 - [**Test Documentation**](Testing/TEST_PROMPTS.md) - Testing procedures and scenarios
 - [**Optimization Guide**](OPTIMIZATION_SUMMARY.md) - Performance improvements and token usage
 

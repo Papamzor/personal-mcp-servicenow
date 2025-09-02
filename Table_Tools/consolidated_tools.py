@@ -49,6 +49,12 @@ async def get_incidents_by_filter(filters: Dict[str, str], fields: Optional[List
     params = TableFilterParams(filters=filters, fields=fields)
     return await query_table_with_filters("incident", params)
 
+async def get_priority_incidents(priorities: List[str], **additional_filters) -> dict[str, Any] | str:
+    """Get incidents by priority using proper ServiceNow OR syntax."""
+    # Import here to avoid circular import
+    from .incident_tools import get_priority_incidents as _get_priority_incidents
+    return await _get_priority_incidents(priorities, **additional_filters)
+
 # CHANGE TOOLS - Consolidated
 async def similar_changes_for_text(input_text: str) -> dict[str, Any] | str:
     """Find changes based on input text."""

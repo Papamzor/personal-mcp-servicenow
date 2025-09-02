@@ -3,6 +3,7 @@ from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 from pydantic import BaseModel, Field
 from .generic_table_tools import query_table_with_filters, TableFilterParams
+from query_validation import ServiceNowQueryBuilder, validate_result_count
 
 
 class IncidentFilterParams(BaseModel):
@@ -67,6 +68,28 @@ async def get_incident_details(input_incident: str) -> dict[str, Any] | str:
         elif isinstance(results, dict):
             return results
     return "Unable to fetch incident details or no incident found."
+
+async def get_priority_incidents(priorities: List[str], **additional_filters) -> dict[str, Any] | str:
+    """Get incidents by priority using proper ServiceNow OR syntax."""
+    # Build proper OR syntax for priorities
+    priority_filter = ServiceNowQueryBuilder.build_priority_or_filter(priorities)
+    
+    # Combine with additional filters
+    filters = {"priority": priority_filter}
+    filters.update(additional_filters)
+    
+    # Use the generic function with proper parameters
+    table_params = TableFilterParams(filters=filters)
+    result = await query_table_with_filters("incident", table_params)
+    
+    # Additional validation for critical incidents
+    if isinstance(result, dict) and "result" in result:
+        validation = validate_result_count("incident", filters, len(result["result"]))
+        if validation.has_issues():
+            print(f"Priority incident validation warnings: {validation.warnings}")
+    
+    return result
+
 
 async def get_incidents_by_filter(params: IncidentFilterParams) -> dict[str, Any] | str:
     """Get incidents based on filters with proper date handling.

@@ -55,3 +55,24 @@ DETAILED_VTB_TASK_FIELDS = COMMON_VTB_TASK_FIELDS + [
     "due_date",
     "parent"
 ]
+
+# ServiceNow Query Patterns and Validation
+SERVICENOW_OR_SYNTAX_EXAMPLE = "1^ORpriority=2"
+SERVICENOW_DATE_RANGE_EXAMPLE = ">=2024-01-01 00:00:00^<=2024-01-31 23:59:59"
+
+# Common ServiceNow priority values
+PRIORITY_VALUES = {
+    "critical": "1",
+    "high": "2", 
+    "moderate": "3",
+    "low": "4",
+    "planning": "5"
+}
+
+# Query validation messages
+QUERY_WARNINGS = {
+    "multiple_priorities_no_or": "Multiple priorities detected but no OR syntax used",
+    "incomplete_date_range": "Date range appears incomplete - missing start or end date",
+    "low_critical_incident_count": "Unusually low count for critical incidents - verify completeness",
+    "zero_results_high_priority": "No results for high priority query - check filter syntax"
+}

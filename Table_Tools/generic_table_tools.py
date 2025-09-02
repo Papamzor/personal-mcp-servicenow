@@ -3,6 +3,12 @@ from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 from pydantic import BaseModel, Field
 from constants import ESSENTIAL_FIELDS, DETAIL_FIELDS, NO_RECORDS_FOUND, RECORD_NOT_FOUND
+from query_validation import (
+    validate_query_filters, 
+    validate_result_count, 
+    build_pagination_params,
+    suggest_query_improvements
+)
 
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any] | str:
     """Generic function to query any ServiceNow table by text similarity."""
@@ -96,6 +102,37 @@ def _encode_query_string(query_string: str) -> str:
     from urllib.parse import quote
     return quote(query_string, safe='=<>&^():.')
 
+async def _make_paginated_request(
+    url: str, 
+    max_results: int = 1000,
+    page_size: int = 250
+) -> List[Dict[str, Any]]:
+    """Make paginated requests to get complete result sets."""
+    all_results = []
+    offset = 0
+    
+    while len(all_results) < max_results:
+        paginated_url = f"{url}&sysparm_offset={offset}&sysparm_limit={page_size}"
+        data = await make_nws_request(paginated_url)
+        
+        if not data or not data.get('result'):
+            break
+        
+        batch_results = data['result']
+        if not batch_results:
+            break
+        
+        all_results.extend(batch_results)
+        
+        # If we got less than page_size, we've reached the end
+        if len(batch_results) < page_size:
+            break
+        
+        offset += page_size
+    
+    return all_results[:max_results]
+
+
 async def query_table_with_filters(table_name: str, params: TableFilterParams) -> dict[str, Any] | str:
     """Generic function to query table with custom filters and fields.
     
@@ -110,13 +147,31 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
     """
     fields = params.fields or ESSENTIAL_FIELDS.get(table_name, ["number", "short_description"])
     
+    # Validate filters before making request
+    if params.filters:
+        validation_result = validate_query_filters(params.filters)
+        if validation_result.has_issues():
+            # Log warnings but continue with query
+            print(f"Query validation warnings: {validation_result.warnings}")
+    
     query_string = _build_query_string(params.filters)
     encoded_query = _encode_query_string(query_string)
     
-    url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
+    base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
     
     if encoded_query:
-        url += f"&sysparm_query={encoded_query}"
+        base_url += f"&sysparm_query={encoded_query}"
     
-    data = await make_nws_request(url)
-    return data if data else NO_RECORDS_FOUND
+    # Use pagination for potentially large result sets
+    all_results = await _make_paginated_request(base_url)
+    
+    if all_results:
+        # Validate result completeness
+        result_validation = validate_result_count(table_name, params.filters or {}, len(all_results))
+        if result_validation.has_issues():
+            print(f"Result validation warnings: {result_validation.warnings}")
+        
+        # Return in ServiceNow API format
+        return {"result": all_results}
+    
+    return NO_RECORDS_FOUND
