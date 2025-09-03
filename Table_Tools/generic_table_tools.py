@@ -9,6 +9,7 @@ from query_validation import (
     build_pagination_params,
     suggest_query_improvements
 )
+from query_intelligence import QueryIntelligence, QueryExplainer, build_smart_filter, explain_existing_filter
 
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any] | str:
     """Generic function to query any ServiceNow table by text similarity."""
@@ -187,3 +188,135 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
         return {"result": all_results}
     
     return NO_RECORDS_FOUND
+
+
+async def query_table_intelligently(
+    table_name: str, 
+    natural_language_query: str, 
+    context: Optional[Dict] = None
+) -> Dict[str, Any]:
+    """Query table using natural language with intelligent filter conversion.
+    
+    Args:
+        table_name: ServiceNow table to query
+        natural_language_query: Natural language description of what to find
+        context: Optional context for enhancing the query
+        
+    Returns:
+        Dictionary containing query results and intelligence metadata
+    """
+    # Build intelligent filter
+    intelligence_result = build_smart_filter(natural_language_query, table_name, context)
+    
+    # If we got filters, execute the query
+    if intelligence_result["filters"]:
+        params = TableFilterParams(
+            filters=intelligence_result["filters"],
+            fields=ESSENTIAL_FIELDS.get(table_name, ["number", "short_description"])
+        )
+        
+        query_result = await query_table_with_filters(table_name, params)
+        
+        # Combine query results with intelligence metadata
+        if isinstance(query_result, dict) and query_result.get('result'):
+            return {
+                "result": query_result["result"],
+                "intelligence": {
+                    "explanation": intelligence_result["explanation"],
+                    "confidence": intelligence_result["confidence"],
+                    "suggestions": intelligence_result["suggestions"],
+                    "template_used": intelligence_result.get("template_used"),
+                    "sql_equivalent": intelligence_result.get("sql_equivalent"),
+                    "filters_used": intelligence_result["filters"]
+                }
+            }
+    
+    # Fallback to keyword-based search if no intelligent filters were generated
+    fallback_result = await query_table_by_text(table_name, natural_language_query)
+    
+    return {
+        "result": fallback_result.get("result", []) if isinstance(fallback_result, dict) else [],
+        "intelligence": {
+            "explanation": f"Fallback keyword search for: {natural_language_query}",
+            "confidence": 0.3,
+            "suggestions": ["Try being more specific with priorities, dates, or states"],
+            "template_used": None,
+            "sql_equivalent": f"SELECT * FROM {table_name} WHERE short_description CONTAINS '{natural_language_query}'",
+            "filters_used": {"short_description": f"short_descriptionCONTAINS{natural_language_query}"}
+        }
+    }
+
+
+async def explain_filter_query(
+    table_name: str,
+    filters: Dict[str, str]
+) -> Dict[str, Any]:
+    """Explain what a filter query will do and provide suggestions.
+    
+    Args:
+        table_name: ServiceNow table name
+        filters: Dictionary of filters to explain
+        
+    Returns:
+        Dictionary with explanation and suggestions
+    """
+    explanation_result = explain_existing_filter(filters, table_name)
+    
+    return {
+        "explanation": explanation_result["explanation"],
+        "sql_equivalent": explanation_result["sql_equivalent"],
+        "potential_issues": explanation_result["potential_issues"],
+        "suggestions": explanation_result["suggestions"],
+        "estimated_result_size": explanation_result["estimated_result_size"],
+        "filter_analysis": {
+            "field_count": len(filters),
+            "has_date_filter": any("created_on" in field or "updated_on" in field for field in filters.keys()),
+            "has_priority_filter": "priority" in filters,
+            "has_state_filter": "state" in filters,
+            "complexity": "Simple" if len(filters) <= 2 else "Complex"
+        }
+    }
+
+
+class SmartQueryParams(BaseModel):
+    """Parameters for intelligent queries."""
+    natural_language: str = Field(description="Natural language description of what to find")
+    table_name: str = Field(description="ServiceNow table to search")
+    context: Optional[Dict[str, Any]] = Field(None, description="Additional context for the query")
+    include_explanation: bool = Field(True, description="Whether to include explanation in results")
+
+
+async def build_and_validate_smart_filter(
+    natural_language: str,
+    table_name: str,
+    context: Optional[Dict] = None
+) -> Dict[str, Any]:
+    """Build and validate an intelligent filter without executing the query.
+    
+    This is useful for testing and debugging filter generation.
+    """
+    intelligence_result = build_smart_filter(natural_language, table_name, context)
+    
+    # Validate the generated filters
+    if intelligence_result["filters"]:
+        validation_result = validate_query_filters(intelligence_result["filters"])
+        
+        return {
+            "filters": intelligence_result["filters"],
+            "intelligence": intelligence_result,
+            "validation": {
+                "is_valid": validation_result.is_valid,
+                "warnings": validation_result.warnings,
+                "suggestions": validation_result.suggestions
+            }
+        }
+    else:
+        return {
+            "filters": {},
+            "intelligence": intelligence_result,
+            "validation": {
+                "is_valid": False,
+                "warnings": ["No filters could be generated from the input"],
+                "suggestions": ["Try using more specific terms like priorities, dates, or states"]
+            }
+        }

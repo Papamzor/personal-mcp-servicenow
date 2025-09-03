@@ -22,6 +22,10 @@ from Table_Tools.consolidated_tools import (
     find_cis_by_type, search_cis_by_attributes, get_ci_details, similar_cis_for_ci, get_all_ci_types, quick_ci_search
 )
 from utility_tools import nowtest, now_test_oauth, now_auth_info
+from Table_Tools.intelligent_query_tools import (
+    intelligent_search, explain_servicenow_filters, build_smart_servicenow_filter,
+    get_servicenow_filter_templates, get_query_examples
+)
 
 mcp = FastMCP("personalmcpservicenow")
 
@@ -36,7 +40,10 @@ tools = [
     similar_private_tasks_for_text, get_short_desc_for_private_task, similar_private_tasks_for_private_task, get_private_task_details,
     create_private_task, update_private_task, get_private_tasks_by_filter,
     # CMDB tools
-    find_cis_by_type, search_cis_by_attributes, get_ci_details, similar_cis_for_ci, get_all_ci_types, quick_ci_search
+    find_cis_by_type, search_cis_by_attributes, get_ci_details, similar_cis_for_ci, get_all_ci_types, quick_ci_search,
+    # Intelligent query tools
+    intelligent_search, explain_servicenow_filters, build_smart_servicenow_filter,
+    get_servicenow_filter_templates, get_query_examples
 ]
 
 for tool in tools:
