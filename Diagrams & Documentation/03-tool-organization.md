@@ -32,15 +32,15 @@ graph LR
 ```mermaid
 graph TB
     subgraph "Tool Pattern Examples (snake_case parameters)"
-        A1[similar_incidents_for_text(input_text)] --> G1[query_table_by_text]
-        A2[similar_changes_for_text(input_text)] --> G1
-        A3[similar_knowledge_for_text(input_text)] --> G1
-        A4[similar_ur_for_text(input_text)] --> G1
+        A1[similar_incidents_for_text input_text] --> G1[query_table_by_text]
+        A2[similar_changes_for_text input_text] --> G1
+        A3[similar_knowledge_for_text input_text] --> G1
+        A4[similar_ur_for_text input_text] --> G1
         
-        B1[get_incident_details(input_incident)] --> G2[get_record_details] 
-        B2[get_change_details(input_change)] --> G2
-        B3[get_knowledge_details(kb_number)] --> G2
-        B4[get_ur_details(input_ur)] --> G2
+        B1[get_incident_details input_incident] --> G2[get_record_details] 
+        B2[get_change_details input_change] --> G2
+        B3[get_knowledge_details kb_number] --> G2
+        B4[get_ur_details input_ur] --> G2
     end
     
     subgraph "5 Generic Functions"
