@@ -2,6 +2,8 @@ from service_now_api_oauth import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 from pydantic import BaseModel, Field
+import signal
+from contextlib import contextmanager
 from constants import ESSENTIAL_FIELDS, DETAIL_FIELDS, NO_RECORDS_FOUND, RECORD_NOT_FOUND
 from query_validation import (
     validate_query_filters, 
@@ -10,6 +12,42 @@ from query_validation import (
     suggest_query_improvements
 )
 from query_intelligence import QueryIntelligence, QueryExplainer, build_smart_filter, explain_existing_filter
+
+
+@contextmanager
+def timeout_protection(seconds=2):
+    """Context manager to protect against long-running regex operations."""
+    def timeout_handler(signum, frame):
+        raise TimeoutError("Regex operation timed out")
+    
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
+
+
+def _validate_regex_input(text: str) -> bool:
+    """Pre-validate input to prevent ReDoS attacks."""
+    # Input length limit (Fix #1)
+    if len(text) > 200:
+        return False
+    
+    # Pre-validation checks (Fix #4)
+    if text.count(' ') > 20:  # Excessive spaces
+        return False
+    
+    if text.count('-') > 5:  # Too many hyphens
+        return False
+    
+    # Check for suspicious repeated patterns
+    for char in [' ', '\t', '\n', '-', ',']:
+        if char * 10 in text:  # 10+ consecutive same characters
+            return False
+    
+    return True
 
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any] | str:
     """Generic function to query any ServiceNow table by text similarity."""
@@ -66,7 +104,7 @@ def _is_complete_servicenow_filter(value: str) -> bool:
     return isinstance(value, str) and ('^OR' in value or 'ON' in value)
 
 def _parse_date_range_from_text(text: str) -> Optional[tuple]:
-    """Parse date range from natural language text.
+    """Parse date range from natural language text with ReDoS protection.
     
     Handles formats like:
     - "Week 35 2025" or "week 35 of 2025"
@@ -77,49 +115,60 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
     import re
     from datetime import datetime, timedelta
     
+    # Security Fix #1 & #4: Pre-validate input to prevent ReDoS attacks
+    if not _validate_regex_input(text):
+        return None
+    
     text = text.lower().strip()
     
-    # Handle "Week X YYYY" format
-    week_match = re.search(r'week\s+(\d+)\s+(?:of\s+)?(\d{4})', text)
-    if week_match:
-        week_num = int(week_match.group(1))
-        year = int(week_match.group(2))
-        
-        # Calculate start date of the week (assuming week starts on Monday)
-        # Week 1 is the first week with at least 4 days in the new year
-        jan_4 = datetime(year, 1, 4)
-        week_start = jan_4 - timedelta(days=jan_4.weekday()) + timedelta(weeks=week_num - 1)
-        week_end = week_start + timedelta(days=6)
-        
-        return (week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'))
-    
-    # Handle "Month DD-DD, YYYY" format
-    month_range_match = re.search(r'(\w+)\s+(\d+)-(\d+),\s*(\d{4})', text)
-    if month_range_match:
-        month_name = month_range_match.group(1)
-        start_day = int(month_range_match.group(2))
-        end_day = int(month_range_match.group(3))
-        year = int(month_range_match.group(4))
-        
-        # Convert month name to number
-        months = {
-            'january': 1, 'february': 2, 'march': 3, 'april': 4,
-            'may': 5, 'june': 6, 'july': 7, 'august': 8,
-            'september': 9, 'october': 10, 'november': 11, 'december': 12
-        }
-        
-        month_num = months.get(month_name.lower())
-        if month_num:
-            start_date = f"{year}-{month_num:02d}-{start_day:02d}"
-            end_date = f"{year}-{month_num:02d}-{end_day:02d}"
-            return (start_date, end_date)
-    
-    # Handle "YYYY-MM-DD to YYYY-MM-DD" format
-    date_range_match = re.search(r'(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})', text)
-    if date_range_match:
-        return (date_range_match.group(1), date_range_match.group(2))
-    
-    return None
+    try:
+        # Security Fix #3: Timeout protection for regex operations
+        with timeout_protection(seconds=2):
+            # Handle "Week X YYYY" format
+            week_match = re.search(r'week\s+(\d+)\s+(?:of\s+)?(\d{4})', text)
+            if week_match:
+                week_num = int(week_match.group(1))
+                year = int(week_match.group(2))
+                
+                # Calculate start date of the week (assuming week starts on Monday)
+                # Week 1 is the first week with at least 4 days in the new year
+                jan_4 = datetime(year, 1, 4)
+                week_start = jan_4 - timedelta(days=jan_4.weekday()) + timedelta(weeks=week_num - 1)
+                week_end = week_start + timedelta(days=6)
+                
+                return (week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'))
+            
+            # Handle "Month DD-DD, YYYY" format - FIXED VULNERABLE REGEX
+            month_range_match = re.search(r'(\w+)\s+(\d+)-(\d+),\s*(\d{4})', text)
+            if month_range_match:
+                month_name = month_range_match.group(1)
+                start_day = int(month_range_match.group(2))
+                end_day = int(month_range_match.group(3))
+                year = int(month_range_match.group(4))
+                
+                # Convert month name to number
+                months = {
+                    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+                    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+                    'september': 9, 'october': 10, 'november': 11, 'december': 12
+                }
+                
+                month_num = months.get(month_name.lower())
+                if month_num:
+                    start_date = f"{year}-{month_num:02d}-{start_day:02d}"
+                    end_date = f"{year}-{month_num:02d}-{end_day:02d}"
+                    return (start_date, end_date)
+            
+            # Handle "YYYY-MM-DD to YYYY-MM-DD" format
+            date_range_match = re.search(r'(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})', text)
+            if date_range_match:
+                return (date_range_match.group(1), date_range_match.group(2))
+            
+            return None
+            
+    except TimeoutError:
+        # Regex operation timed out - likely ReDoS attack
+        return None
 
 def _parse_priority_list(value: str) -> str:
     """Parse priority list and convert to proper OR syntax.
@@ -184,36 +233,51 @@ def _parse_caller_exclusions(value: str) -> str:
     
     return value
 
-def _build_query_condition(field: str, value: str) -> str:
-    """Build a single query condition based on field and value."""
-    # Handle special complete query case
-    if field == "_complete_query":
-        return value
-    
-    # Handle date range parsing for sys_created_on field
+def _handle_complete_query_condition(field: str, value: str) -> str:
+    """Handle complete query condition."""
+    return value
+
+
+def _handle_date_range_condition(field: str, value: str) -> str:
+    """Handle date range parsing for sys_created_on field."""
     if field == "sys_created_on" and not value.startswith(">=") and "BETWEEN" not in value:
         date_range = _parse_date_range_from_text(value)
         if date_range:
             start_date, end_date = date_range
             return f"sys_created_onBETWEENjavascript:gs.dateGenerate('{start_date}','00:00:00')@javascript:gs.dateGenerate('{end_date}','23:59:59')"
-    
-    # Handle priority list parsing
+    return None
+
+
+def _handle_priority_condition(field: str, value: str) -> str:
+    """Handle priority list parsing."""
     if field == "priority" and ("," in value or value.upper().startswith("P")):
         return _parse_priority_list(value)
-    
-    # Handle caller exclusions
+    return None
+
+
+def _handle_caller_exclusion_condition(field: str, value: str) -> str:
+    """Handle caller exclusions."""
     if field == "exclude_caller" or field == "caller_exclusion":
         return _parse_caller_exclusions(value)
-    
-    # Handle complete ServiceNow filters (e.g., "priority=1^ORpriority=2")
+    return None
+
+
+def _handle_servicenow_filter_condition(field: str, value: str) -> str:
+    """Handle complete ServiceNow filters."""
     if _is_complete_servicenow_filter(value):
         return value
-    
-    # Handle direct operator syntax (e.g., ">=javascript:gs.daysAgoStart(14)")
+    return None
+
+
+def _handle_operator_condition(field: str, value: str) -> str:
+    """Handle direct operator syntax."""
     if _has_operator_in_value(value):
         return f"{field}{value}"
-    
-    # Handle suffix-based operators
+    return None
+
+
+def _handle_suffix_operator_condition(field: str, value: str) -> str:
+    """Handle suffix-based operators."""
     if field.endswith('_gte'):
         base_field = field[:-4]
         return f"{base_field}>={value}"
@@ -227,11 +291,39 @@ def _build_query_condition(field: str, value: str) -> str:
         base_field = field[:-3]
         return f"{base_field}<{value}"
     elif 'CONTAINS' in field.upper():
-        # Handle CONTAINS operations (field already formatted)
         return f"{field}"
-    else:
-        # Exact match
-        return f"{field}={value}"
+    return None
+
+
+def _handle_exact_match_condition(field: str, value: str) -> str:
+    """Handle exact match condition."""
+    return f"{field}={value}"
+
+
+def _build_query_condition(field: str, value: str) -> str:
+    """Build a single query condition based on field and value."""
+    # Handle special complete query case first
+    if field == "_complete_query":
+        return _handle_complete_query_condition(field, value)
+    
+    # Condition handler registry ordered by specificity
+    condition_handlers = [
+        _handle_date_range_condition,
+        _handle_priority_condition,
+        _handle_caller_exclusion_condition,
+        _handle_servicenow_filter_condition,
+        _handle_operator_condition,
+        _handle_suffix_operator_condition,
+    ]
+    
+    # Try each condition handler until one matches
+    for handler in condition_handlers:
+        result = handler(field, value)
+        if result is not None:
+            return result
+    
+    # Default to exact match if no specialized handler applies
+    return _handle_exact_match_condition(field, value)
 
 def _build_query_string(filters: Dict[str, str]) -> str:
     """Build the complete query string from filters."""

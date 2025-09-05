@@ -292,6 +292,68 @@ def suggest_query_improvements(
     return suggestions
 
 
+def _analyze_date_filtering(query_string: str, debug_info: Dict[str, Any]) -> None:
+    """Analyze date filtering components in the query."""
+    if "sys_created_on" in query_string:
+        debug_info["components"].append("Date filtering")
+        if "BETWEEN" in query_string:
+            debug_info["components"].append("BETWEEN syntax (correct)")
+        elif ">=" in query_string or "<=" in query_string:
+            debug_info["potential_issues"].append("Using old date comparison syntax")
+            debug_info["recommendations"].append("Update to BETWEEN syntax for better reliability")
+
+
+def _analyze_priority_filtering(query_string: str, debug_info: Dict[str, Any]) -> None:
+    """Analyze priority filtering components in the query."""
+    if "priority=" in query_string:
+        debug_info["components"].append("Priority filtering")
+        if "^OR" in query_string:
+            debug_info["components"].append("OR logic (correct)")
+        else:
+            debug_info["potential_issues"].append("Single priority or missing OR syntax")
+
+
+def _analyze_caller_exclusion(query_string: str, debug_info: Dict[str, Any]) -> None:
+    """Analyze caller exclusion components in the query."""
+    if "caller_id!=" in query_string:
+        debug_info["components"].append("Caller exclusion")
+        exclusion_count = query_string.count("caller_id!=")
+        debug_info["components"].append(f"{exclusion_count} caller(s) excluded")
+
+
+def _analyze_javascript_functions(query_string: str, debug_info: Dict[str, Any]) -> None:
+    """Analyze JavaScript date functions in the query."""
+    if "javascript:gs." in query_string:
+        debug_info["components"].append("JavaScript date functions")
+        if "@javascript:" in query_string:
+            debug_info["components"].append("Proper date range separators")
+        else:
+            debug_info["potential_issues"].append("Missing date range separator (@)")
+
+
+def _analyze_url_encoding(query_string: str, debug_info: Dict[str, Any]) -> None:
+    """Analyze URL encoding issues in the query."""
+    if " " in query_string:
+        debug_info["potential_issues"].append("Unencoded spaces in query")
+        debug_info["recommendations"].append("Ensure proper URL encoding")
+
+
+def _analyze_original_filters(original_filters: Dict[str, str], debug_info: Dict[str, Any]) -> None:
+    """Analyze original filters for common issues."""
+    if not original_filters:
+        return
+        
+    debug_info["original_filter_count"] = len(original_filters)
+    debug_info["original_filters"] = list(original_filters.keys())
+    
+    if "_complete_query" in original_filters:
+        debug_info["components"].append("Using complete query construction")
+    
+    for field, value in original_filters.items():
+        if "," in str(value) and "^OR" not in str(value):
+            debug_info["potential_issues"].append(f"Field '{field}' may use comma syntax instead of OR")
+
+
 def debug_query_construction(
     query_string: str,
     original_filters: Dict[str, str] = None
@@ -312,38 +374,18 @@ def debug_query_construction(
         "recommendations": []
     }
     
-    # Analyze query components
-    if "sys_created_on" in query_string:
-        debug_info["components"].append("Date filtering")
-        if "BETWEEN" in query_string:
-            debug_info["components"].append("BETWEEN syntax (correct)")
-        elif ">=" in query_string or "<=" in query_string:
-            debug_info["potential_issues"].append("Using old date comparison syntax")
-            debug_info["recommendations"].append("Update to BETWEEN syntax for better reliability")
+    # Analysis handler registry for specialized debug logic
+    analysis_handlers = [
+        _analyze_date_filtering,
+        _analyze_priority_filtering,
+        _analyze_caller_exclusion,
+        _analyze_javascript_functions,
+        _analyze_url_encoding,
+    ]
     
-    if "priority=" in query_string:
-        debug_info["components"].append("Priority filtering")
-        if "^OR" in query_string:
-            debug_info["components"].append("OR logic (correct)")
-        else:
-            debug_info["potential_issues"].append("Single priority or missing OR syntax")
-    
-    if "caller_id!=" in query_string:
-        debug_info["components"].append("Caller exclusion")
-        exclusion_count = query_string.count("caller_id!=")
-        debug_info["components"].append(f"{exclusion_count} caller(s) excluded")
-    
-    if "javascript:gs." in query_string:
-        debug_info["components"].append("JavaScript date functions")
-        if "@javascript:" in query_string:
-            debug_info["components"].append("Proper date range separators")
-        else:
-            debug_info["potential_issues"].append("Missing date range separator (@)")
-    
-    # Check for URL encoding issues
-    if " " in query_string:
-        debug_info["potential_issues"].append("Unencoded spaces in query")
-        debug_info["recommendations"].append("Ensure proper URL encoding")
+    # Apply all query string analyzers
+    for handler in analysis_handlers:
+        handler(query_string, debug_info)
     
     # Analyze query complexity
     condition_count = query_string.count("^") + 1 if query_string else 0
@@ -352,17 +394,7 @@ def debug_query_construction(
     if condition_count > 5:
         debug_info["recommendations"].append("Consider simplifying complex query for better performance")
     
-    # Original filters analysis
-    if original_filters:
-        debug_info["original_filter_count"] = len(original_filters)
-        debug_info["original_filters"] = list(original_filters.keys())
-        
-        # Check for common issues
-        if "_complete_query" in original_filters:
-            debug_info["components"].append("Using complete query construction")
-        
-        for field, value in original_filters.items():
-            if "," in str(value) and "^OR" not in str(value):
-                debug_info["potential_issues"].append(f"Field '{field}' may use comma syntax instead of OR")
+    # Analyze original filters
+    _analyze_original_filters(original_filters, debug_info)
     
     return debug_info

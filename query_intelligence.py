@@ -227,44 +227,98 @@ class QueryIntelligence:
         return context_filters
     
     @classmethod
+    def _explain_priority_filter(cls, value: str) -> str:
+        """Generate explanation for priority filter."""
+        if "^OR" in value:
+            priorities = re.findall(r"priority=(\d+)", value)
+            return f"Priority levels: {', '.join(priorities)}"
+        else:
+            return f"Priority: {value}"
+    
+    @classmethod
+    def _explain_date_filter(cls, value: str) -> str:
+        """Generate explanation for date-related filters."""
+        if "Last week" in value:
+            return "Created last week"
+        elif "daysAgoStart" in value:
+            days = re.search(r"daysAgoStart\((\d+)\)", value)
+            if days:
+                return f"Created in last {days.group(1)} days"
+            return f"Created: {value}"
+        else:
+            return f"Created: {value}"
+    
+    @classmethod
+    def _explain_state_filter(cls, value: str) -> str:
+        """Generate explanation for state filter."""
+        if "!=" in value:
+            return "Excluding resolved/closed records"
+        else:
+            return f"State: {value}"
+    
+    @classmethod
+    def _explain_assigned_to_filter(cls, value: str) -> str:
+        """Generate explanation for assigned_to filter."""
+        if value == "NULL":
+            return "Unassigned records"
+        else:
+            return f"Assigned to: {value}"
+    
+    @classmethod
+    def _explain_custom_query_filter(cls, value: str) -> str:
+        """Generate explanation for complete query filter."""
+        return f"Custom query: {value}"
+    
+    @classmethod
     def _generate_filter_explanation(cls, filters: Dict[str, str], table_name: str) -> str:
         """Generate human-readable explanation of what the filter will do."""
         if not filters:
             return f"No filters applied - will return all {table_name} records"
         
+        # Field handler registry for specialized explanation logic
+        field_handlers = {
+            "_complete_query": cls._explain_custom_query_filter,
+            "priority": cls._explain_priority_filter,
+            "sys_created_on": cls._explain_date_filter,
+            "state": cls._explain_state_filter,
+            "assigned_to": cls._explain_assigned_to_filter
+        }
+        
         explanations = []
         for field, value in filters.items():
-            if field == "_complete_query":
-                explanations.append(f"Custom query: {value}")
-            elif field == "priority":
-                if "^OR" in value:
-                    priorities = re.findall(r"priority=(\d+)", value)
-                    explanations.append(f"Priority levels: {', '.join(priorities)}")
-                else:
-                    explanations.append(f"Priority: {value}")
-            elif field == "sys_created_on":
-                if "Last week" in value:
-                    explanations.append("Created last week")
-                elif "daysAgoStart" in value:
-                    days = re.search(r"daysAgoStart\((\d+)\)", value)
-                    if days:
-                        explanations.append(f"Created in last {days.group(1)} days")
-                else:
-                    explanations.append(f"Created: {value}")
-            elif field == "state":
-                if "!=" in value:
-                    explanations.append("Excluding resolved/closed records")
-                else:
-                    explanations.append(f"State: {value}")
-            elif field == "assigned_to":
-                if value == "NULL":
-                    explanations.append("Unassigned records")
-                else:
-                    explanations.append(f"Assigned to: {value}")
+            handler = field_handlers.get(field)
+            if handler:
+                explanations.append(handler(value))
             else:
                 explanations.append(f"{field}: {value}")
         
         return f"Will find {table_name} records where: " + " AND ".join(explanations)
+    
+    @classmethod
+    def _generate_sql_for_complete_query(cls, field: str, value: str) -> str:
+        """Generate SQL condition for complete query."""
+        return f"({value})"
+    
+    @classmethod
+    def _generate_sql_for_or_condition(cls, field: str, value: str) -> str:
+        """Generate SQL condition for OR operations."""
+        or_conditions = value.split("^OR")
+        return f"({' OR '.join(or_conditions)})"
+    
+    @classmethod
+    def _generate_sql_for_not_equal(cls, field: str, value: str) -> str:
+        """Generate SQL condition for not equal operations."""
+        return f"{field} != '{value.replace('!=', '')}'"
+    
+    @classmethod
+    def _generate_sql_for_greater_equal(cls, field: str, value: str) -> str:
+        """Generate SQL condition for greater than or equal operations."""
+        return f"{field} >= '{value.replace('>=', '')}'"
+    
+    @classmethod
+    def _generate_sql_for_equal(cls, field: str, value: str) -> str:
+        """Generate SQL condition for basic equality."""
+        return f"{field} = '{value}'"
     
     @classmethod
     def _generate_sql_equivalent(cls, filters: Dict[str, str], table_name: str) -> str:
@@ -274,20 +328,25 @@ class QueryIntelligence:
         
         conditions = []
         for field, value in filters.items():
-            if field == "_complete_query":
-                conditions.append(f"({value})")
-            elif "^OR" in value:
-                or_conditions = value.split("^OR")
-                conditions.append(f"({' OR '.join(or_conditions)})")
-            elif "!=" in value:
-                conditions.append(f"{field} != '{value.replace('!=', '')}'")
-            elif ">=" in value:
-                conditions.append(f"{field} >= '{value.replace('>=', '')}'")
-            else:
-                conditions.append(f"{field} = '{value}'")
+            condition = cls._determine_sql_condition(field, value)
+            conditions.append(condition)
         
         where_clause = " AND ".join(conditions)
         return f"SELECT * FROM {table_name} WHERE {where_clause}"
+    
+    @classmethod
+    def _determine_sql_condition(cls, field: str, value: str) -> str:
+        """Determine appropriate SQL condition based on field and value."""
+        if field == "_complete_query":
+            return cls._generate_sql_for_complete_query(field, value)
+        elif "^OR" in value:
+            return cls._generate_sql_for_or_condition(field, value)
+        elif "!=" in value:
+            return cls._generate_sql_for_not_equal(field, value)
+        elif ">=" in value:
+            return cls._generate_sql_for_greater_equal(field, value)
+        else:
+            return cls._generate_sql_for_equal(field, value)
 
 
 class QueryExplainer:
