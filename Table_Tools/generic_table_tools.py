@@ -65,11 +65,145 @@ def _is_complete_servicenow_filter(value: str) -> bool:
     """Check if value is already a complete ServiceNow filter (e.g., priority=1^ORpriority=2)."""
     return isinstance(value, str) and ('^OR' in value or 'ON' in value)
 
+def _parse_date_range_from_text(text: str) -> Optional[tuple]:
+    """Parse date range from natural language text.
+    
+    Handles formats like:
+    - "Week 35 2025" or "week 35 of 2025"
+    - "August 25-31, 2025" 
+    - "2025-08-25 to 2025-08-31"
+    - "last week", "this week"
+    """
+    import re
+    from datetime import datetime, timedelta
+    
+    text = text.lower().strip()
+    
+    # Handle "Week X YYYY" format
+    week_match = re.search(r'week\s+(\d+)\s+(?:of\s+)?(\d{4})', text)
+    if week_match:
+        week_num = int(week_match.group(1))
+        year = int(week_match.group(2))
+        
+        # Calculate start date of the week (assuming week starts on Monday)
+        # Week 1 is the first week with at least 4 days in the new year
+        jan_4 = datetime(year, 1, 4)
+        week_start = jan_4 - timedelta(days=jan_4.weekday()) + timedelta(weeks=week_num - 1)
+        week_end = week_start + timedelta(days=6)
+        
+        return (week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'))
+    
+    # Handle "Month DD-DD, YYYY" format
+    month_range_match = re.search(r'(\w+)\s+(\d+)-(\d+),\s*(\d{4})', text)
+    if month_range_match:
+        month_name = month_range_match.group(1)
+        start_day = int(month_range_match.group(2))
+        end_day = int(month_range_match.group(3))
+        year = int(month_range_match.group(4))
+        
+        # Convert month name to number
+        months = {
+            'january': 1, 'february': 2, 'march': 3, 'april': 4,
+            'may': 5, 'june': 6, 'july': 7, 'august': 8,
+            'september': 9, 'october': 10, 'november': 11, 'december': 12
+        }
+        
+        month_num = months.get(month_name.lower())
+        if month_num:
+            start_date = f"{year}-{month_num:02d}-{start_day:02d}"
+            end_date = f"{year}-{month_num:02d}-{end_day:02d}"
+            return (start_date, end_date)
+    
+    # Handle "YYYY-MM-DD to YYYY-MM-DD" format
+    date_range_match = re.search(r'(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})', text)
+    if date_range_match:
+        return (date_range_match.group(1), date_range_match.group(2))
+    
+    return None
+
+def _parse_priority_list(value: str) -> str:
+    """Parse priority list and convert to proper OR syntax.
+    
+    Handles formats like:
+    - "1,2" -> "priority=1^ORpriority=2"
+    - ["1", "2"] as string -> "priority=1^ORpriority=2"
+    - "P1,P2" -> "priority=1^ORpriority=2"
+    """
+    if not isinstance(value, str):
+        return str(value)
+    
+    # Handle comma-separated values
+    if "," in value and "^OR" not in value:
+        # Clean up the value - remove brackets, quotes, etc.
+        clean_value = value.strip("[]\"'")
+        priorities = [p.strip().strip("\"'") for p in clean_value.split(",")]
+        
+        # Convert P1/P2 notation to numbers
+        priority_nums = []
+        for p in priorities:
+            if p.upper().startswith("P"):
+                priority_nums.append(p[1:])  # Remove 'P' prefix
+            else:
+                priority_nums.append(p)
+        
+        # Build OR syntax
+        priority_conditions = [f"priority={p}" for p in priority_nums]
+        return "^OR".join(priority_conditions)
+    
+    return value
+
+def _parse_caller_exclusions(value: str) -> str:
+    """Parse caller exclusion list and convert to NOT EQUALS syntax.
+    
+    Handles formats like:
+    - "logicmonitor" -> "caller_id!=1727339e47d99190c43d3171e36d43ad"
+    - "sys_id1,sys_id2" -> "caller_id!=sys_id1^caller_id!=sys_id2"
+    """
+    if not isinstance(value, str):
+        return str(value)
+    
+    # Handle known caller names
+    known_callers = {
+        "logicmonitor": "1727339e47d99190c43d3171e36d43ad"
+    }
+    
+    value_lower = value.lower()
+    if value_lower in known_callers:
+        return f"caller_id!={known_callers[value_lower]}"
+    
+    # Handle comma-separated sys_ids
+    if "," in value:
+        clean_value = value.strip("[]\"'")
+        caller_ids = [c.strip().strip("\"'") for c in clean_value.split(",")]
+        exclusions = [f"caller_id!={caller_id}" for caller_id in caller_ids]
+        return "^".join(exclusions)
+    
+    # Single caller exclusion
+    if not value.startswith("caller_id!="):
+        return f"caller_id!={value}"
+    
+    return value
+
 def _build_query_condition(field: str, value: str) -> str:
     """Build a single query condition based on field and value."""
     # Handle special complete query case
     if field == "_complete_query":
         return value
+    
+    # Handle date range parsing for sys_created_on field
+    if field == "sys_created_on" and not value.startswith(">=") and "BETWEEN" not in value:
+        date_range = _parse_date_range_from_text(value)
+        if date_range:
+            start_date, end_date = date_range
+            return f"sys_created_onBETWEENjavascript:gs.dateGenerate('{start_date}','00:00:00')@javascript:gs.dateGenerate('{end_date}','23:59:59')"
+    
+    # Handle priority list parsing
+    if field == "priority" and ("," in value or value.upper().startswith("P")):
+        return _parse_priority_list(value)
+    
+    # Handle caller exclusions
+    if field == "exclude_caller" or field == "caller_exclusion":
+        return _parse_caller_exclusions(value)
     
     # Handle complete ServiceNow filters (e.g., "priority=1^ORpriority=2")
     if _is_complete_servicenow_filter(value):
@@ -111,9 +245,11 @@ def _build_query_string(filters: Dict[str, str]) -> str:
     return "^".join(query_parts)
 
 def _encode_query_string(query_string: str) -> str:
-    """URL encode query string while preserving ServiceNow JavaScript functions."""
+    """URL encode query string while preserving ServiceNow JavaScript functions and operators."""
     from urllib.parse import quote
-    return quote(query_string, safe='=<>&^():.')
+    # Preserve ServiceNow-specific characters: =<>&^():@!
+    # Added '@' for JavaScript separators, '!' for NOT EQUALS, '^' for AND/OR operators
+    return quote(query_string, safe='=<>&^():@!')
 
 async def _make_paginated_request(
     url: str, 

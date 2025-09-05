@@ -72,35 +72,33 @@ async def get_incident_details(input_incident: str) -> dict[str, Any] | str:
 async def get_priority_incidents(
     priorities: List[str], 
     date_period: Optional[str] = None,
+    date_range: Optional[tuple] = None,
+    exclude_callers: Optional[List[str]] = None,
     **additional_filters
 ) -> dict[str, Any] | str:
-    """Get incidents by priority using proper ServiceNow OR syntax.
+    """Get incidents by priority using proper ServiceNow OR syntax with enhanced filtering.
     
     Args:
         priorities: List of priority values (e.g., ["1", "2"])
         date_period: Optional date period ("last_week", "today", etc.)
+        date_range: Optional tuple of (start_date, end_date) for specific range
+        exclude_callers: Optional list of caller sys_ids to exclude (e.g., LogicMonitor)
         **additional_filters: Additional filter conditions
     
     Returns:
         Dictionary with incident results or error message
     """
     # Build complete filter using ServiceNowQueryBuilder
-    if date_period and date_period.lower() == "last_week":
-        # Use the complete filter builder for complex cases
-        complete_filter = ServiceNowQueryBuilder.build_complete_filter(
-            priorities=priorities,
-            date_period="last week",
-            additional_filters=additional_filters
-        )
-        # Pass as a single complete query
-        filters = {"_complete_query": complete_filter}
-    else:
-        # Build proper OR syntax for priorities
-        priority_filter = ServiceNowQueryBuilder.build_priority_or_filter(priorities)
-        
-        # Combine with additional filters
-        filters = {"priority": priority_filter}
-        filters.update(additional_filters)
+    complete_filter = ServiceNowQueryBuilder.build_complete_filter(
+        priorities=priorities,
+        date_period=date_period,
+        date_range=date_range,
+        exclude_callers=exclude_callers,
+        additional_filters=additional_filters
+    )
+    
+    # Pass as a single complete query
+    filters = {"_complete_query": complete_filter}
     
     # Use the generic function with proper parameters
     table_params = TableFilterParams(filters=filters)
@@ -113,6 +111,8 @@ async def get_priority_incidents(
             print(f"Priority incident validation warnings: {validation.warnings}")
     
     return result
+
+
 
 
 async def get_incidents_by_filter(params: IncidentFilterParams) -> dict[str, Any] | str:
