@@ -233,12 +233,12 @@ def _parse_caller_exclusions(value: str) -> str:
     
     return value
 
-def _handle_complete_query_condition(field: str, value: str) -> str:
+def _handle_complete_query_condition(value: str) -> str:
     """Handle complete query condition."""
     return value
 
 
-def _handle_date_range_condition(field: str, value: str) -> str:
+def _handle_date_range_condition(field: str, value: str) -> Optional[str]:
     """Handle date range parsing for sys_created_on field."""
     if field == "sys_created_on" and not value.startswith(">=") and "BETWEEN" not in value:
         date_range = _parse_date_range_from_text(value)
@@ -248,35 +248,35 @@ def _handle_date_range_condition(field: str, value: str) -> str:
     return None
 
 
-def _handle_priority_condition(field: str, value: str) -> str:
+def _handle_priority_condition(field: str, value: str) -> Optional[str]:
     """Handle priority list parsing."""
     if field == "priority" and ("," in value or value.upper().startswith("P")):
         return _parse_priority_list(value)
     return None
 
 
-def _handle_caller_exclusion_condition(field: str, value: str) -> str:
+def _handle_caller_exclusion_condition(field: str, value: str) -> Optional[str]:
     """Handle caller exclusions."""
     if field == "exclude_caller" or field == "caller_exclusion":
         return _parse_caller_exclusions(value)
     return None
 
 
-def _handle_servicenow_filter_condition(field: str, value: str) -> str:
+def _handle_servicenow_filter_condition(field: str, value: str) -> Optional[str]:
     """Handle complete ServiceNow filters."""
     if _is_complete_servicenow_filter(value):
         return value
     return None
 
 
-def _handle_operator_condition(field: str, value: str) -> str:
+def _handle_operator_condition(field: str, value: str) -> Optional[str]:
     """Handle direct operator syntax."""
     if _has_operator_in_value(value):
         return f"{field}{value}"
     return None
 
 
-def _handle_suffix_operator_condition(field: str, value: str) -> str:
+def _handle_suffix_operator_condition(field: str, value: str) -> Optional[str]:
     """Handle suffix-based operators."""
     if field.endswith('_gte'):
         base_field = field[:-4]
@@ -304,7 +304,7 @@ def _build_query_condition(field: str, value: str) -> str:
     """Build a single query condition based on field and value."""
     # Handle special complete query case first
     if field == "_complete_query":
-        return _handle_complete_query_condition(field, value)
+        return _handle_complete_query_condition(value)
     
     # Condition handler registry ordered by specificity
     condition_handlers = [
