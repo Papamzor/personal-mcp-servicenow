@@ -146,7 +146,7 @@ async def build_smart_servicenow_filter(params: SmartFilterParams) -> Dict[str, 
         }
 
 
-async def get_servicenow_filter_templates() -> Dict[str, Any]:
+def get_servicenow_filter_templates() -> Dict[str, Any]:
     """
     Get predefined filter templates for common ServiceNow queries.
     
@@ -223,7 +223,7 @@ QUERY_EXAMPLES = {
 }
 
 
-async def get_query_examples() -> Dict[str, Any]:
+def get_query_examples() -> Dict[str, Any]:
     """
     Get examples of natural language queries that work with the intelligent search.
     

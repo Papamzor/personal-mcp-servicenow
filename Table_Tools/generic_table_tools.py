@@ -383,7 +383,7 @@ async def query_table_intelligently(
     }
 
 
-async def explain_filter_query(
+def explain_filter_query(
     table_name: str,
     filters: Dict[str, str]
 ) -> Dict[str, Any]:
@@ -422,7 +422,7 @@ class SmartQueryParams(BaseModel):
     include_explanation: bool = Field(True, description="Whether to include explanation in results")
 
 
-async def build_and_validate_smart_filter(
+def build_and_validate_smart_filter(
     natural_language: str,
     table_name: str,
     context: Optional[Dict] = None
