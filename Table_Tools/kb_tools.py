@@ -27,7 +27,7 @@ async def similar_knowledge_for_text(input_text: str, kb_base: Optional[str] = N
     Returns:
         A dictionary of knowledge articles or an error message.
     """
-    refined_query, clarification = await refine_query(input_text)
+    refined_query, clarification = refine_query(input_text)
     if clarification:
         return clarification
     
@@ -117,7 +117,7 @@ async def get_active_knowledge_articles(input_text: str) -> dict[str, Any] | str
     Returns:
         A dictionary of active knowledge articles or an error message.
     """
-    refined_query, clarification = await refine_query(input_text)
+    refined_query, clarification = refine_query(input_text)
     if clarification:
         return clarification
     
