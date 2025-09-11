@@ -33,7 +33,7 @@ def run_command(command, description):
 
 
 def run_all_tests():
-    """Run all tests with coverage reporting."""
+    """Run all tests with coverage reporting and JUnit XML output."""
     print("ServiceNow MCP Server Test Suite")
     print("=" * 50)
     
@@ -43,31 +43,17 @@ def run_all_tests():
     
     success = True
     
-    # 1. Run tests with coverage
+    # 1. Run tests with pytest, coverage, and JUnit XML output
     if not run_command(
-        "python -m coverage run -m unittest discover -s tests -p 'test_*.py' -v",
-        "Running all tests with coverage"
+        "python -m pytest tests/ --cov=. --cov-report=xml --cov-report=term --cov-report=html --junit-xml=test-results.xml -v",
+        "Running all tests with coverage and JUnit XML output"
     ):
         success = False
     
-    # 2. Generate coverage report
+    # 2. Generate coverage report (if pytest-cov didn't already)
     if not run_command(
         "python -m coverage report",
         "Generating coverage report"
-    ):
-        success = False
-    
-    # 3. Generate XML report for SonarQube
-    if not run_command(
-        "python -m coverage xml -o coverage.xml",
-        "Generating XML coverage report for SonarQube"
-    ):
-        success = False
-    
-    # 4. Generate HTML report for local viewing
-    if not run_command(
-        "python -m coverage html",
-        "Generating HTML coverage report"
     ):
         success = False
     
@@ -76,30 +62,20 @@ def run_all_tests():
 
 def run_specific_test_module(module_name):
     """Run a specific test module."""
-    command = f"python -m unittest tests.{module_name} -v"
+    command = f"python -m pytest tests/{module_name}.py -v --junit-xml=test-results-{module_name}.xml"
     return run_command(command, f"Running {module_name}")
 
 
 def run_integration_tests_only():
     """Run only integration tests."""
-    return run_specific_test_module("test_integration")
+    command = "python -m pytest tests/test_integration.py -v --junit-xml=test-results-integration.xml"
+    return run_command(command, "Running integration tests")
 
 
 def run_unit_tests_only():
     """Run all unit tests except integration tests."""
-    test_modules = [
-        "test_oauth",
-        "test_filtering", 
-        "test_cmdb_tools",
-        "test_mcp_tools"
-    ]
-    
-    success = True
-    for module in test_modules:
-        if not run_specific_test_module(module):
-            success = False
-    
-    return success
+    command = "python -m pytest tests/ --ignore=tests/test_integration.py -v --junit-xml=test-results-unit.xml"
+    return run_command(command, "Running unit tests")
 
 
 def check_test_environment():
@@ -109,15 +85,23 @@ def check_test_environment():
     # Check if coverage is installed
     try:
         import coverage
-        print("✓ Coverage package is available")
+        print("[OK] Coverage package is available")
     except ImportError:
         print("✗ Coverage package not found. Install with: pip install coverage[toml]")
+        return False
+    
+    # Check if pytest is installed
+    try:
+        import pytest
+        print("[OK] pytest package is available")
+    except ImportError:
+        print("✗ pytest package not found. Install with: pip install pytest pytest-cov")
         return False
     
     # Check if unittest module is available (should always be available)
     try:
         import unittest
-        print("✓ unittest module is available") 
+        print("[OK] unittest module is available") 
     except ImportError:
         print("✗ unittest module not found (this should not happen)")
         return False
@@ -131,7 +115,7 @@ def check_test_environment():
     for module in test_imports:
         try:
             __import__(module)
-            print(f"✓ {module} is importable")
+            print(f"[OK] {module} is importable")
         except ImportError as e:
             print(f"⚠ {module} import warning: {e}")
     
@@ -152,6 +136,9 @@ def show_coverage_results():
         
         if os.path.exists("coverage.xml"):
             print(f"XML coverage report for SonarQube: {os.path.abspath('coverage.xml')}")
+        
+        if os.path.exists("test-results.xml"):
+            print(f"JUnit XML test results for SonarQube: {os.path.abspath('test-results.xml')}")
     else:
         print("No coverage results found. Run tests with coverage first.")
 
@@ -197,10 +184,10 @@ def main():
         sys.exit(1)
     
     if success:
-        print(f"\n✓ Test command '{command}' completed successfully!")
+        print(f"\n[SUCCESS] Test command '{command}' completed successfully!")
         sys.exit(0)
     else:
-        print(f"\n✗ Test command '{command}' failed!")
+        print(f"\n[FAILED] Test command '{command}' failed!")
         sys.exit(1)
 
 
