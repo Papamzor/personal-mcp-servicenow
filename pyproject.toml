@@ -1,0 +1,31 @@
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "Testing/*",
+    "tests/*",
+    "*/__pycache__/*",
+    "*/test_*",
+    "venv/*",
+    ".venv/*",
+    "env/*",
+    ".env/*"
+]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:"
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
