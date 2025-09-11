@@ -159,6 +159,37 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
         # Regex operation timed out - likely ReDoS attack
         return None
 
+def _normalize_priority_value(priority: str) -> str:
+    """Convert P-notation to number (e.g., 'P1' -> '1', '2' -> '2')."""
+    if priority.upper().startswith("P") and len(priority) > 1:
+        return priority[1:]  # Remove 'P' prefix
+    return priority
+
+
+def _clean_priority_input(value: str) -> str:
+    """Clean brackets, quotes from priority input."""
+    return value.strip("[]\"'")
+
+
+def _process_comma_separated_priorities(value: str) -> str:
+    """Process comma-separated priority list into OR syntax."""
+    clean_value = _clean_priority_input(value)
+    priorities = [p.strip().strip("\"'") for p in clean_value.split(",")]
+    
+    # Convert P1/P2 notation to numbers
+    priority_nums = [_normalize_priority_value(p) for p in priorities if p]
+    
+    # Build OR syntax
+    priority_conditions = [f"priority={p}" for p in priority_nums]
+    return "^OR".join(priority_conditions)
+
+
+def _format_single_priority(value: str) -> str:
+    """Format single priority value."""
+    priority_num = _normalize_priority_value(value)
+    return f"priority={priority_num}"
+
+
 def _parse_priority_list(value: str) -> str:
     """Parse priority list and convert to proper OR syntax.
     
@@ -168,37 +199,23 @@ def _parse_priority_list(value: str) -> str:
     - ["1", "2"] as string -> "priority=1^ORpriority=2"
     - "P1,P2" -> "priority=1^ORpriority=2"
     """
+    # Early validation - reduces nesting
     if not isinstance(value, str) or not value.strip():
         return ""
     
     value = value.strip()
     
+    # Early return for already processed values
+    if "^OR" in value:
+        return value
+    
     # Handle comma-separated values
-    if "," in value and "^OR" not in value:
-        # Clean up the value - remove brackets, quotes, etc.
-        clean_value = value.strip("[]\"'")
-        priorities = [p.strip().strip("\"'") for p in clean_value.split(",")]
-        
-        # Convert P1/P2 notation to numbers
-        priority_nums = []
-        for p in priorities:
-            if p.upper().startswith("P") and len(p) > 1:
-                priority_nums.append(p[1:])  # Remove 'P' prefix
-            else:
-                priority_nums.append(p)
-        
-        # Build OR syntax
-        priority_conditions = [f"priority={p}" for p in priority_nums if p]
-        return "^OR".join(priority_conditions)
+    if "," in value:
+        return _process_comma_separated_priorities(value)
     
     # Handle single priority value
-    elif value and not "^OR" in value:
-        # Convert P notation to number
-        if value.upper().startswith("P") and len(value) > 1:
-            priority_num = value[1:]
-        else:
-            priority_num = value
-        return f"priority={priority_num}"
+    if value:
+        return _format_single_priority(value)
     
     return value
 
