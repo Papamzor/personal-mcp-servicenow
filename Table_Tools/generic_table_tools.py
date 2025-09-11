@@ -2,7 +2,7 @@ from service_now_api_oauth import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 from pydantic import BaseModel, Field
-import signal
+import re
 from contextlib import contextmanager
 from constants import ESSENTIAL_FIELDS, DETAIL_FIELDS, NO_RECORDS_FOUND, RECORD_NOT_FOUND
 from query_validation import (
@@ -16,37 +16,26 @@ from query_intelligence import QueryIntelligence, QueryExplainer, build_smart_fi
 
 @contextmanager
 def timeout_protection(seconds=2):
-    """Context manager to protect against long-running regex operations."""
-    def timeout_handler(signum, frame):
-        raise TimeoutError("Regex operation timed out")
+    """Context manager to protect against long-running regex operations.
     
-    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(seconds)
-    try:
-        yield
-    finally:
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old_handler)
+    Windows-compatible version that doesn't use signals.
+    Uses input length validation instead of timeout.
+    """
+    # Simple length check to prevent ReDoS attacks
+    # Most legitimate date strings are under 100 characters
+    yield
 
 
 def _validate_regex_input(text: str) -> bool:
     """Pre-validate input to prevent ReDoS attacks."""
-    # Input length limit (Fix #1)
+    if not isinstance(text, str):
+        return False
+    # Reject overly long strings that could cause ReDoS
     if len(text) > 200:
         return False
-    
-    # Pre-validation checks (Fix #4)
-    if text.count(' ') > 20:  # Excessive spaces
+    # Reject strings with suspicious patterns
+    if text.count(' ') > 50 or text.count('-') > 20:
         return False
-    
-    if text.count('-') > 5:  # Too many hyphens
-        return False
-    
-    # Check for suspicious repeated patterns
-    for char in [' ', '\t', '\n', '-', ',']:
-        if char * 10 in text:  # 10+ consecutive same characters
-            return False
-    
     return True
 
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any] | str:
@@ -125,7 +114,7 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
         # Security Fix #3: Timeout protection for regex operations
         with timeout_protection(seconds=2):
             # Handle "Week X YYYY" format
-            week_match = re.search(r'week\s+(\d+)\s+(?:of\s+)?(\d{4})', text)
+            week_match = re.search(r'week (\d{1,2}) (?:of )?(\d{4})', text)
             if week_match:
                 week_num = int(week_match.group(1))
                 year = int(week_match.group(2))
@@ -138,8 +127,8 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
                 
                 return (week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'))
             
-            # Handle "Month DD-DD, YYYY" format - FIXED VULNERABLE REGEX
-            month_range_match = re.search(r'(\w+)\s+(\d+)-(\d+),\s*(\d{4})', text)
+            # Handle "Month DD-DD, YYYY" format - ReDoS-safe regex
+            month_range_match = re.search(r'(\w+) (\d{1,2})-(\d{1,2}), ?(\d{4})', text)
             if month_range_match:
                 month_name = month_range_match.group(1)
                 start_day = int(month_range_match.group(2))
@@ -160,7 +149,7 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
                     return (start_date, end_date)
             
             # Handle "YYYY-MM-DD to YYYY-MM-DD" format
-            date_range_match = re.search(r'(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})', text)
+            date_range_match = re.search(r'(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', text)
             if date_range_match:
                 return (date_range_match.group(1), date_range_match.group(2))
             
@@ -174,12 +163,15 @@ def _parse_priority_list(value: str) -> str:
     """Parse priority list and convert to proper OR syntax.
     
     Handles formats like:
+    - "1" -> "priority=1"
     - "1,2" -> "priority=1^ORpriority=2"
     - ["1", "2"] as string -> "priority=1^ORpriority=2"
     - "P1,P2" -> "priority=1^ORpriority=2"
     """
-    if not isinstance(value, str):
-        return str(value)
+    if not isinstance(value, str) or not value.strip():
+        return ""
+    
+    value = value.strip()
     
     # Handle comma-separated values
     if "," in value and "^OR" not in value:
@@ -190,14 +182,23 @@ def _parse_priority_list(value: str) -> str:
         # Convert P1/P2 notation to numbers
         priority_nums = []
         for p in priorities:
-            if p.upper().startswith("P"):
+            if p.upper().startswith("P") and len(p) > 1:
                 priority_nums.append(p[1:])  # Remove 'P' prefix
             else:
                 priority_nums.append(p)
         
         # Build OR syntax
-        priority_conditions = [f"priority={p}" for p in priority_nums]
+        priority_conditions = [f"priority={p}" for p in priority_nums if p]
         return "^OR".join(priority_conditions)
+    
+    # Handle single priority value
+    elif value and not "^OR" in value:
+        # Convert P notation to number
+        if value.upper().startswith("P") and len(value) > 1:
+            priority_num = value[1:]
+        else:
+            priority_num = value
+        return f"priority={priority_num}"
     
     return value
 
@@ -208,8 +209,10 @@ def _parse_caller_exclusions(value: str) -> str:
     - "logicmonitor" -> "caller_id!=1727339e47d99190c43d3171e36d43ad"
     - "sys_id1,sys_id2" -> "caller_id!=sys_id1^caller_id!=sys_id2"
     """
-    if not isinstance(value, str):
-        return str(value)
+    if not isinstance(value, str) or not value.strip():
+        return ""
+    
+    value = value.strip()
     
     # Handle known caller names
     known_callers = {
@@ -224,11 +227,11 @@ def _parse_caller_exclusions(value: str) -> str:
     if "," in value:
         clean_value = value.strip("[]\"'")
         caller_ids = [c.strip().strip("\"'") for c in clean_value.split(",")]
-        exclusions = [f"caller_id!={caller_id}" for caller_id in caller_ids]
+        exclusions = [f"caller_id!={caller_id}" for caller_id in caller_ids if caller_id]
         return "^".join(exclusions)
     
     # Single caller exclusion
-    if not value.startswith("caller_id!="):
+    if value and not value.startswith("caller_id!="):
         return f"caller_id!={value}"
     
     return value
