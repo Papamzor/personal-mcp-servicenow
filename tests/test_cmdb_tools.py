@@ -24,16 +24,16 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
         """Set up test fixtures for async tests."""
         try:
             from Table_Tools.cmdb_tools import (
-                findCIsByType, searchCIsByAttributes, getCIDetails, 
-                similarCIsForCI, getAllCITypes, quickCISearch
+                find_cis_by_type, search_cis_by_attributes, get_ci_details, 
+                similar_cis_for_ci, get_all_ci_types, quick_ci_search
             )
             self.cmdb_tools_available = True
-            self.findCIsByType = findCIsByType
-            self.searchCIsByAttributes = searchCIsByAttributes  
-            self.getCIDetails = getCIDetails
-            self.similarCIsForCI = similarCIsForCI
-            self.getAllCITypes = getAllCITypes
-            self.quickCISearch = quickCISearch
+            self.find_cis_by_type = find_cis_by_type
+            self.search_cis_by_attributes = search_cis_by_attributes  
+            self.get_ci_details = get_ci_details
+            self.similar_cis_for_ci = similar_cis_for_ci
+            self.get_all_ci_types = get_all_ci_types
+            self.quick_ci_search = quick_ci_search
         except ImportError as e:
             self.cmdb_tools_available = False
             self.import_error = str(e)
@@ -53,10 +53,10 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
             ]
         }
         
-        with patch.object(self, 'getAllCITypes', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'get_all_ci_types', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = mock_response
             
-            result = await self.getAllCITypes()
+            result = await self.get_all_ci_types()
             
             self.assertIsInstance(result, dict)
             self.assertIn('total_ci_types', result)
@@ -65,14 +65,14 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(result['ci_types']), 3)
 
     async def test_get_all_ci_types_error_handling(self):
-        """Test error handling for getAllCITypes."""
+        """Test error handling for get_all_ci_types."""
         if not self.cmdb_tools_available:
             self.skipTest(f"CMDB tools not available: {self.import_error}")
         
-        with patch.object(self, 'getAllCITypes', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'get_all_ci_types', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = "API Error: Unable to retrieve CI types"
             
-            result = await self.getAllCITypes()
+            result = await self.get_all_ci_types()
             
             self.assertIsInstance(result, str)
             self.assertIn("API Error", result)
@@ -93,10 +93,10 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
             ]
         }
         
-        with patch.object(self, 'findCIsByType', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'find_cis_by_type', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = mock_response
             
-            result = await self.findCIsByType('cmdb_ci_server')
+            result = await self.find_cis_by_type('cmdb_ci_server')
             
             self.assertIsInstance(result, dict)
             self.assertIn('count', result)
@@ -108,10 +108,10 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
         if not self.cmdb_tools_available:
             self.skipTest(f"CMDB tools not available: {self.import_error}")
         
-        with patch.object(self, 'findCIsByType', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'find_cis_by_type', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = "Error: Invalid CI type 'invalid_type'"
             
-            result = await self.findCIsByType('invalid_type')
+            result = await self.find_cis_by_type('invalid_type')
             
             self.assertIsInstance(result, str)
             self.assertIn("Error", result)
@@ -133,10 +133,10 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
             ]
         }
         
-        with patch.object(self, 'searchCIsByAttributes', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'search_cis_by_attributes', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = mock_response
             
-            result = await self.searchCIsByAttributes(name='prod')
+            result = await self.search_cis_by_attributes(name='prod')
             
             self.assertIsInstance(result, dict)
             self.assertEqual(result['count'], 8)
@@ -158,10 +158,10 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
             ]
         }
         
-        with patch.object(self, 'searchCIsByAttributes', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'search_cis_by_attributes', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = mock_response
             
-            result = await self.searchCIsByAttributes(ip_address='192.168.1.100')
+            result = await self.search_cis_by_attributes(ip_address='192.168.1.100')
             
             self.assertIsInstance(result, dict)
             self.assertEqual(result['count'], 1)
@@ -172,10 +172,10 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
         if not self.cmdb_tools_available:
             self.skipTest(f"CMDB tools not available: {self.import_error}")
         
-        with patch.object(self, 'searchCIsByAttributes', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'search_cis_by_attributes', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = {'count': 2, 'cis': []}
             
-            result = await self.searchCIsByAttributes(
+            result = await self.search_cis_by_attributes(
                 name='prod', 
                 status='operational',
                 location='data_center_1'
@@ -202,10 +202,10 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
             'ip_address': '192.168.1.100'
         }
         
-        with patch.object(self, 'getCIDetails', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'get_ci_details', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = mock_response
             
-            result = await self.getCIDetails('CI001001')
+            result = await self.get_ci_details('CI001001')
             
             self.assertIsInstance(result, dict)
             self.assertEqual(result['ci_number'], 'CI001001')
@@ -217,10 +217,10 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
         if not self.cmdb_tools_available:
             self.skipTest(f"CMDB tools not available: {self.import_error}")
         
-        with patch.object(self, 'getCIDetails', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'get_ci_details', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = "CI not found: CI999999"
             
-            result = await self.getCIDetails('CI999999')
+            result = await self.get_ci_details('CI999999')
             
             self.assertIsInstance(result, str)
             self.assertIn("CI not found", result)
@@ -238,10 +238,10 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
             ]
         }
         
-        with patch.object(self, 'similarCIsForCI', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'similar_cis_for_ci', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = mock_response
             
-            result = await self.similarCIsForCI('CI001001')
+            result = await self.similar_cis_for_ci('CI001001')
             
             self.assertIsInstance(result, dict)
             self.assertIn('similar_cis', result)
@@ -263,10 +263,10 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
             ]
         }
         
-        with patch.object(self, 'quickCISearch', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'quick_ci_search', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = mock_response
             
-            result = await self.quickCISearch('prod-server')
+            result = await self.quick_ci_search('prod-server')
             
             self.assertIsInstance(result, dict)
             self.assertIn('results', result)
@@ -283,10 +283,10 @@ class TestCMDBTools(unittest.IsolatedAsyncioTestCase):
             'message': 'No CIs found matching search term'
         }
         
-        with patch.object(self, 'quickCISearch', new_callable=AsyncMock) as mock_func:
+        with patch.object(self, 'quick_ci_search', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = mock_response
             
-            result = await self.quickCISearch('nonexistent-ci')
+            result = await self.quick_ci_search('nonexistent-ci')
             
             self.assertIsInstance(result, dict)
             self.assertEqual(result['count'], 0)
