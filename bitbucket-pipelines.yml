@@ -21,10 +21,3 @@ pipelines:
           - pipe: sonarsource/sonarcloud-scan:4.1.0
             variables:
               SONAR_TOKEN: $SONAR_TOKEN
-          - pipe: snyk/snyk-scan:1.0.2
-            variables:
-              SNYK_TOKEN: $SNYK_API_KEY
-              LANGUAGE: "node"
-              SEVERITY_THRESHOLD: "high"
-              CODE_INSIGHTS_RESULTS: "true"
-              DONT_BREAK_BUILD: "true"
