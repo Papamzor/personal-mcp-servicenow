@@ -138,7 +138,7 @@ class TestServiceNowQueryBuilder(unittest.TestCase):
         
         # Verify proper joining with ^
         parts = result.split("^")
-        self.assertTrue(len(parts) >= 4)  # Should have multiple parts joined by ^
+        self.assertGreaterEqual(len(parts), 4)  # Should have multiple parts joined by ^
     
     def test_build_complete_filter_date_range_precedence(self):
         """Test that date_range takes precedence over date_period."""
@@ -307,7 +307,7 @@ class TestQueryFiltersValidation(unittest.TestCase):
         
         # Should have warnings from priority validation
         priority_warnings = [w for w in result.warnings if "comma syntax" in w]
-        self.assertTrue(len(priority_warnings) > 0)
+        self.assertGreater(len(priority_warnings), 0)
     
     def test_validate_query_filters_date_only(self):
         """Test validating filters with date only."""
@@ -316,7 +316,7 @@ class TestQueryFiltersValidation(unittest.TestCase):
         
         # Should have warnings from date validation
         date_warnings = [w for w in result.warnings if "old comparison syntax" in w]
-        self.assertTrue(len(date_warnings) > 0)
+        self.assertGreater(len(date_warnings), 0)
     
     def test_validate_query_filters_both_priority_and_date(self):
         """Test validating filters with both priority and date issues."""
@@ -327,8 +327,8 @@ class TestQueryFiltersValidation(unittest.TestCase):
         result = validate_query_filters(filters)
         
         # Should have warnings from both validators
-        self.assertTrue(len(result.warnings) >= 2)
-        self.assertTrue(len(result.suggestions) >= 2)
+        self.assertGreaterEqual(len(result.warnings), 2)
+        self.assertGreaterEqual(len(result.suggestions), 2)
     
     def test_validate_query_filters_other_fields_ignored(self):
         """Test that validation ignores other fields gracefully."""
@@ -411,7 +411,7 @@ class TestUtilityFunctions(unittest.TestCase):
         """Test suggestions for zero results."""
         suggestions = suggest_query_improvements({}, 0)
         
-        self.assertTrue(len(suggestions) > 0)
+        self.assertGreater(len(suggestions), 0)
         suggestion_text = " ".join(suggestions)
         self.assertIn("broader date range", suggestion_text)
         self.assertIn("filter syntax", suggestion_text)
@@ -423,13 +423,13 @@ class TestUtilityFunctions(unittest.TestCase):
         suggestions = suggest_query_improvements({"priority": "1,2"}, 2)
         
         priority_suggestions = [s for s in suggestions if "OR syntax" in s or "priority" in s]
-        self.assertTrue(len(priority_suggestions) > 0)
+        self.assertGreater(len(priority_suggestions), 0)
     
     def test_suggest_query_improvements_high_result_count(self):
         """Test suggestions for high result count."""
         suggestions = suggest_query_improvements({}, 1500)
         
-        self.assertTrue(len(suggestions) > 0)
+        self.assertGreater(len(suggestions), 0)
         suggestion_text = " ".join(suggestions)
         self.assertIn("more specific filters", suggestion_text)
         self.assertIn("reduce result set", suggestion_text)
@@ -439,7 +439,7 @@ class TestUtilityFunctions(unittest.TestCase):
         suggestions = suggest_query_improvements({"state": "New"}, 50)
         
         # Should have fewer suggestions for normal result counts
-        self.assertTrue(len(suggestions) <= 2)
+        self.assertLessEqual(len(suggestions), 2)
 
 
 class TestDebugQueryConstruction(unittest.TestCase):
@@ -509,9 +509,9 @@ class TestDebugQueryConstruction(unittest.TestCase):
         query_string = "priority=1^state=New^assignment_group=IT^caller_id!=sys1^caller_id!=sys2^sys_created_on>=2025-01-01"
         debug_info = debug_query_construction(query_string)
         
-        self.assertTrue(debug_info["condition_count"] > 5)
+        self.assertGreater(debug_info["condition_count"], 5)
         complexity_recommendations = [r for r in debug_info["recommendations"] if "simplifying complex query" in r]
-        self.assertTrue(len(complexity_recommendations) > 0)
+        self.assertGreater(len(complexity_recommendations), 0)
     
     def test_debug_query_construction_with_original_filters(self):
         """Test debugging with original filters provided."""
@@ -527,7 +527,7 @@ class TestDebugQueryConstruction(unittest.TestCase):
         
         # Should detect comma syntax issue
         comma_issues = [issue for issue in debug_info["potential_issues"] if "comma syntax instead of OR" in issue]
-        self.assertTrue(len(comma_issues) > 0)
+        self.assertGreater(len(comma_issues), 0)
     
     def test_debug_query_construction_complete_query_detection(self):
         """Test detection of complete query construction."""
