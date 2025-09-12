@@ -16,6 +16,17 @@ NO_DESCRIPTION_FOUND = "No description found."
 CONNECTION_ERROR = "Connection error: Request failed"
 RECORD_NOT_FOUND = "Record not found."
 NO_RECORDS_FOUND = "No records found."
+UNABLE_TO_FETCH_RECORDS = "Unable to fetch alerts or no alerts found."
+UNABLE_TO_FETCH_DETAILS = "Unable to fetch {record_type} details or no {record_type} found."
+
+# Table-specific error messages
+TABLE_ERROR_MESSAGES = {
+    "incident": "Incident not found.",
+    "change_request": "Change not found.", 
+    "sc_req_item": "UR not found.",
+    "kb_knowledge": "Knowledge article not found.",
+    "vtb_task": "Private task not found."
+}
 
 # Table Field Definitions
 ESSENTIAL_FIELDS = {
@@ -75,4 +86,69 @@ QUERY_WARNINGS = {
     "incomplete_date_range": "Date range appears incomplete - missing start or end date",
     "low_critical_incident_count": "Unusually low count for critical incidents - verify completeness",
     "zero_results_high_priority": "No results for high priority query - check filter syntax"
+}
+# ServiceNow table configurations
+TABLE_CONFIGS = {
+    "incident": {
+        "display_name": "Incident",
+        "api_name": "incident",
+        "supports_work_notes": True,
+        "supports_comments": True,
+        "number_prefix": "INC",
+        "priority_field": "priority",
+        "state_field": "state"
+    },
+    "change_request": {
+        "display_name": "Change Request", 
+        "api_name": "change_request",
+        "supports_work_notes": True,
+        "supports_comments": True,
+        "number_prefix": "CHG",
+        "priority_field": "priority",
+        "state_field": "state"
+    },
+    "sc_req_item": {
+        "display_name": "Service Catalog Request Item",
+        "api_name": "sc_req_item", 
+        "supports_work_notes": False,
+        "supports_comments": True,
+        "number_prefix": "RITM",
+        "priority_field": "priority",
+        "state_field": "state"
+    },
+    "kb_knowledge": {
+        "display_name": "Knowledge Base Article",
+        "api_name": "kb_knowledge",
+        "supports_work_notes": False,
+        "supports_comments": False,
+        "number_prefix": "KB",
+        "priority_field": None,
+        "state_field": "state"
+    },
+    "vtb_task": {
+        "display_name": "Private Task",
+        "api_name": "vtb_task",
+        "supports_work_notes": True,
+        "supports_comments": True, 
+        "number_prefix": "VTB",
+        "priority_field": "priority",
+        "state_field": "state"
+    }
+}
+
+# API endpoint patterns
+API_ENDPOINTS = {
+    "table_query": "/api/now/table/{table_name}",
+    "table_record": "/api/now/table/{table_name}/{sys_id}",
+    "test_endpoint": "/api/x_146833_awesomevi/test",
+    "test_table_endpoint": "/api/x_146833_awesomevi/test/{table_name}"
+}
+
+# Common query parameters  
+QUERY_PARAMS = {
+    "display_value": "sysparm_display_value=true",
+    "fields": "sysparm_fields={fields}",
+    "query": "sysparm_query={query}",
+    "limit": "sysparm_limit={limit}",
+    "offset": "sysparm_offset={offset}"
 }

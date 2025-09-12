@@ -568,3 +568,91 @@ def build_and_validate_smart_filter(
                 "suggestions": ["Try using more specific terms like priorities, dates, or states"]
             }
         }
+
+# Generic priority and filtering functions to replace individual table tools
+
+def _build_priority_filter(priorities: List[str]) -> str:
+    """Helper function to build OR-based priority filter with cognitive complexity < 15."""
+    if not priorities:
+        return ""
+    
+    # Handle single priority
+    if len(priorities) == 1:
+        return f"priority={priorities[0]}"
+    
+    # Build OR filter for multiple priorities
+    priority_filters = [f"priority={p}" for p in priorities]
+    return "^OR".join(priority_filters)
+
+def _build_url_with_params(table_name: str, fields: List[str], query: str) -> str:
+    """Helper function to build ServiceNow API URL with cognitive complexity < 15."""
+    base_url = f"{NWS_API_BASE}/api/now/table/{table_name}"
+    field_param = f"sysparm_fields={','.join(fields)}"
+    query_param = f"sysparm_query={query}"
+    
+    return f"{base_url}?{field_param}&{query_param}"
+
+async def get_records_by_priority(
+    table_name: str,
+    priorities: List[str], 
+    additional_filters: Optional[Dict[str, str]] = None,
+    detailed: bool = False
+) -> Dict[str, Any]:
+    """Generic function to get records by priority for any table that supports priority."""
+    from constants import TABLE_CONFIGS
+    
+    # Validate table supports priority
+    table_config = TABLE_CONFIGS.get(table_name)
+    if not table_config or not table_config.get("priority_field"):
+        return {"error": f"Table {table_name} does not support priority filtering"}
+    
+    fields = DETAIL_FIELDS.get(table_name, []) if detailed else ESSENTIAL_FIELDS.get(table_name, [])
+    if not fields:
+        return {"error": f"No field configuration found for table {table_name}"}
+    
+    # Build priority filter
+    priority_filter = _build_priority_filter(priorities)
+    if not priority_filter:
+        return {"error": "No valid priorities provided"}
+    
+    # Add additional filters if provided
+    filters = [priority_filter]
+    if additional_filters:
+        for field, value in additional_filters.items():
+            filters.append(f"{field}={value}")
+    
+    final_query = "^".join(filters)
+    url = _build_url_with_params(table_name, fields, final_query)
+    
+    try:
+        data = await make_nws_request(url)
+        return data if data else {"result": [], "message": "No records found"}
+    except Exception as e:
+        return {"error": f"Request failed: {str(e)}"}
+
+async def query_table_with_generic_filters(
+    table_name: str,
+    filters: Dict[str, str],
+    detailed: bool = False
+) -> Dict[str, Any]:
+    """Generic function to query any table with filters."""
+    fields = DETAIL_FIELDS.get(table_name, []) if detailed else ESSENTIAL_FIELDS.get(table_name, [])
+    if not fields:
+        return {"error": f"No field configuration found for table {table_name}"}
+    
+    # Build query from filters
+    filter_parts = []
+    for field, value in filters.items():
+        if _is_complete_servicenow_filter(value):
+            filter_parts.append(value)
+        else:
+            filter_parts.append(f"{field}={value}")
+    
+    query = "^".join(filter_parts)
+    url = _build_url_with_params(table_name, fields, query)
+    
+    try:
+        data = await make_nws_request(url)
+        return data if data else {"result": [], "message": "No records found"}
+    except Exception as e:
+        return {"error": f"Request failed: {str(e)}"}
