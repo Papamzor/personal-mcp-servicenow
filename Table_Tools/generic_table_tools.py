@@ -38,47 +38,70 @@ def _validate_regex_input(text: str) -> bool:
         return False
     return True
 
-async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any] | str:
+async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any]:
     """Generic function to query any ServiceNow table by text similarity."""
     fields = DETAIL_FIELDS[table_name] if detailed else ESSENTIAL_FIELDS[table_name]
     keywords = extract_keywords(input_text)
     
     for keyword in keywords:
-        url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=short_descriptionCONTAINS{keyword}"
-        data = await make_nws_request(url)
-        # Check if we got data AND it contains actual results
-        if data and data.get('result') and len(data['result']) > 0:
-            return data
-    return NO_RECORDS_FOUND
+        base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=short_descriptionCONTAINS{keyword}"
+        # Use pagination to limit results for text searches
+        all_results = await _make_paginated_request(base_url, max_results=50)  # Limit text searches to 50 results
+        
+        if all_results:
+            result_count = len(all_results)
+            return {
+                "result": all_results,
+                "message": f"Found {result_count} records matching '{keyword}'" + (" (limited to 50)" if result_count == 50 else "")
+            }
+    # Return consistent dict format for no results
+    return {"result": [], "message": "No records found"}
 
-async def get_record_description(table_name: str, record_number: str) -> dict[str, Any] | str:
+async def get_record_description(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get short_description for any record."""
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query=number={record_number}"
     data = await make_nws_request(url)
-    return data if data else RECORD_NOT_FOUND
+    return data if data else {"result": [], "message": "Record not found"}
 
-async def get_record_details(table_name: str, record_number: str) -> dict[str, Any] | str:
+async def get_record_details(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get detailed information for any record."""
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=number={record_number}&sysparm_display_value=true"
     data = await make_nws_request(url)
-    return data if data else RECORD_NOT_FOUND
+    return data if data else {"result": [], "message": "Record not found"}
 
-async def find_similar_records(table_name: str, record_number: str) -> dict[str, Any] | str:
+async def find_similar_records(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to find similar records based on a given record's description."""
     try:
         desc_data = await get_record_description(table_name, record_number)
-        if isinstance(desc_data, str):
-            return desc_data
         
         # Extract description text from the response
         if desc_data and desc_data.get('result') and len(desc_data['result']) > 0:
             desc_text = desc_data['result'][0].get('short_description', '')
             if desc_text and desc_text.strip():
-                return await query_table_by_text(table_name, desc_text)
-        return "No description found."
+                # Get similar records using text search
+                similar_data = await query_table_by_text(table_name, desc_text)
+                
+                # Filter out the original record from results
+                if similar_data and similar_data.get('result'):
+                    filtered_results = [
+                        record for record in similar_data['result'] 
+                        if record.get('number') != record_number
+                    ]
+                    
+                    result_count = len(filtered_results)
+                    if filtered_results:
+                        return {
+                            "result": filtered_results,
+                            "message": f"Found {result_count} similar records (excluding original record)"
+                        }
+                    else:
+                        return {"result": [], "message": "No similar records found (only exact match)"}
+                
+                return similar_data  # Return original result if no filtering needed
+        return {"result": [], "message": "No description found"}
     except Exception:
-        return "Connection error: Request failed"
+        return {"result": [], "message": "Connection error: Request failed"}
 
 class TableFilterParams(BaseModel):
     filters: Optional[Dict[str, str]] = Field(None, description="Field-value pairs for filtering")
@@ -365,7 +388,7 @@ def _encode_query_string(query_string: str) -> str:
 
 async def _make_paginated_request(
     url: str, 
-    max_results: int = 1000,
+    max_results: int = 100,  # More reasonable default limit
     page_size: int = 250
 ) -> List[Dict[str, Any]]:
     """Make paginated requests to get complete result sets."""
@@ -394,7 +417,7 @@ async def _make_paginated_request(
     return all_results[:max_results]
 
 
-async def query_table_with_filters(table_name: str, params: TableFilterParams) -> dict[str, Any] | str:
+async def query_table_with_filters(table_name: str, params: TableFilterParams) -> dict[str, Any]:
     """Generic function to query table with custom filters and fields.
     
     Supports multiple date filtering formats:
@@ -435,7 +458,8 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
         # Return in ServiceNow API format
         return {"result": all_results}
     
-    return NO_RECORDS_FOUND
+    # Return consistent dict format for no results
+    return {"result": [], "message": "No records found"}
 
 
 async def query_table_intelligently(
@@ -622,11 +646,23 @@ async def get_records_by_priority(
             filters.append(f"{field}={value}")
     
     final_query = "^".join(filters)
-    url = _build_url_with_params(table_name, fields, final_query)
+    base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
+    
+    if final_query:
+        base_url += f"&sysparm_query={final_query}"
     
     try:
-        data = await make_nws_request(url)
-        return data if data else {"result": [], "message": "No records found"}
+        # Use pagination to prevent excessive results
+        all_results = await _make_paginated_request(base_url, max_results=100)  # Default limit of 100 for priority queries
+        
+        if all_results:
+            result_count = len(all_results)
+            return {
+                "result": all_results,
+                "message": f"Found {result_count} records" + (" (limited to 100)" if result_count == 100 else "")
+            }
+        else:
+            return {"result": [], "message": "No records found"}
     except Exception as e:
         return {"error": f"Request failed: {str(e)}"}
 
@@ -649,10 +685,22 @@ async def query_table_with_generic_filters(
             filter_parts.append(f"{field}={value}")
     
     query = "^".join(filter_parts)
-    url = _build_url_with_params(table_name, fields, query)
+    base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
+    
+    if query:
+        base_url += f"&sysparm_query={query}"
     
     try:
-        data = await make_nws_request(url)
-        return data if data else {"result": [], "message": "No records found"}
+        # Use pagination to prevent excessive results
+        all_results = await _make_paginated_request(base_url, max_results=75)  # Limit generic filters to 75 results
+        
+        if all_results:
+            result_count = len(all_results)
+            return {
+                "result": all_results,
+                "message": f"Found {result_count} records" + (" (limited to 75)" if result_count == 75 else "")
+            }
+        else:
+            return {"result": [], "message": "No records found"}
     except Exception as e:
         return {"error": f"Request failed: {str(e)}"}

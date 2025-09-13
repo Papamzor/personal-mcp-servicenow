@@ -8,7 +8,7 @@ setup(
         "fastapi",
         "uvicorn",
         "pydantic",
-        "spacy",
+        "orjson",
         "mcp-server"
     ],
     python_requires=">=3.8",

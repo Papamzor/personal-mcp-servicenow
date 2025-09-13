@@ -61,7 +61,7 @@ tools = [
 ]
 
 for tool in tools:
-    mcp.tool(tool)
+    mcp.tool()(tool)
 
 if __name__ == "__main__":
     mcp.run()

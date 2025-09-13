@@ -30,8 +30,7 @@ async def similar_incidents_for_text(input_text: str) -> Dict[str, Any]:
 
 async def get_short_desc_for_incident(input_incident: str) -> Dict[str, Any]:
     """Get short_description for incident."""
-    result = await get_record_description("incident", input_incident)
-    return result if isinstance(result, dict) else {"error": _get_error_message("incident")}
+    return await get_record_description("incident", input_incident)
 
 async def similar_incidents_for_incident(input_incident: str) -> Dict[str, Any]:
     """Find similar incidents based on given incident."""
@@ -39,8 +38,7 @@ async def similar_incidents_for_incident(input_incident: str) -> Dict[str, Any]:
 
 async def get_incident_details(input_incident: str) -> Dict[str, Any]:
     """Get detailed incident information."""
-    result = await get_record_details("incident", input_incident)
-    return result if isinstance(result, dict) else {"error": _get_error_message("incident")}
+    return await get_record_details("incident", input_incident)
 
 async def get_incidents_by_filter(filters: Dict[str, str], fields: Optional[List[str]] = None) -> Dict[str, Any]:
     """Get incidents with custom filters."""
@@ -59,8 +57,7 @@ async def similar_changes_for_text(input_text: str) -> Dict[str, Any]:
 
 async def get_short_desc_for_change(input_change: str) -> Dict[str, Any]:
     """Get short_description for change."""
-    result = await get_record_description("change_request", input_change)
-    return result if isinstance(result, dict) else {"error": _get_error_message("change_request")}
+    return await get_record_description("change_request", input_change)
 
 async def similar_changes_for_change(input_change: str) -> Dict[str, Any]:
     """Find similar changes based on given change."""
@@ -68,8 +65,7 @@ async def similar_changes_for_change(input_change: str) -> Dict[str, Any]:
 
 async def get_change_details(input_change: str) -> Dict[str, Any]:
     """Get detailed change information."""
-    result = await get_record_details("change_request", input_change)
-    return result if isinstance(result, dict) else {"error": _get_error_message("change_request")}
+    return await get_record_details("change_request", input_change)
 
 
 # USER REQUEST TOOLS - Using generic functions
@@ -79,8 +75,7 @@ async def similar_ur_for_text(input_text: str) -> Dict[str, Any]:
 
 async def get_short_desc_for_ur(input_ur: str) -> Dict[str, Any]:
     """Get short_description for user request."""
-    result = await get_record_description("sc_req_item", input_ur)
-    return result if isinstance(result, dict) else {"error": _get_error_message("sc_req_item")}
+    return await get_record_description("sc_req_item", input_ur)
 
 async def similar_urs_for_ur(input_ur: str) -> Dict[str, Any]:
     """Find similar user requests based on given UR."""
@@ -88,8 +83,7 @@ async def similar_urs_for_ur(input_ur: str) -> Dict[str, Any]:
 
 async def get_ur_details(input_ur: str) -> Dict[str, Any]:
     """Get detailed user request information."""
-    result = await get_record_details("sc_req_item", input_ur)
-    return result if isinstance(result, dict) else {"error": _get_error_message("sc_req_item")}
+    return await get_record_details("sc_req_item", input_ur)
 
 
 # KNOWLEDGE BASE TOOLS - Using generic functions
@@ -108,8 +102,7 @@ async def similar_knowledge_for_text(input_text: str, kb_base: Optional[str] = N
 
 async def get_knowledge_details(input_kb: str) -> Dict[str, Any]:
     """Get detailed knowledge article information."""
-    result = await get_record_details("kb_knowledge", input_kb)
-    return result if isinstance(result, dict) else {"error": _get_error_message("kb_knowledge")}
+    return await get_record_details("kb_knowledge", input_kb)
 
 async def get_knowledge_by_category(category: str, kb_base: Optional[str] = None) -> Dict[str, Any]:
     """Get knowledge articles by category."""
@@ -139,8 +132,7 @@ async def similar_private_tasks_for_text(input_text: str) -> Dict[str, Any]:
 
 async def get_short_desc_for_private_task(input_private_task: str) -> Dict[str, Any]:
     """Get short_description for private task."""
-    result = await get_record_description("vtb_task", input_private_task)
-    return result if isinstance(result, dict) else {"error": _get_error_message("vtb_task")}
+    return await get_record_description("vtb_task", input_private_task)
 
 async def similar_private_tasks_for_private_task(input_private_task: str) -> Dict[str, Any]:
     """Find similar private tasks based on given task."""
@@ -148,8 +140,7 @@ async def similar_private_tasks_for_private_task(input_private_task: str) -> Dic
 
 async def get_private_task_details(input_private_task: str) -> Dict[str, Any]:
     """Get detailed private task information."""
-    result = await get_record_details("vtb_task", input_private_task)
-    return result if isinstance(result, dict) else {"error": _get_error_message("vtb_task")}
+    return await get_record_details("vtb_task", input_private_task)
 
 async def get_private_tasks_by_filter(filters: Dict[str, str]) -> Dict[str, Any]:
     """Get private tasks with custom filters."""
