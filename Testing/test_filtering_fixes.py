@@ -23,7 +23,7 @@ from typing import Dict, Any, List
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from query_validation import ServiceNowQueryBuilder, QueryValidationResult
-from Table_Tools.incident_tools import get_priority_incidents
+from Table_Tools.consolidated_tools import get_priority_incidents
 from Table_Tools.generic_table_tools import (
     TableFilterParams, query_table_with_filters, _encode_query_string,
     _parse_date_range_from_text, _parse_priority_list, _parse_caller_exclusions

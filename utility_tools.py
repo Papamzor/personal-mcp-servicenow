@@ -9,6 +9,6 @@ async def now_test_oauth():
     result = await test_oauth_connection()
     return result
 
-async def now_auth_info():
+def now_auth_info():
     """Get information about current authentication configuration."""
-    return await get_auth_info()
+    return get_auth_info()

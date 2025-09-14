@@ -4,7 +4,19 @@ from typing import Any, Dict, Optional, List
 from pydantic import BaseModel, Field
 import re
 from contextlib import contextmanager
-from constants import ESSENTIAL_FIELDS, DETAIL_FIELDS, NO_RECORDS_FOUND, RECORD_NOT_FOUND
+from constants import (
+    ESSENTIAL_FIELDS,
+    DETAIL_FIELDS,
+    NO_RECORDS_FOUND,
+    RECORD_NOT_FOUND,
+    NO_SIMILAR_RECORDS_FOUND,
+    CONNECTION_ERROR,
+    NO_DESCRIPTION_FOUND,
+    REQUEST_FAILED_ERROR,
+    NO_FIELD_CONFIG_ERROR,
+    NO_VALID_PRIORITIES_ERROR,
+    TABLE_NO_PRIORITY_SUPPORT_ERROR
+)
 from query_validation import (
     validate_query_filters, 
     validate_result_count, 
@@ -38,47 +50,70 @@ def _validate_regex_input(text: str) -> bool:
         return False
     return True
 
-async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any] | str:
+async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any]:
     """Generic function to query any ServiceNow table by text similarity."""
     fields = DETAIL_FIELDS[table_name] if detailed else ESSENTIAL_FIELDS[table_name]
     keywords = extract_keywords(input_text)
     
     for keyword in keywords:
-        url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=short_descriptionCONTAINS{keyword}"
-        data = await make_nws_request(url)
-        # Check if we got data AND it contains actual results
-        if data and data.get('result') and len(data['result']) > 0:
-            return data
-    return NO_RECORDS_FOUND
+        base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=short_descriptionCONTAINS{keyword}"
+        # Use pagination to limit results for text searches
+        all_results = await _make_paginated_request(base_url, max_results=50)  # Limit text searches to 50 results
+        
+        if all_results:
+            result_count = len(all_results)
+            return {
+                "result": all_results,
+                "message": f"Found {result_count} records matching '{keyword}'" + (" (limited to 50)" if result_count == 50 else "")
+            }
+    # Return consistent dict format for no results
+    return {"result": [], "message": NO_RECORDS_FOUND}
 
-async def get_record_description(table_name: str, record_number: str) -> dict[str, Any] | str:
+async def get_record_description(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get short_description for any record."""
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query=number={record_number}"
     data = await make_nws_request(url)
-    return data if data else RECORD_NOT_FOUND
+    return data if data else {"result": [], "message": RECORD_NOT_FOUND}
 
-async def get_record_details(table_name: str, record_number: str) -> dict[str, Any] | str:
+async def get_record_details(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get detailed information for any record."""
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=number={record_number}&sysparm_display_value=true"
     data = await make_nws_request(url)
-    return data if data else RECORD_NOT_FOUND
+    return data if data else {"result": [], "message": RECORD_NOT_FOUND}
 
-async def find_similar_records(table_name: str, record_number: str) -> dict[str, Any] | str:
+async def find_similar_records(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to find similar records based on a given record's description."""
     try:
         desc_data = await get_record_description(table_name, record_number)
-        if isinstance(desc_data, str):
-            return desc_data
         
         # Extract description text from the response
         if desc_data and desc_data.get('result') and len(desc_data['result']) > 0:
             desc_text = desc_data['result'][0].get('short_description', '')
             if desc_text and desc_text.strip():
-                return await query_table_by_text(table_name, desc_text)
-        return "No description found."
+                # Get similar records using text search
+                similar_data = await query_table_by_text(table_name, desc_text)
+                
+                # Filter out the original record from results
+                if similar_data and similar_data.get('result'):
+                    filtered_results = [
+                        record for record in similar_data['result'] 
+                        if record.get('number') != record_number
+                    ]
+                    
+                    result_count = len(filtered_results)
+                    if filtered_results:
+                        return {
+                            "result": filtered_results,
+                            "message": f"Found {result_count} similar records (excluding original record)"
+                        }
+                    else:
+                        return {"result": [], "message": NO_SIMILAR_RECORDS_FOUND}
+
+                return similar_data  # Return original result if no filtering needed
+        return {"result": [], "message": NO_DESCRIPTION_FOUND}
     except Exception:
-        return "Connection error: Request failed"
+        return {"result": [], "message": CONNECTION_ERROR}
 
 class TableFilterParams(BaseModel):
     filters: Optional[Dict[str, str]] = Field(None, description="Field-value pairs for filtering")
@@ -365,7 +400,7 @@ def _encode_query_string(query_string: str) -> str:
 
 async def _make_paginated_request(
     url: str, 
-    max_results: int = 1000,
+    max_results: int = 100,  # More reasonable default limit
     page_size: int = 250
 ) -> List[Dict[str, Any]]:
     """Make paginated requests to get complete result sets."""
@@ -394,7 +429,7 @@ async def _make_paginated_request(
     return all_results[:max_results]
 
 
-async def query_table_with_filters(table_name: str, params: TableFilterParams) -> dict[str, Any] | str:
+async def query_table_with_filters(table_name: str, params: TableFilterParams) -> dict[str, Any]:
     """Generic function to query table with custom filters and fields.
     
     Supports multiple date filtering formats:
@@ -434,8 +469,9 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
         
         # Return in ServiceNow API format
         return {"result": all_results}
-    
-    return NO_RECORDS_FOUND
+
+    # Return consistent dict format for no results
+    return {"result": [], "message": NO_RECORDS_FOUND}
 
 
 async def query_table_intelligently(
@@ -568,3 +604,115 @@ def build_and_validate_smart_filter(
                 "suggestions": ["Try using more specific terms like priorities, dates, or states"]
             }
         }
+
+# Generic priority and filtering functions to replace individual table tools
+
+def _build_priority_filter(priorities: List[str]) -> str:
+    """Helper function to build OR-based priority filter with cognitive complexity < 15."""
+    if not priorities:
+        return ""
+    
+    # Handle single priority
+    if len(priorities) == 1:
+        return f"priority={priorities[0]}"
+    
+    # Build OR filter for multiple priorities
+    priority_filters = [f"priority={p}" for p in priorities]
+    return "^OR".join(priority_filters)
+
+def _build_url_with_params(table_name: str, fields: List[str], query: str) -> str:
+    """Helper function to build ServiceNow API URL with cognitive complexity < 15."""
+    base_url = f"{NWS_API_BASE}/api/now/table/{table_name}"
+    field_param = f"sysparm_fields={','.join(fields)}"
+    query_param = f"sysparm_query={query}"
+    
+    return f"{base_url}?{field_param}&{query_param}"
+
+async def get_records_by_priority(
+    table_name: str,
+    priorities: List[str], 
+    additional_filters: Optional[Dict[str, str]] = None,
+    detailed: bool = False
+) -> Dict[str, Any]:
+    """Generic function to get records by priority for any table that supports priority."""
+    from constants import TABLE_CONFIGS
+    
+    # Validate table supports priority
+    table_config = TABLE_CONFIGS.get(table_name)
+    if not table_config or not table_config.get("priority_field"):
+        return {"error": TABLE_NO_PRIORITY_SUPPORT_ERROR.format(table_name=table_name)}
+    
+    fields = DETAIL_FIELDS.get(table_name, []) if detailed else ESSENTIAL_FIELDS.get(table_name, [])
+    if not fields:
+        return {"error": NO_FIELD_CONFIG_ERROR.format(table_name=table_name)}
+
+    # Build priority filter
+    priority_filter = _build_priority_filter(priorities)
+    if not priority_filter:
+        return {"error": NO_VALID_PRIORITIES_ERROR}
+    
+    # Add additional filters if provided
+    filters = [priority_filter]
+    if additional_filters:
+        for field, value in additional_filters.items():
+            filters.append(f"{field}={value}")
+    
+    final_query = "^".join(filters)
+    base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
+    
+    if final_query:
+        base_url += f"&sysparm_query={final_query}"
+    
+    try:
+        # Use pagination to prevent excessive results
+        all_results = await _make_paginated_request(base_url, max_results=100)  # Default limit of 100 for priority queries
+        
+        if all_results:
+            result_count = len(all_results)
+            return {
+                "result": all_results,
+                "message": f"Found {result_count} records" + (" (limited to 100)" if result_count == 100 else "")
+            }
+        else:
+            return {"result": [], "message": NO_RECORDS_FOUND}
+    except Exception as e:
+        return {"error": REQUEST_FAILED_ERROR.format(error=str(e))}
+
+async def query_table_with_generic_filters(
+    table_name: str,
+    filters: Dict[str, str],
+    detailed: bool = False
+) -> Dict[str, Any]:
+    """Generic function to query any table with filters."""
+    fields = DETAIL_FIELDS.get(table_name, []) if detailed else ESSENTIAL_FIELDS.get(table_name, [])
+    if not fields:
+        return {"error": NO_FIELD_CONFIG_ERROR.format(table_name=table_name)}
+    
+    # Build query from filters
+    filter_parts = []
+    for field, value in filters.items():
+        if _is_complete_servicenow_filter(value):
+            filter_parts.append(value)
+        else:
+            filter_parts.append(f"{field}={value}")
+    
+    query = "^".join(filter_parts)
+    base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
+    
+    if query:
+        base_url += f"&sysparm_query={query}"
+    
+    try:
+        # Use pagination to prevent excessive results
+        all_results = await _make_paginated_request(base_url, max_results=75)  # Limit generic filters to 75 results
+        
+        if all_results:
+            result_count = len(all_results)
+            return {
+                "result": all_results,
+                "message": f"Found {result_count} records" + (" (limited to 75)" if result_count == 75 else "")
+            }
+        else:
+            return {"result": [], "message": NO_RECORDS_FOUND}
+    except Exception as e:
+        return {"error": REQUEST_FAILED_ERROR.format(error=str(e))}

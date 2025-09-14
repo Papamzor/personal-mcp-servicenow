@@ -2,7 +2,25 @@ from service_now_api_oauth import make_nws_request, NWS_API_BASE
 from typing import Any, Dict, Optional, List
 from utils import extract_keywords
 import httpx
-from constants import JSON_HEADERS, COMMON_VTB_TASK_FIELDS, DETAILED_VTB_TASK_FIELDS, NO_RECORDS_FOUND, RECORD_NOT_FOUND, CONNECTION_ERROR, NO_DESCRIPTION_FOUND
+from constants import (
+    JSON_HEADERS,
+    COMMON_VTB_TASK_FIELDS,
+    DETAILED_VTB_TASK_FIELDS,
+    NO_RECORDS_FOUND,
+    RECORD_NOT_FOUND,
+    CONNECTION_ERROR,
+    NO_DESCRIPTION_FOUND,
+    ERROR_SHORT_DESC_REQUIRED,
+    ERROR_NO_UPDATE_DATA,
+    PRIVATE_TASK_NOT_FOUND_UPDATE,
+    UNABLE_TO_FETCH_PRIVATE_TASK_DETAILS,
+    ERROR_PRIVATE_TASK_REQUEST_FAILED,
+    ERROR_PRIVATE_TASK_AUTH_FAILED,
+    ERROR_PRIVATE_TASK_ACCESS_DENIED,
+    ERROR_PRIVATE_TASK_INVALID_REQUEST,
+    ERROR_PRIVATE_TASK_NOT_FOUND,
+    ERROR_PRIVATE_TASK_SERVER_ERROR
+)
 
 async def _get_authenticated_headers() -> Dict[str, str]:
     """Get headers with appropriate authentication."""
@@ -48,20 +66,20 @@ async def _make_authenticated_request(
         except httpx.HTTPStatusError as e:
             return _handle_http_error(e, operation)
         except Exception:
-            return f"Error during private task {operation}: Request failed"
+            return ERROR_PRIVATE_TASK_REQUEST_FAILED.format(operation=operation)
 
 def _handle_http_error(error: httpx.HTTPStatusError, operation: str) -> str:
     """Handle HTTP errors consistently."""
     status_code = error.response.status_code
     
     error_messages = {
-        401: f"Error during private task {operation}: Authentication failed",
-        403: f"Error during private task {operation}: Access denied", 
-        400: f"Error during private task {operation}: Invalid request data",
-        404: f"Error during private task {operation}: Task not found"
+        401: ERROR_PRIVATE_TASK_AUTH_FAILED.format(operation=operation),
+        403: ERROR_PRIVATE_TASK_ACCESS_DENIED.format(operation=operation),
+        400: ERROR_PRIVATE_TASK_INVALID_REQUEST.format(operation=operation),
+        404: ERROR_PRIVATE_TASK_NOT_FOUND.format(operation=operation)
     }
-    
-    return error_messages.get(status_code, f"Error during private task {operation}: Server error")
+
+    return error_messages.get(status_code, ERROR_PRIVATE_TASK_SERVER_ERROR.format(operation=operation))
 
 def _prepare_task_create_data(task_data: Dict[str, Any]) -> Dict[str, Any]:
     """Prepare and validate data for task creation."""
@@ -139,7 +157,7 @@ async def get_private_task_details(input_private_task: str) -> dict[str, Any] | 
             return results[0]
         elif isinstance(results, dict):
             return results
-    return "Unable to fetch private task details or no private task found."
+    return UNABLE_TO_FETCH_PRIVATE_TASK_DETAILS
 
 async def create_private_task(task_data: Dict[str, Any]) -> dict[str, Any] | str:
     """Create a new private task record in ServiceNow.
@@ -153,7 +171,7 @@ async def create_private_task(task_data: Dict[str, Any]) -> dict[str, Any] | str
         A dictionary containing the created private task details or an error message if the request fails.
     """
     if not task_data.get('short_description'):
-        return "Error: short_description is required to create a private task."
+        return ERROR_SHORT_DESC_REQUIRED
     
     create_data = _prepare_task_create_data(task_data)
     url = f"{NWS_API_BASE}/api/now/table/vtb_task"
@@ -171,11 +189,11 @@ async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> 
         A dictionary containing the updated private task details or an error message if the request fails.
     """
     if not update_data:
-        return "Error: No update data provided."
+        return ERROR_NO_UPDATE_DATA
     
     sys_id = await _get_task_sys_id(task_number)
     if not sys_id:
-        return "Private Task not found for update."
+        return PRIVATE_TASK_NOT_FOUND_UPDATE
     
     url = f"{NWS_API_BASE}/api/now/table/vtb_task/{sys_id}"
     return await _make_authenticated_request("PUT", url, update_data, "update")
