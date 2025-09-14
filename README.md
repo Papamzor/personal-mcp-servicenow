@@ -12,6 +12,17 @@ A **revolutionary** Model Context Protocol (MCP) server for ServiceNow integrati
 
 This project represents a **MAJOR ARCHITECTURAL TRANSFORMATION** implementing the most advanced MCP server for ServiceNow integration. Through revolutionary consolidation and AI intelligence integration, it achieves **70% code reduction** and **5x performance improvement** while adding powerful natural language processing capabilities and **enterprise-grade security** with **100% backward compatibility**.
 
+## 🚨 Version 2.0 - BREAKING CHANGES
+
+**Version 2.0 includes significant breaking changes.** If you're upgrading from v1.x:
+
+- 📖 **Read the Migration Guide**: [`MIGRATION_V2.md`](MIGRATION_V2.md) - Complete step-by-step migration instructions
+- 📋 **Review Breaking Changes**: [`CHANGELOG.md`](CHANGELOG.md) - Full list of changes and new features
+- 🔧 **OAuth 2.0 Required**: Basic authentication has been removed - OAuth setup is mandatory
+- 📁 **Files Deleted**: Individual table tools consolidated into `consolidated_tools.py`
+
+**New Installations**: Start directly with v2.0 - follow the setup instructions below.
+
 ## ✨ Revolutionary Features
 
 ### 🧠 **AI-Powered Natural Language Processing (NEW)**
