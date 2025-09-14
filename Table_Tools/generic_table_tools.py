@@ -4,7 +4,19 @@ from typing import Any, Dict, Optional, List
 from pydantic import BaseModel, Field
 import re
 from contextlib import contextmanager
-from constants import ESSENTIAL_FIELDS, DETAIL_FIELDS, NO_RECORDS_FOUND, RECORD_NOT_FOUND
+from constants import (
+    ESSENTIAL_FIELDS,
+    DETAIL_FIELDS,
+    NO_RECORDS_FOUND,
+    RECORD_NOT_FOUND,
+    NO_SIMILAR_RECORDS_FOUND,
+    CONNECTION_ERROR,
+    NO_DESCRIPTION_FOUND,
+    REQUEST_FAILED_ERROR,
+    NO_FIELD_CONFIG_ERROR,
+    NO_VALID_PRIORITIES_ERROR,
+    TABLE_NO_PRIORITY_SUPPORT_ERROR
+)
 from query_validation import (
     validate_query_filters, 
     validate_result_count, 
@@ -55,20 +67,20 @@ async def query_table_by_text(table_name: str, input_text: str, detailed: bool =
                 "message": f"Found {result_count} records matching '{keyword}'" + (" (limited to 50)" if result_count == 50 else "")
             }
     # Return consistent dict format for no results
-    return {"result": [], "message": "No records found"}
+    return {"result": [], "message": NO_RECORDS_FOUND}
 
 async def get_record_description(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get short_description for any record."""
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query=number={record_number}"
     data = await make_nws_request(url)
-    return data if data else {"result": [], "message": "Record not found"}
+    return data if data else {"result": [], "message": RECORD_NOT_FOUND}
 
 async def get_record_details(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get detailed information for any record."""
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=number={record_number}&sysparm_display_value=true"
     data = await make_nws_request(url)
-    return data if data else {"result": [], "message": "Record not found"}
+    return data if data else {"result": [], "message": RECORD_NOT_FOUND}
 
 async def find_similar_records(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to find similar records based on a given record's description."""
@@ -96,12 +108,12 @@ async def find_similar_records(table_name: str, record_number: str) -> dict[str,
                             "message": f"Found {result_count} similar records (excluding original record)"
                         }
                     else:
-                        return {"result": [], "message": "No similar records found (only exact match)"}
-                
+                        return {"result": [], "message": NO_SIMILAR_RECORDS_FOUND}
+
                 return similar_data  # Return original result if no filtering needed
-        return {"result": [], "message": "No description found"}
+        return {"result": [], "message": NO_DESCRIPTION_FOUND}
     except Exception:
-        return {"result": [], "message": "Connection error: Request failed"}
+        return {"result": [], "message": CONNECTION_ERROR}
 
 class TableFilterParams(BaseModel):
     filters: Optional[Dict[str, str]] = Field(None, description="Field-value pairs for filtering")
@@ -457,9 +469,9 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
         
         # Return in ServiceNow API format
         return {"result": all_results}
-    
+
     # Return consistent dict format for no results
-    return {"result": [], "message": "No records found"}
+    return {"result": [], "message": NO_RECORDS_FOUND}
 
 
 async def query_table_intelligently(
@@ -628,16 +640,16 @@ async def get_records_by_priority(
     # Validate table supports priority
     table_config = TABLE_CONFIGS.get(table_name)
     if not table_config or not table_config.get("priority_field"):
-        return {"error": f"Table {table_name} does not support priority filtering"}
+        return {"error": TABLE_NO_PRIORITY_SUPPORT_ERROR.format(table_name=table_name)}
     
     fields = DETAIL_FIELDS.get(table_name, []) if detailed else ESSENTIAL_FIELDS.get(table_name, [])
     if not fields:
-        return {"error": f"No field configuration found for table {table_name}"}
-    
+        return {"error": NO_FIELD_CONFIG_ERROR.format(table_name=table_name)}
+
     # Build priority filter
     priority_filter = _build_priority_filter(priorities)
     if not priority_filter:
-        return {"error": "No valid priorities provided"}
+        return {"error": NO_VALID_PRIORITIES_ERROR}
     
     # Add additional filters if provided
     filters = [priority_filter]
@@ -662,9 +674,9 @@ async def get_records_by_priority(
                 "message": f"Found {result_count} records" + (" (limited to 100)" if result_count == 100 else "")
             }
         else:
-            return {"result": [], "message": "No records found"}
+            return {"result": [], "message": NO_RECORDS_FOUND}
     except Exception as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return {"error": REQUEST_FAILED_ERROR.format(error=str(e))}
 
 async def query_table_with_generic_filters(
     table_name: str,
@@ -674,7 +686,7 @@ async def query_table_with_generic_filters(
     """Generic function to query any table with filters."""
     fields = DETAIL_FIELDS.get(table_name, []) if detailed else ESSENTIAL_FIELDS.get(table_name, [])
     if not fields:
-        return {"error": f"No field configuration found for table {table_name}"}
+        return {"error": NO_FIELD_CONFIG_ERROR.format(table_name=table_name)}
     
     # Build query from filters
     filter_parts = []
@@ -701,6 +713,6 @@ async def query_table_with_generic_filters(
                 "message": f"Found {result_count} records" + (" (limited to 75)" if result_count == 75 else "")
             }
         else:
-            return {"result": [], "message": "No records found"}
+            return {"result": [], "message": NO_RECORDS_FOUND}
     except Exception as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return {"error": REQUEST_FAILED_ERROR.format(error=str(e))}

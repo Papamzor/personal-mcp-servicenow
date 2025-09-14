@@ -8,6 +8,19 @@ Provides CI discovery, search, and analysis functionality.
 from service_now_api_oauth import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
+from constants import (
+    NO_CIS_FOUND_FOR_TYPE,
+    NO_CIS_FOUND_MATCHING_CRITERIA,
+    CI_NOT_FOUND,
+    NO_SIMILAR_CIS_FOUND,
+    NO_CI_TYPES_FOUND,
+    NO_CIS_FOUND_FOR_SEARCH,
+    ERROR_SEARCHING_CIS,
+    ERROR_SEARCHING_CIS_BY_TYPE,
+    ERROR_FINDING_SIMILAR_CIS,
+    ERROR_GETTING_CI_TYPES,
+    ERROR_QUICK_CI_SEARCH
+)
 
 # Common CMDB CI Tables
 CI_TABLES = [
@@ -156,10 +169,10 @@ async def find_cis_by_type(ci_type: str, detailed: bool = False) -> dict[str, An
                 "count": len(data['result']),
                 "result": data['result']
             }
-        return f"No CIs found for type: {ci_type}"
-        
+        return NO_CIS_FOUND_FOR_TYPE.format(ci_type=ci_type)
+
     except Exception:
-        return "Error searching CIs by type: Request failed"
+        return ERROR_SEARCHING_CIS_BY_TYPE
 
 async def search_cis_by_attributes(
     name: Optional[str] = None,
@@ -221,10 +234,10 @@ async def search_cis_by_attributes(
                 "count": len(data['result']),
                 "result": data['result']
             }
-        return "No CIs found matching search criteria"
-        
+        return NO_CIS_FOUND_MATCHING_CRITERIA
+
     except Exception:
-        return "Error searching CIs: Request failed"
+        return ERROR_SEARCHING_CIS
 
 async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[str, Any] | str:
     """
@@ -264,7 +277,7 @@ async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[
         except Exception:
             continue
     
-    return f"CI {ci_number} not found in any CMDB table"
+    return CI_NOT_FOUND.format(ci_number=ci_number)
 
 async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
     """
@@ -313,10 +326,10 @@ async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
                 "result": filtered_results[:20]  # Limit to top 20
             }
         
-        return f"No similar CIs found for {ci_number}"
-        
+        return NO_SIMILAR_CIS_FOUND.format(ci_number=ci_number)
+
     except Exception:
-        return "Error finding similar CIs: Request failed"
+        return ERROR_FINDING_SIMILAR_CIS
 
 async def get_all_ci_types() -> dict[str, Any] | str:
     """
@@ -346,10 +359,10 @@ async def get_all_ci_types() -> dict[str, Any] | str:
                 "ci_types": sorted(ci_types, key=lambda x: x['table_name'])
             }
         
-        return "No CI types found"
-        
+        return NO_CI_TYPES_FOUND
+
     except Exception:
-        return "Error getting CI types: Request failed"
+        return ERROR_GETTING_CI_TYPES
 
 # Convenience function for quick CI search
 async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
@@ -384,7 +397,7 @@ async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
                 "result": data['result']
             }
         
-        return f"No CIs found for search term: {search_term}"
-        
+        return NO_CIS_FOUND_FOR_SEARCH.format(search_term=search_term)
+
     except Exception:
-        return "Error in quick CI search: Request failed"
+        return ERROR_QUICK_CI_SEARCH

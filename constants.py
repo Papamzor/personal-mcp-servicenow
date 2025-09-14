@@ -18,6 +18,37 @@ RECORD_NOT_FOUND = "Record not found."
 NO_RECORDS_FOUND = "No records found."
 UNABLE_TO_FETCH_RECORDS = "Unable to fetch alerts or no alerts found."
 UNABLE_TO_FETCH_DETAILS = "Unable to fetch {record_type} details or no {record_type} found."
+NO_SIMILAR_RECORDS_FOUND = "No similar records found (only exact match)"
+REQUEST_FAILED_ERROR = "Request failed: {error}"
+NO_FIELD_CONFIG_ERROR = "No field configuration found for table {table_name}"
+NO_VALID_PRIORITIES_ERROR = "No valid priorities provided"
+TABLE_NO_PRIORITY_SUPPORT_ERROR = "Table {table_name} does not support priority filtering"
+
+# CMDB-specific error messages
+NO_CIS_FOUND_FOR_TYPE = "No CIs found for type: {ci_type}"
+NO_CIS_FOUND_MATCHING_CRITERIA = "No CIs found matching search criteria"
+CI_NOT_FOUND = "CI {ci_number} not found in any CMDB table"
+NO_SIMILAR_CIS_FOUND = "No similar CIs found for {ci_number}"
+NO_CI_TYPES_FOUND = "No CI types found"
+NO_CIS_FOUND_FOR_SEARCH = "No CIs found for search term: {search_term}"
+ERROR_SEARCHING_CIS = "Error searching CIs: Request failed"
+ERROR_SEARCHING_CIS_BY_TYPE = "Error searching CIS by type: Request failed"
+ERROR_FINDING_SIMILAR_CIS = "Error finding similar CIs: Request failed"
+ERROR_GETTING_CI_TYPES = "Error getting CI types: Request failed"
+ERROR_QUICK_CI_SEARCH = "Error in quick CI search: Request failed"
+
+# VTB Task-specific error messages
+ERROR_SHORT_DESC_REQUIRED = "Error: short_description is required to create a private task."
+ERROR_NO_UPDATE_DATA = "Error: No update data provided."
+PRIVATE_TASK_NOT_FOUND_UPDATE = "Private Task not found for update."
+UNABLE_TO_FETCH_PRIVATE_TASK_DETAILS = "Unable to fetch private task details or no private task found."
+ERROR_PRIVATE_TASK_OPERATION = "Error during private task {operation}: {message}"
+ERROR_PRIVATE_TASK_REQUEST_FAILED = "Error during private task {operation}: Request failed"
+ERROR_PRIVATE_TASK_AUTH_FAILED = "Error during private task {operation}: Authentication failed"
+ERROR_PRIVATE_TASK_ACCESS_DENIED = "Error during private task {operation}: Access denied"
+ERROR_PRIVATE_TASK_INVALID_REQUEST = "Error during private task {operation}: Invalid request data"
+ERROR_PRIVATE_TASK_NOT_FOUND = "Error during private task {operation}: Task not found"
+ERROR_PRIVATE_TASK_SERVER_ERROR = "Error during private task {operation}: Server error"
 
 # Table-specific error messages
 TABLE_ERROR_MESSAGES = {

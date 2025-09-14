@@ -27,8 +27,8 @@ async def nowtest_auth_input(table_name: str):
         return f"Table '{table_name}' is accessible but contains no records."
     
     # Return table info and sample field names
-    sample_record = result[0] if result else {}
-    field_names = list(sample_record.keys()) if sample_record else []
+    sample_record = result[0]
+    field_names = list(sample_record.keys())
     
     return {
         "table_name": table_name,
