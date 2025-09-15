@@ -54,9 +54,10 @@ ERROR_PRIVATE_TASK_SERVER_ERROR = "Error during private task {operation}: Server
 TABLE_ERROR_MESSAGES = {
     "incident": "Incident not found.",
     "change_request": "Change not found.", 
-    "sc_req_item": "UR not found.",
+    "sc_req_item": "Request Item not found.",
     "kb_knowledge": "Knowledge article not found.",
-    "vtb_task": "Private task not found."
+    "vtb_task": "Private task not found.",
+    "universal_request": "Universal Request not found."
 }
 
 # Table Field Definitions
@@ -144,6 +145,15 @@ TABLE_CONFIGS = {
         "supports_work_notes": False,
         "supports_comments": True,
         "number_prefix": "RITM",
+        "priority_field": "priority",
+        "state_field": "state"
+    },
+    "universal_request": {
+        "display_name": "Universal Request",
+        "api_name": "universal_request",
+        "supports_work_notes": False,
+        "supports_comments": True,
+        "number_prefix": "UR",
         "priority_field": "priority",
         "state_field": "state"
     },
