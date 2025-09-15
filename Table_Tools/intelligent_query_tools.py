@@ -75,7 +75,7 @@ async def intelligent_search(params: IntelligentQueryParams) -> Dict[str, Any]:
         }
 
 
-async def explain_servicenow_filters(params: FilterExplanationParams) -> Dict[str, Any]:
+def explain_servicenow_filters(params: FilterExplanationParams) -> Dict[str, Any]:
     """
     Explain what ServiceNow filters will do and identify potential issues.
     
@@ -108,7 +108,7 @@ async def explain_servicenow_filters(params: FilterExplanationParams) -> Dict[st
         }
 
 
-async def build_smart_servicenow_filter(params: SmartFilterParams) -> Dict[str, Any]:
+def build_smart_servicenow_filter(params: SmartFilterParams) -> Dict[str, Any]:
     """
     Convert natural language to ServiceNow filters without executing the query.
     
