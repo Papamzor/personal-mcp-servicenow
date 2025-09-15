@@ -9,8 +9,8 @@ from Table_Tools.consolidated_tools import (
     get_incident_details, get_incidents_by_filter, get_priority_incidents,
     # Change tools  
     similar_changes_for_text, get_short_desc_for_change, similar_changes_for_change, get_change_details,
-    # UR tools
-    similar_ur_for_text, get_short_desc_for_ur, similar_urs_for_ur, get_ur_details,
+    # Request Item tools
+    similar_request_items_for_text, get_short_desc_for_request_item, similar_request_items_for_request_item, get_request_item_details,
     # Knowledge tools
     similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles,
     # Private Task tools (basic operations)
@@ -42,8 +42,8 @@ tools = [
     # Change tools (using generic functions)
     similar_changes_for_text, get_short_desc_for_change, similar_changes_for_change, get_change_details,
     
-    # User Request tools (using generic functions)
-    similar_ur_for_text, get_short_desc_for_ur, similar_urs_for_ur, get_ur_details,
+    # Request Item tools (using generic functions)
+    similar_request_items_for_text, get_short_desc_for_request_item, similar_request_items_for_request_item, get_request_item_details,
     
     # Knowledge Base tools (using generic functions)
     similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles,

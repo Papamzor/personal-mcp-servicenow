@@ -243,7 +243,7 @@ def get_query_examples() -> Dict[str, Any]:
         "supported_tables": [
             "incident - IT incidents and service requests",
             "change_request - Change requests and maintenance",
-            "sc_req_item - Service catalog request items", 
+            "sc_req_item - Service Catalog Request Items", 
             "kb_knowledge - Knowledge base articles",
             "vtb_task - Private task records (if configured)"
         ]

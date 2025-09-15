@@ -68,22 +68,22 @@ async def get_change_details(input_change: str) -> Dict[str, Any]:
     return await get_record_details("change_request", input_change)
 
 
-# USER REQUEST TOOLS - Using generic functions
-async def similar_ur_for_text(input_text: str) -> Dict[str, Any]:
-    """Find user requests based on input text."""
+# REQUEST ITEM TOOLS - Using generic functions
+async def similar_request_items_for_text(input_text: str) -> Dict[str, Any]:
+    """Find service catalog request items based on input text."""
     return await query_table_by_text("sc_req_item", input_text)
 
-async def get_short_desc_for_ur(input_ur: str) -> Dict[str, Any]:
-    """Get short_description for user request."""
-    return await get_record_description("sc_req_item", input_ur)
+async def get_short_desc_for_request_item(input_request_item: str) -> Dict[str, Any]:
+    """Get short_description for request item."""
+    return await get_record_description("sc_req_item", input_request_item)
 
-async def similar_urs_for_ur(input_ur: str) -> Dict[str, Any]:
-    """Find similar user requests based on given UR."""
-    return await find_similar_records("sc_req_item", input_ur)
+async def similar_request_items_for_request_item(input_request_item: str) -> Dict[str, Any]:
+    """Find similar request items based on given request item."""
+    return await find_similar_records("sc_req_item", input_request_item)
 
-async def get_ur_details(input_ur: str) -> Dict[str, Any]:
-    """Get detailed user request information."""
-    return await get_record_details("sc_req_item", input_ur)
+async def get_request_item_details(input_request_item: str) -> Dict[str, Any]:
+    """Get detailed request item information."""
+    return await get_record_details("sc_req_item", input_request_item)
 
 
 # KNOWLEDGE BASE TOOLS - Using generic functions

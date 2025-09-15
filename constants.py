@@ -54,7 +54,7 @@ ERROR_PRIVATE_TASK_SERVER_ERROR = "Error during private task {operation}: Server
 TABLE_ERROR_MESSAGES = {
     "incident": "Incident not found.",
     "change_request": "Change not found.", 
-    "sc_req_item": "UR not found.",
+    "sc_req_item": "Request Item not found.",
     "kb_knowledge": "Knowledge article not found.",
     "vtb_task": "Private task not found."
 }
