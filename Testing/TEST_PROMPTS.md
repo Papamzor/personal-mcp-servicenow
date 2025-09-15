@@ -102,15 +102,15 @@ Expected Results:
 - Results focus on actionable business information for change management workflows
 ```
 
-## Test Prompt 5: Service Catalog & User Requests (Optimized)
+## Test Prompt 5: Service Catalog Request Items (Optimized)
 
 ```
-Test User Request functionality with realistic support scenarios:
+Test Service Catalog Request Item functionality with realistic support scenarios:
 
 ### Support Request Discovery:
-1. Call `similar_ur_for_text("password reset account locked access")` to find existing access-related requests
-2. Use one RITM number from results, then call `get_ur_details("[FOUND_RITM_NUMBER]")` for comprehensive details
-3. Call `similar_urs_for_ur("[FOUND_RITM_NUMBER]")` to find similar access requests
+1. Call `similar_request_items_for_text("password reset account locked access")` to find existing access-related requests
+2. Use one RITM number from results, then call `get_request_item_details("[FOUND_RITM_NUMBER]")` for comprehensive details
+3. Call `similar_request_items_for_request_item("[FOUND_RITM_NUMBER]")` to find similar access requests
 
 ### AI-Powered Request Analysis:
 4. Call `intelligent_search({"query": "new user onboarding requests from this week", "table": "sc_req_item"})` - Onboarding workflow analysis
@@ -127,7 +127,13 @@ Expected Results:
 - Results provide actionable insights for service catalog management
 ```
 
-## Test Prompt 6: Knowledge Base Intelligence & Discovery
+## Test Prompt 6: Universal Requests (New)
+```Test Universal Request functionality with enterprise-wide request scenarios:
+### Universal Request Discovery:1. Call `similar_universal_requests_for_text("department budget approval workflow")` to find existing enterprise-level requests2. Use one UR number from results, then call `get_universal_request_details("[FOUND_UR_NUMBER]")` for comprehensive details3. Call `similar_universal_requests_for_universal_request("[FOUND_UR_NUMBER]")` to find similar universal requests
+### AI-Powered Universal Request Analysis:4. Call `intelligent_search({"query": "enterprise-wide policy changes from this quarter", "table": "universal_request"})` - Policy change tracking5. Call `intelligent_search({"query": "high-priority organizational requests pending approval", "table": "universal_request"})` - Executive workflow analysis
+### Enterprise Operations:6. Call `build_smart_servicenow_filter({"query": "department requests submitted this month requiring executive approval", "table": "universal_request"})` - Executive dashboard preparation
+Expected Results:- Text search finds actual enterprise/organizational Universal Requests- Similar request search identifies patterns in organizational request handling- AI queries distinguish between different universal request types (policy, budget, organizational)- Time-based analysis supports enterprise planning and approval workflows- Results provide insights for executive decision-making and organizational change management```
+## Test Prompt 7: Knowledge Base Intelligence & Discovery
 
 ```
 Test knowledge base functionality with practical search scenarios:
