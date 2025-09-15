@@ -11,6 +11,8 @@ from Table_Tools.consolidated_tools import (
     similar_changes_for_text, get_short_desc_for_change, similar_changes_for_change, get_change_details,
     # Request Item tools
     similar_request_items_for_text, get_short_desc_for_request_item, similar_request_items_for_request_item, get_request_item_details,
+    # Universal Request tools
+    similar_universal_requests_for_text, get_short_desc_for_universal_request, similar_universal_requests_for_universal_request, get_universal_request_details,
     # Knowledge tools
     similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles,
     # Private Task tools (basic operations)
@@ -44,6 +46,9 @@ tools = [
     
     # Request Item tools (using generic functions)
     similar_request_items_for_text, get_short_desc_for_request_item, similar_request_items_for_request_item, get_request_item_details,
+    
+    # Universal Request tools (using generic functions)
+    similar_universal_requests_for_text, get_short_desc_for_universal_request, similar_universal_requests_for_universal_request, get_universal_request_details,
     
     # Knowledge Base tools (using generic functions)
     similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles,

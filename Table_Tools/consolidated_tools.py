@@ -86,7 +86,24 @@ async def get_request_item_details(input_request_item: str) -> Dict[str, Any]:
     return await get_record_details("sc_req_item", input_request_item)
 
 
-# KNOWLEDGE BASE TOOLS - Using generic functions
+# UNIVERSAL REQUEST TOOLS - Using generic functions
+async def similar_universal_requests_for_text(input_text: str) -> Dict[str, Any]:
+    """Find universal requests based on input text."""
+    return await query_table_by_text("universal_request", input_text)
+
+async def get_short_desc_for_universal_request(input_universal_request: str) -> Dict[str, Any]:
+    """Get short_description for universal request."""
+    return await get_record_description("universal_request", input_universal_request)
+
+async def similar_universal_requests_for_universal_request(input_universal_request: str) -> Dict[str, Any]:
+    """Find similar universal requests based on given universal request."""
+    return await find_similar_records("universal_request", input_universal_request)
+
+async def get_universal_request_details(input_universal_request: str) -> Dict[str, Any]:
+    """Get detailed universal request information."""
+    return await get_record_details("universal_request", input_universal_request)
+
+
 async def similar_knowledge_for_text(input_text: str, kb_base: Optional[str] = None, category: Optional[str] = None) -> Dict[str, Any]:
     """Find knowledge articles based on input text."""
     if category or kb_base:

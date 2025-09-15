@@ -16,7 +16,7 @@ from query_intelligence import get_filter_templates
 class IntelligentQueryParams(BaseModel):
     """Parameters for intelligent natural language queries."""
     query: str = Field(description="Natural language description of what to find (e.g., 'high priority incidents from last week')")
-    table: str = Field(default="incident", description="ServiceNow table to search (incident, change_request, sc_req_item, kb_knowledge)")
+    table: str = Field(default="incident", description="ServiceNow table to search (incident, change_request, sc_req_item, universal_request, kb_knowledge)")
     context: Optional[Dict[str, Any]] = Field(None, description="Optional context to enhance the query")
 
 
@@ -243,7 +243,7 @@ def get_query_examples() -> Dict[str, Any]:
         "supported_tables": [
             "incident - IT incidents and service requests",
             "change_request - Change requests and maintenance",
-            "sc_req_item - Service Catalog Request Items", 
+            "sc_req_item - Service Catalog Request Items",            "universal_request - Universal Requests", 
             "kb_knowledge - Knowledge base articles",
             "vtb_task - Private task records (if configured)"
         ]
