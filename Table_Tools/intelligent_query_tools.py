@@ -88,7 +88,7 @@ async def explain_servicenow_filters(params: FilterExplanationParams) -> Dict[st
     - {"state": "!=6^state!=7", "assigned_to": "NULL"}
     """
     try:
-        explanation = await explain_filter_query(params.table, params.filters)
+        explanation = explain_filter_query(params.table, params.filters)
         
         return {
             "success": True,
@@ -123,7 +123,7 @@ async def build_smart_servicenow_filter(params: SmartFilterParams) -> Dict[str, 
     - "resolved changes from last month"
     """
     try:
-        result = await build_and_validate_smart_filter(
+        result = build_and_validate_smart_filter(
             natural_language=params.query,
             table_name=params.table,
             context=params.context
