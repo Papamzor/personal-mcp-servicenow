@@ -128,11 +128,30 @@ Expected Results:
 ```
 
 ## Test Prompt 6: Universal Requests (New)
-```Test Universal Request functionality with enterprise-wide request scenarios:
-### Universal Request Discovery:1. Call `similar_universal_requests_for_text("department budget approval workflow")` to find existing enterprise-level requests2. Use one UR number from results, then call `get_universal_request_details("[FOUND_UR_NUMBER]")` for comprehensive details3. Call `similar_universal_requests_for_universal_request("[FOUND_UR_NUMBER]")` to find similar universal requests
-### AI-Powered Universal Request Analysis:4. Call `intelligent_search({"query": "enterprise-wide policy changes from this quarter", "table": "universal_request"})` - Policy change tracking5. Call `intelligent_search({"query": "high-priority organizational requests pending approval", "table": "universal_request"})` - Executive workflow analysis
-### Enterprise Operations:6. Call `build_smart_servicenow_filter({"query": "department requests submitted this month requiring executive approval", "table": "universal_request"})` - Executive dashboard preparation
-Expected Results:- Text search finds actual enterprise/organizational Universal Requests- Similar request search identifies patterns in organizational request handling- AI queries distinguish between different universal request types (policy, budget, organizational)- Time-based analysis supports enterprise planning and approval workflows- Results provide insights for executive decision-making and organizational change management```
+
+```
+Test Universal Request functionality with enterprise-wide request scenarios:
+
+### Universal Request Discovery:
+1. Call `similar_universal_requests_for_text("department budget approval workflow")` to find existing enterprise-level requests
+2. Use one UR number from results, then call `get_universal_request_details("[FOUND_UR_NUMBER]")` for comprehensive details
+3. Call `similar_universal_requests_for_universal_request("[FOUND_UR_NUMBER]")` to find similar universal requests
+
+### AI-Powered Universal Request Analysis:
+4. Call `intelligent_search({"query": "enterprise-wide policy changes from this quarter", "table": "universal_request"})` - Policy change tracking
+5. Call `intelligent_search({"query": "high-priority organizational requests pending approval", "table": "universal_request"})` - Executive workflow analysis
+
+### Enterprise Operations:
+6. Call `build_smart_servicenow_filter({"query": "department requests submitted this month requiring executive approval", "table": "universal_request"})` - Executive dashboard preparation
+
+Expected Results:
+- Text search finds actual enterprise/organizational Universal Requests
+- Similar request search identifies patterns in organizational request handling
+- AI queries distinguish between different universal request types (policy, budget, organizational)
+- Time-based analysis supports enterprise planning and approval workflows
+- Results provide insights for executive decision-making and organizational change management
+```
+
 ## Test Prompt 7: Knowledge Base Intelligence & Discovery
 
 ```
@@ -160,7 +179,7 @@ Expected Results:
 - Popular content analysis identifies most valuable knowledge assets
 ```
 
-## Test Prompt 7: Private Task Management with CRUD Validation
+## Test Prompt 8: Private Task Management with CRUD Validation
 
 ```
 Test Private Task functionality with comprehensive CRUD operations:
@@ -203,7 +222,7 @@ Expected Results:
 - All CRUD operations maintain proper OAuth 2.0 authentication
 ```
 
-## Test Prompt 8: Performance & Scale Validation (New)
+## Test Prompt 9: Performance & Scale Validation (New)
 
 ```
 Test system performance and handling of large datasets:
@@ -236,7 +255,7 @@ Expected Results:
 - System maintains performance with 150k+ record databases
 ```
 
-## Test Prompt 9: Real-World Business Scenarios (New)
+## Test Prompt 10: Real-World Business Scenarios (New)
 
 ```
 Test realistic daily operations workflows:
@@ -269,7 +288,7 @@ Expected Results:
 - Results directly support real ServiceNow administrator and analyst workflows
 ```
 
-## Test Prompt 10: Security & ReDoS Protection Validation (Enhanced)
+## Test Prompt 11: Security & ReDoS Protection Validation (Enhanced)
 
 ```
 Test enhanced security features and ReDoS protection:
