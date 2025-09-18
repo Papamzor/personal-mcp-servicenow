@@ -11,6 +11,7 @@ This folder contains comprehensive Mermaid diagrams documenting the **MAJOR ARCH
 | [03-tool-organization.md](./03-tool-organization.md) | **🔥 MAJOR CHANGES**: Consolidated architecture showing 4 deleted files → unified interface | Graph Diagram | **UPDATED** |
 | [04-similarity-search-flow.md](./04-similarity-search-flow.md) | **⚡ ENHANCED**: AI-powered similarity search with ReDoS protection and intelligence features | Flowchart | **UPDATED** |
 | [05-ai-intelligence-flow.md](./05-ai-intelligence-flow.md) | **🧠 NEW**: Complete AI intelligence workflow with natural language processing | Flowchart | **NEW** |
+| [06-sla-architecture-flow.md](./06-sla-architecture-flow.md) | **⏱️ NEW**: Token-optimized SLA monitoring architecture for large databases | Architecture Diagram | **NEW** |
 
 ## 🔧 How to View Diagrams
 
@@ -32,7 +33,7 @@ This folder contains comprehensive Mermaid diagrams documenting the **MAJOR ARCH
 
 The **transformed** MCP ServiceNow server now provides:
 
-- **🧠 30+ AI-Enhanced Tools** across 6 ServiceNow table types with intelligent processing
+- **🧠 40+ AI-Enhanced Tools** across 7 ServiceNow table types with intelligent processing
 - **🔐 OAuth 2.0 Exclusive Authentication** with enhanced security and automatic token management
 - **⚡ 5x Faster Processing** using compiled regex instead of SpaCy (47MB dependency eliminated)
 - **🛡️ Enterprise Security** with ReDoS protection and comprehensive input validation
@@ -100,6 +101,7 @@ The **transformed** MCP ServiceNow server now provides:
 - **Advanced Filtering**: Natural language parsing with intelligent date/priority handling
 - **CRUD Operations**: Full create, read, update, delete for private tasks
 - **CMDB Discovery**: Enhanced configuration item search and relationship analysis
+- **⏱️ SLA Monitoring**: Token-optimized SLA tracking with proactive breach prevention
 
 ### **🛡️ Security & Validation Operations**
 - **Input Validation**: Pre-validation of all user inputs with safety checks
