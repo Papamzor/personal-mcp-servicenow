@@ -162,3 +162,98 @@ async def get_private_task_details(input_private_task: str) -> Dict[str, Any]:
 async def get_private_tasks_by_filter(filters: Dict[str, str]) -> Dict[str, Any]:
     """Get private tasks with custom filters."""
     return await query_table_with_generic_filters("vtb_task", filters)
+
+
+# SLA TOOLS - Using generic functions
+async def similar_slas_for_text(input_text: str) -> Dict[str, Any]:
+    """Find SLAs based on input text (searches related task descriptions)."""
+    return await query_table_by_text("task_sla", input_text)
+
+async def get_slas_for_task(task_number: str) -> Dict[str, Any]:
+    """Get all SLA records for a specific task."""
+    # Create filter to find SLAs by task reference
+    filters = {"task.number": task_number}
+    params = TableFilterParams(filters=filters)
+    return await query_table_with_filters("task_sla", params)
+
+async def get_sla_details(sla_sys_id: str) -> Dict[str, Any]:
+    """Get detailed SLA information by sys_id."""
+    return await get_record_details("task_sla", sla_sys_id)
+
+async def get_breaching_slas(time_threshold_minutes: Optional[int] = 60) -> Dict[str, Any]:
+    """Get SLAs at risk of breaching within specified time threshold."""
+    filters = {
+        "active": "true",
+        "business_time_left": f"<{time_threshold_minutes * 60}",  # Convert to seconds
+        "has_breached": "false"
+    }
+    params = TableFilterParams(filters=filters, fields=None)
+    return await query_table_with_filters("task_sla", params)
+
+async def get_breached_slas(filters: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """Get SLAs that have already breached. Defaults to recent breaches (last 7 days) to avoid token overload."""
+    base_filters = {
+        "has_breached": "true",
+        "sys_created_on": ">=javascript:gs.dateGenerate(gs.daysAgo(7))"  # Default to last 7 days
+    }
+    if filters:
+        base_filters.update(filters)
+    params = TableFilterParams(filters=base_filters)
+    return await query_table_with_filters("task_sla", params)
+
+async def get_slas_by_stage(stage: str, additional_filters: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """Get SLAs by stage (In progress, Completed, etc.)."""
+    filters = {"stage": stage}
+    if additional_filters:
+        filters.update(additional_filters)
+    params = TableFilterParams(filters=filters)
+    return await query_table_with_filters("task_sla", params)
+
+async def get_active_slas(filters: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """Get currently active SLA records."""
+    base_filters = {"active": "true"}
+    if filters:
+        base_filters.update(filters)
+    params = TableFilterParams(filters=base_filters)
+    return await query_table_with_filters("task_sla", params)
+
+async def get_sla_performance_summary(filters: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """Get SLA performance metrics with detailed information. Defaults to recent data (last 30 days) for efficiency."""
+    # Default to recent data to avoid token overload
+    default_filters = {
+        "sys_created_on": ">=javascript:gs.dateGenerate(gs.daysAgo(30))"
+    }
+    if filters:
+        default_filters.update(filters)
+
+    # Include key performance fields for analysis
+    fields = [
+        "task.number", "task.short_description", "sla.name", "stage",
+        "business_percentage", "active", "has_breached", "breach_time",
+        "business_time_left", "duration", "sys_created_on"
+    ]
+    params = TableFilterParams(filters=default_filters, fields=fields)
+    return await query_table_with_filters("task_sla", params)
+
+async def get_recent_breached_slas(days: int = 1) -> Dict[str, Any]:
+    """Get recently breached SLAs for immediate attention. Default to last 24 hours."""
+    filters = {
+        "has_breached": "true",
+        "sys_created_on": f">=javascript:gs.dateGenerate(gs.daysAgo({days}))"
+    }
+    params = TableFilterParams(filters=filters)
+    return await query_table_with_filters("task_sla", params)
+
+async def get_critical_sla_status() -> Dict[str, Any]:
+    """Get high-priority SLA status summary for dashboard/monitoring."""
+    filters = {
+        "active": "true",
+        "task.priority": "1^ORtask.priority=2",  # P1 and P2 tasks only
+        "business_percentage": ">80"  # Close to or over SLA target
+    }
+    fields = [
+        "task.number", "task.priority", "sla.name", "stage",
+        "business_percentage", "business_time_left", "has_breached"
+    ]
+    params = TableFilterParams(filters=filters, fields=fields)
+    return await query_table_with_filters("task_sla", params)
