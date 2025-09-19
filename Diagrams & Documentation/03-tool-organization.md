@@ -42,35 +42,38 @@ graph TB
 ## 🧠 AI-Enhanced Tool Categories Overview
 ```mermaid
 graph LR
-    subgraph "🚀 30+ MCP Tools - Revolutionized Architecture"
+    subgraph "🚀 40+ MCP Tools - Revolutionized Architecture"
         A[🎫 Incident Tools<br/>6 tools - AI enhanced]
         B[🔄 Change Tools<br/>4 tools - Consolidated]
         C[📚 Knowledge Tools<br/>4 tools - Consolidated]
         D[🖥️ CMDB Tools<br/>6 tools - Independent]
         E[📋 User Request Tools<br/>4 tools - Consolidated]
         F[📝 Private Task Tools<br/>5 tools - CRUD enabled]
-        G[🔧 Utility Tools<br/>5 tools - Enhanced]
-        H[🧠 AI Intelligence Tools<br/>5 NEW tools]
+        G[⏱️ SLA Tools<br/>10 tools - Token-optimized]
+        H[🔧 Utility Tools<br/>5 tools - Enhanced]
+        I[🧠 AI Intelligence Tools<br/>5 NEW tools]
     end
 
-    A --> I[📦 Consolidated Interface]
-    B --> I
-    C --> I
-    E --> I
-    F --> I
-    D --> J[🖥️ Specialized CMDB Layer]
-    G --> K[🔐 Direct OAuth API]
-    H --> L[🧠 AI Processing Engine]
+    A --> J[📦 Consolidated Interface]
+    B --> J
+    C --> J
+    E --> J
+    F --> J
+    G --> J
+    D --> K[🖥️ Specialized CMDB Layer]
+    H --> L[🔐 Direct OAuth API]
+    I --> M[🧠 AI Processing Engine]
 
-    I --> M[⚡ Enhanced Generic Layer]
-    J --> K
-    L --> M
-    M --> K
-    K --> N[🔗 ServiceNow API]
+    J --> N[⚡ Enhanced Generic Layer]
+    K --> L
+    M --> N
+    N --> L
+    L --> O[🔗 ServiceNow API]
 
-    style I fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
-    style L fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
-    style H fill:#fff3e0,stroke:#ff9800,stroke-width:3px
+    style J fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
+    style M fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
+    style I fill:#fff3e0,stroke:#ff9800,stroke-width:3px
+    style G fill:#e3f2fd,stroke:#2196f3,stroke-width:3px
 ```
 
 ## 🚀 Revolutionary Generic Function Architecture
@@ -155,12 +158,25 @@ graph TB
 - **get_servicenow_filter_templates()**: Enterprise-grade pre-built patterns
 - **get_query_examples()**: Natural language query examples and tips
 
-### **📦 Consolidated Table Tools (20+ tools - Zero Regression)**
+### **📦 Consolidated Table Tools (30+ tools - Zero Regression)**
 - **Incident Tools**: 6 tools (including AI-enhanced priority queries)
 - **Change Tools**: 4 tools (unified through consolidated interface)
 - **Knowledge Tools**: 4 tools (category filtering and search)
 - **User Request Tools**: 4 tools (service catalog request handling)
 - **Private Task Tools**: 5 tools (full CRUD operations enabled)
+- **⏱️ SLA Tools**: 10 tools (token-optimized for large databases)
+
+### **⏱️ SLA Tools (10 token-optimized tools) - NEW**
+- **get_critical_sla_status()**: Executive dashboard (P1/P2 tasks >80% completion)
+- **get_recent_breached_slas()**: Configurable recent breach analysis (default 24h)
+- **get_breached_slas()**: Smart breach query (auto-filtered to 7 days)
+- **get_breaching_slas()**: Proactive breach prevention with time thresholds
+- **get_active_slas()**: Currently active SLA monitoring
+- **get_slas_by_stage()**: Stage-based filtering (In Progress, Completed, etc.)
+- **get_slas_for_task()**: All SLAs for specific incidents/tasks
+- **get_sla_details()**: Comprehensive SLA information by sys_id
+- **get_sla_performance_summary()**: Performance metrics (auto-filtered 30 days)
+- **similar_slas_for_text()**: Text-based SLA discovery
 
 ### **🖥️ CMDB Tools (6 specialized tools)**
 - Configuration item discovery and search
@@ -212,12 +228,13 @@ graph TB
 - Basic error handling
 
 ### **After Revolutionary Changes**
-- 30+ tools through unified architecture
+- 40+ tools through unified architecture
 - 4 files eliminated, zero regression
 - Compiled regex patterns (lightweight)
 - AI-powered natural language processing
 - Enterprise-grade security features
 - Comprehensive input validation
+- Token-optimized SLA monitoring
 
 ## 🎯 Extensibility & Future-Proofing
 

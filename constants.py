@@ -53,20 +53,22 @@ ERROR_PRIVATE_TASK_SERVER_ERROR = "Error during private task {operation}: Server
 # Table-specific error messages
 TABLE_ERROR_MESSAGES = {
     "incident": "Incident not found.",
-    "change_request": "Change not found.", 
+    "change_request": "Change not found.",
     "sc_req_item": "Request Item not found.",
     "kb_knowledge": "Knowledge article not found.",
     "vtb_task": "Private task not found.",
-    "universal_request": "Universal Request not found."
+    "universal_request": "Universal Request not found.",
+    "task_sla": "SLA record not found."
 }
 
 # Table Field Definitions
 ESSENTIAL_FIELDS = {
     "incident": ["number", "short_description", "priority", "state"],
-    "change_request": ["number", "short_description", "priority", "state"], 
+    "change_request": ["number", "short_description", "priority", "state"],
     "universal_request": ["number", "short_description", "priority", "state"],
     "kb_knowledge": ["number", "short_description", "kb_category", "state"],
-    "vtb_task": ["number", "short_description", "priority", "state"]
+    "vtb_task": ["number", "short_description", "priority", "state"],
+    "task_sla": ["task", "sla", "stage", "business_percentage", "active"]
 }
 
 DETAIL_FIELDS = {
@@ -74,7 +76,8 @@ DETAIL_FIELDS = {
     "change_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci"],
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "u_reference_1", "company", "cmdb_ci"],
     "kb_knowledge": ["number", "short_description", "kb_category", "state", "sys_created_on", "assigned_to"],
-    "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"]
+    "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
+    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on", "breach_time", "business_time_left", "duration", "has_breached", "business_duration", "business_elapsed_time", "planned_end_time"]
 }
 
 # VTB Task specific field definitions
@@ -170,10 +173,19 @@ TABLE_CONFIGS = {
         "display_name": "Private Task",
         "api_name": "vtb_task",
         "supports_work_notes": True,
-        "supports_comments": True, 
+        "supports_comments": True,
         "number_prefix": "VTB",
         "priority_field": "priority",
         "state_field": "state"
+    },
+    "task_sla": {
+        "display_name": "Task SLA",
+        "api_name": "task_sla",
+        "supports_work_notes": False,
+        "supports_comments": False,
+        "number_prefix": None,
+        "priority_field": None,
+        "state_field": "stage"
     }
 }
 

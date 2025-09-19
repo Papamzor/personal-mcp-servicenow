@@ -255,7 +255,51 @@ Expected Results:
 - System maintains performance with 150k+ record databases
 ```
 
-## Test Prompt 10: Real-World Business Scenarios (New)
+## Test Prompt 10: SLA Management & Performance Monitoring (New)
+
+```
+Test SLA (Service Level Agreement) monitoring and performance analysis:
+
+### Active SLA Monitoring (Token-Optimized):
+1. Call `get_critical_sla_status()` - Get high-priority SLA dashboard (P1/P2 tasks only, >80% completion)
+2. Call `get_breaching_slas(60)` - Find SLAs at risk of breaching within next 60 minutes
+3. Call `get_recent_breached_slas(1)` - Get SLAs breached in last 24 hours (immediate attention)
+4. Call `get_slas_by_stage("In Progress")` - Filter SLAs by current stage status
+
+### Task-Specific SLA Analysis:
+5. Use an incident number from previous tests, then call `get_slas_for_task("[INCIDENT_NUMBER]")` - Get all SLA records for specific task
+6. Call `similar_slas_for_text("database performance incident")` - Find SLAs related to database issues
+7. Use an SLA sys_id from results, then call `get_sla_details("[SLA_SYS_ID]")` - Get comprehensive SLA information
+
+### AI-Powered SLA Intelligence:
+8. Call `intelligent_search({"query": "SLAs about to breach in the next 2 hours", "table": "task_sla"})` - Proactive breach prevention
+9. Call `intelligent_search({"query": "breached SLAs from critical incidents this week", "table": "task_sla"})` - Weekly breach analysis
+10. Call `build_smart_servicenow_filter({"query": "paused SLAs that need attention from management", "table": "task_sla"})` - Management escalation workflow
+
+### SLA Performance Analytics (Token-Efficient):
+11. Call `get_sla_performance_summary()` - Get performance metrics for last 30 days (auto-filtered for efficiency)
+12. Call `get_slas_by_stage("Completed", {"business_percentage": "<100", "sys_created_on": ">=javascript:gs.dateGenerate(gs.daysAgo(7))"})` - Recent completions before breach
+13. Call `get_recent_breached_slas(7)` - Weekly breach analysis for trend monitoring
+
+### Business Operations Scenarios (Token-Efficient):
+14. Call `get_critical_sla_status()` - Executive dashboard: P1/P2 tasks near breach (>80% completion)
+15. Call `get_breaching_slas(240)` - 4-hour early warning for proactive management
+16. Call `get_breached_slas()` - Recent breaches (auto-filtered to last 7 days for efficiency)
+17. Call `get_recent_breached_slas(3)` - 3-day breach window for detailed analysis
+18. Call `build_smart_servicenow_filter({"query": "SLAs paused due to customer response waiting", "table": "task_sla"})` - Customer communication tracking
+
+Expected Results (Token-Optimized for Large Databases):
+- **Token Efficiency**: `get_breached_slas()` returns recent data (7d) vs potentially thousands of historical records
+- **Executive Focus**: `get_critical_sla_status()` shows only P1/P2 tasks >80% completion for immediate attention
+- **Manageable Datasets**: All queries return 5-50 records typically vs thousands from unfiltered queries
+- **Smart Defaults**: Performance analytics auto-filter to last 30 days, preventing token overload
+- **Configurable Windows**: `get_recent_breached_slas(days)` allows specific timeframes while maintaining efficiency
+- **Business Relevance**: Recent, actionable data supports daily operations vs historical analysis
+- **Response Speed**: Smaller result sets complete in <15 seconds vs potential timeouts on large datasets
+- **Preserved Functionality**: Users can override defaults with custom filters when broader data is needed
+```
+
+## Test Prompt 11: Real-World Business Scenarios (New)
 
 ```
 Test realistic daily operations workflows:
@@ -288,7 +332,7 @@ Expected Results:
 - Results directly support real ServiceNow administrator and analyst workflows
 ```
 
-## Test Prompt 11: Security & ReDoS Protection Validation (Enhanced)
+## Test Prompt 12: Security & ReDoS Protection Validation (Enhanced)
 
 ```
 Test enhanced security features and ReDoS protection:
@@ -332,6 +376,7 @@ python Testing/test_consolidated_tools.py              # Architecture consolidat
 python Testing/test_query_intelligence.py              # AI features + security
 python Testing/test_cmdb_tools.py                     # CMDB tools validation
 python Testing/test_filtering_fixes.py                # ServiceNow filtering
+python test_sla_simple.py                             # SLA functionality validation
 python Testing/test_performance_validation.py         # New: Performance testing (if created)
 python Testing/test_business_scenarios.py             # New: Business workflow testing (if created)
 ```

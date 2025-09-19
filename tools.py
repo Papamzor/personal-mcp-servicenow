@@ -17,7 +17,10 @@ from Table_Tools.consolidated_tools import (
     similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles,
     # Private Task tools (basic operations)
     similar_private_tasks_for_text, get_short_desc_for_private_task, similar_private_tasks_for_private_task, get_private_task_details,
-    get_private_tasks_by_filter
+    get_private_tasks_by_filter,
+    # SLA tools
+    similar_slas_for_text, get_slas_for_task, get_sla_details, get_breaching_slas, get_breached_slas,
+    get_slas_by_stage, get_active_slas, get_sla_performance_summary, get_recent_breached_slas, get_critical_sla_status
 )
 from Table_Tools.table_tools import nowtestauth, nowtest_auth_input
 from Table_Tools.vtb_task_tools import create_private_task, update_private_task
@@ -54,12 +57,16 @@ tools = [
     similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles,
     
     # Private Task tools (using generic functions + CRUD operations)
-    similar_private_tasks_for_text, get_short_desc_for_private_task, similar_private_tasks_for_private_task, 
+    similar_private_tasks_for_text, get_short_desc_for_private_task, similar_private_tasks_for_private_task,
     get_private_task_details, get_private_tasks_by_filter, create_private_task, update_private_task,
-    
+
+    # SLA tools (using generic functions)
+    similar_slas_for_text, get_slas_for_task, get_sla_details, get_breaching_slas, get_breached_slas,
+    get_slas_by_stage, get_active_slas, get_sla_performance_summary, get_recent_breached_slas, get_critical_sla_status,
+
     # CMDB tools (specialized, kept separate due to unique requirements)
     find_cis_by_type, search_cis_by_attributes, get_ci_details, similar_cis_for_ci, get_all_ci_types, quick_ci_search,
-    
+
     # Intelligent query tools
     intelligent_search, explain_servicenow_filters, build_smart_servicenow_filter,
     get_servicenow_filter_templates, get_query_examples
