@@ -72,7 +72,7 @@ ESSENTIAL_FIELDS = {
 }
 
 DETAIL_FIELDS = {
-    "incident": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id"],
+    "incident": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id", "major_incident_state"],
     "change_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci"],
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "u_reference_1", "company", "cmdb_ci"],
     "kb_knowledge": ["number", "short_description", "kb_category", "state", "sys_created_on", "assigned_to"],
@@ -205,3 +205,5 @@ QUERY_PARAMS = {
     "limit": "sysparm_limit={limit}",
     "offset": "sysparm_offset={offset}"
 }
+# Field reference constants
+TASK_NUMBER_FIELD = "task.number"
