@@ -14,7 +14,7 @@ from .generic_table_tools import (
     TableFilterParams
 )
 from typing import Any, Dict, Optional, List
-from constants import TABLE_ERROR_MESSAGES
+from constants import TABLE_ERROR_MESSAGES, TASK_NUMBER_FIELD
 
 
 # Helper function to get table-specific error message
@@ -172,7 +172,7 @@ async def similar_slas_for_text(input_text: str) -> Dict[str, Any]:
 async def get_slas_for_task(task_number: str) -> Dict[str, Any]:
     """Get all SLA records for a specific task."""
     # Create filter to find SLAs by task reference
-    filters = {"task.number": task_number}
+    filters = {TASK_NUMBER_FIELD: task_number}
     params = TableFilterParams(filters=filters)
     return await query_table_with_filters("task_sla", params)
 
@@ -228,7 +228,7 @@ async def get_sla_performance_summary(filters: Optional[Dict[str, str]] = None) 
 
     # Include key performance fields for analysis
     fields = [
-        "task.number", "task.short_description", "sla.name", "stage",
+        TASK_NUMBER_FIELD, "task.short_description", "sla.name", "stage",
         "business_percentage", "active", "has_breached", "breach_time",
         "business_time_left", "duration", "sys_created_on"
     ]
@@ -252,7 +252,7 @@ async def get_critical_sla_status() -> Dict[str, Any]:
         "business_percentage": ">80"  # Close to or over SLA target
     }
     fields = [
-        "task.number", "task.priority", "sla.name", "stage",
+        TASK_NUMBER_FIELD, "task.priority", "sla.name", "stage",
         "business_percentage", "business_time_left", "has_breached"
     ]
     params = TableFilterParams(filters=filters, fields=fields)
