@@ -1,5 +1,0 @@
-Collecting coverage[toml]
-  Downloading coverage-7.10.6-cp311-cp311-win_amd64.whl.metadata (9.2 kB)
-Downloading coverage-7.10.6-cp311-cp311-win_amd64.whl (220 kB)
-Installing collected packages: coverage
-Successfully installed coverage-7.10.6
