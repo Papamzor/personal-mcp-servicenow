@@ -34,6 +34,9 @@ class QueryIntelligence:
         "active_p1_p2": {
             "priority": "priority=1^ORpriority=2",
             "state": "state!=6^state!=7^state!=8"
+        },
+        "p1_p2_all_states": {
+            "priority": "priority=1^ORpriority=2"
         }
     }
     
@@ -140,16 +143,17 @@ class QueryIntelligence:
             r"(critical|p1).*(recent|today|yesterday|days?)": "critical_recent",
             r"(unassigned|no\s*assignee).*(recent|today|days?)": "unassigned_recent",
             r"(resolved|closed).*(this\s*month|month)": "resolved_this_month",
-            r"(active|open).*(critical|high|p1|p2)": "active_p1_p2"
+            r"(active|open).*(critical|high|p1|p2)": "active_p1_p2",
+            r"\b(p1\s*and\s*p2|p1\s*p2)\b": "p1_p2_all_states"
         }
-        
+
         for pattern, template_name in template_patterns.items():
             if re.search(pattern, query_text, re.IGNORECASE):
                 return {
                     "name": template_name,
-                    "filters": cls.FILTER_TEMPLATES[template_name]
+                    "filters": cls.FILTER_TEMPLATES[template_name].copy()  # Return a copy to prevent mutation
                 }
-        
+
         return None
     
     @classmethod
@@ -216,14 +220,35 @@ class QueryIntelligence:
     def _apply_context_filters(cls, context: Dict, table_name: str) -> Dict[str, str]:
         """Apply context-based filters (e.g., user preferences, previous queries)."""
         context_filters = {}
-        
-        # Example context applications
-        if context.get("exclude_resolved", True):
+
+        # Handle date_range from context
+        if context.get("date_range"):
+            date_range = context["date_range"]
+            if "start" in date_range and "end" in date_range:
+                # Use BETWEEN syntax with JavaScript date functions for proper ServiceNow filtering
+                context_filters["sys_created_on"] = (
+                    f"sys_created_onBETWEENjavascript:gs.dateGenerate('{date_range['start']}','00:00:00')"
+                    f"@javascript:gs.dateGenerate('{date_range['end']}','23:59:59')"
+                )
+
+        # Handle exclude_caller from context
+        if context.get("exclude_caller"):
+            caller = context["exclude_caller"]
+            if isinstance(caller, list):
+                # Multiple caller exclusions - use complete query format
+                exclusions = [f"caller_id!={c}" for c in caller]
+                context_filters["_complete_caller_exclusion"] = "^".join(exclusions)
+            else:
+                # Single caller exclusion - use complete query format
+                context_filters["_complete_caller_exclusion"] = f"caller_id!={caller}"
+
+        # Only apply state filters if explicitly requested via context
+        if context.get("exclude_resolved") is True:
             context_filters["state"] = "state!=6^state!=7^state!=8"
-        
+
         if context.get("user_assigned_only"):
             context_filters["assigned_to"] = "javascript:gs.getUserID()"
-        
+
         return context_filters
     
     @classmethod
