@@ -295,7 +295,14 @@ def _handle_complete_query_condition(value: str) -> str:
 
 def _handle_date_range_condition(field: str, value: str) -> Optional[str]:
     """Handle date range parsing for sys_created_on field."""
-    if field == "sys_created_on" and not value.startswith(">=") and "BETWEEN" not in value:
+    if field == "sys_created_on":
+        # If already in BETWEEN format, return as-is
+        if "BETWEEN" in value:
+            return value
+        # If already has operator, return as-is
+        if value.startswith(">=") or value.startswith("<="):
+            return f"{field}{value}"
+        # Try to parse natural language date range
         date_range = _parse_date_range_from_text(value)
         if date_range:
             start_date, end_date = date_range
@@ -357,10 +364,12 @@ def _handle_exact_match_condition(field: str, value: str) -> str:
 
 def _build_query_condition(field: str, value: str) -> str:
     """Build a single query condition based on field and value."""
-    # Handle special complete query case first
+    # Handle special complete query cases first
     if field == "_complete_query":
         return _handle_complete_query_condition(value)
-    
+    if field == "_complete_caller_exclusion":
+        return value  # Already in complete ServiceNow format
+
     # Condition handler registry ordered by specificity
     condition_handlers = [
         _handle_date_range_condition,
@@ -475,32 +484,51 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
 
 
 async def query_table_intelligently(
-    table_name: str, 
-    natural_language_query: str, 
+    table_name: str,
+    natural_language_query: str,
     context: Optional[Dict] = None
 ) -> Dict[str, Any]:
     """Query table using natural language with intelligent filter conversion.
-    
+
     Args:
         table_name: ServiceNow table to query
         natural_language_query: Natural language description of what to find
         context: Optional context for enhancing the query
-        
+
     Returns:
         Dictionary containing query results and intelligence metadata
     """
     # Build intelligent filter
     intelligence_result = build_smart_filter(natural_language_query, table_name, context)
-    
+
+    # Separate filters by source for debugging
+    from query_intelligence import QueryIntelligence
+    filters_from_nl = QueryIntelligence.parse_natural_language(natural_language_query, table_name).get("filters", {})
+    filters_from_context = QueryIntelligence._apply_context_filters(context, table_name) if context else {}
+
     # If we got filters, execute the query
     if intelligence_result["filters"]:
         params = TableFilterParams(
             filters=intelligence_result["filters"],
             fields=ESSENTIAL_FIELDS.get(table_name, ["number", "short_description"])
         )
-        
+
+        # Build encoded query for debugging
+        query_string = _build_query_string(intelligence_result["filters"])
+        encoded_query = _encode_query_string(query_string)
+
         query_result = await query_table_with_filters(table_name, params)
-        
+
+        # Determine source of each filter
+        filter_sources = {}
+        for field in intelligence_result["filters"].keys():
+            if field in filters_from_context:
+                filter_sources[field] = "context"
+            elif field in filters_from_nl:
+                filter_sources[field] = "natural_language"
+            else:
+                filter_sources[field] = "combined"
+
         # Combine query results with intelligence metadata
         if isinstance(query_result, dict) and query_result.get('result'):
             return {
@@ -511,13 +539,21 @@ async def query_table_intelligently(
                     "suggestions": intelligence_result["suggestions"],
                     "template_used": intelligence_result.get("template_used"),
                     "sql_equivalent": intelligence_result.get("sql_equivalent"),
-                    "filters_used": intelligence_result["filters"]
+                    "filters_used": intelligence_result["filters"],
+                    "filter_sources": filter_sources,
+                    "debug": {
+                        "encoded_query_sent_to_servicenow": encoded_query,
+                        "context_received": context,
+                        "filters_from_context": filters_from_context,
+                        "filters_from_nl": filters_from_nl,
+                        "final_merged_filters": intelligence_result["filters"]
+                    }
                 }
             }
-    
+
     # Fallback to keyword-based search if no intelligent filters were generated
     fallback_result = await query_table_by_text(table_name, natural_language_query)
-    
+
     return {
         "result": fallback_result.get("result", []) if isinstance(fallback_result, dict) else [],
         "intelligence": {
@@ -526,7 +562,15 @@ async def query_table_intelligently(
             "suggestions": ["Try being more specific with priorities, dates, or states"],
             "template_used": None,
             "sql_equivalent": f"SELECT * FROM {table_name} WHERE short_description CONTAINS '{natural_language_query}'",
-            "filters_used": {"short_description": f"short_descriptionCONTAINS{natural_language_query}"}
+            "filters_used": {"short_description": f"short_descriptionCONTAINS{natural_language_query}"},
+            "filter_sources": {"short_description": "fallback"},
+            "debug": {
+                "encoded_query_sent_to_servicenow": f"short_descriptionCONTAINS{natural_language_query}",
+                "context_received": context,
+                "filters_from_context": {},
+                "filters_from_nl": {},
+                "final_merged_filters": {}
+            }
         }
     }
 
