@@ -63,12 +63,12 @@ TABLE_ERROR_MESSAGES = {
 
 # Table Field Definitions
 ESSENTIAL_FIELDS = {
-    "incident": ["number", "short_description", "priority", "state"],
-    "change_request": ["number", "short_description", "priority", "state"],
-    "universal_request": ["number", "short_description", "priority", "state"],
-    "kb_knowledge": ["number", "short_description", "kb_category", "state"],
-    "vtb_task": ["number", "short_description", "priority", "state"],
-    "task_sla": ["task", "sla", "stage", "business_percentage", "active"]
+    "incident": ["number", "short_description", "priority", "state", "sys_created_on"],
+    "change_request": ["number", "short_description", "priority", "state", "sys_created_on"],
+    "universal_request": ["number", "short_description", "priority", "state", "sys_created_on"],
+    "kb_knowledge": ["number", "short_description", "kb_category", "state", "sys_created_on"],
+    "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on"],
+    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on"]
 }
 
 DETAIL_FIELDS = {

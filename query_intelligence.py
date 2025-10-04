@@ -69,10 +69,39 @@ class QueryIntelligence:
         r"\b(unassigned|not\s*assigned|no\s*assignee)\b": {"assigned_to": "NULL"},
         r"\b(assigned\s*to\s*me|my\s*tickets|my\s*incidents)\b": {"assigned_to": "javascript:gs.getUserID()"},
         
-        # Exclusion patterns
-        r"\b(exclude|not|without)\s+(\w+)\b": lambda m: {f"{m.group(2)}": f"!={m.group(2)}"},
+        # Exclusion patterns - handled separately in parse_natural_language
+        # This pattern is just for detection, actual processing done later
     }
-    
+
+    @classmethod
+    def _handle_exclusion_filter(cls, field: str, value: str) -> Dict[str, str]:
+        """Handle exclusion filters with intelligent name-to-ID mapping."""
+
+        # Map common field names to ServiceNow fields
+        field_mapping = {
+            "caller": "caller_id",
+            "reporter": "caller_id",
+            "assignee": "assigned_to",
+            "user": "caller_id"
+        }
+
+        servicenow_field = field_mapping.get(field.lower(), field)
+
+        # Known entity mappings (caller names to sys_ids)
+        known_entities = {
+            "logicmonitor integration": "1727339e47d99190c43d3171e36d43ad",
+            "logicmonitor": "1727339e47d99190c43d3171e36d43ad"
+        }
+
+        # Check if it's a known entity
+        value_lower = value.lower().strip()
+        if value_lower in known_entities:
+            entity_id = known_entities[value_lower]
+            return {"_complete_caller_exclusion": f"{servicenow_field}!={entity_id}"}
+        else:
+            # Use value as-is for unknown entities
+            return {servicenow_field: f"!={value}"}
+
     @classmethod
     def parse_natural_language(cls, query_text: str, table_name: str = "incident") -> Dict[str, Any]:
         """Parse natural language query into ServiceNow filters with intelligence."""
@@ -89,30 +118,76 @@ class QueryIntelligence:
         # Check for template matches first
         template_match = cls._match_filter_template(query_lower)
         if template_match:
-            result["filters"] = template_match["filters"]
+            parsed_filters = template_match["filters"].copy()
             result["template_used"] = template_match["name"]
-            result["confidence"] = 0.9
-            result["explanation"] = f"Used predefined template: {template_match['name']}"
-            return result
+            confidence_score = 0.9
+            explanations = [f"Used predefined template: {template_match['name']}"]
+            # Continue to check for date ranges even if template matched
+        else:
+            parsed_filters = {}
+            confidence_score = 0.0
+            explanations = []
+
+        # Parse using language patterns (only if not from template)
+        if not template_match:
+            for pattern, filter_data in cls.LANGUAGE_PATTERNS.items():
+                matches = re.finditer(pattern, query_lower, re.IGNORECASE)
+                for match in matches:
+                    if callable(filter_data):
+                        # Dynamic filter generation
+                        dynamic_filters = filter_data(match)
+                    else:
+                        dynamic_filters = filter_data
+
+                    # Merge filters intelligently (don't overwrite priority with OR logic)
+                    for key, value in dynamic_filters.items():
+                        if key == "priority" and key in parsed_filters:
+                            # Merge priorities with OR syntax
+                            existing = parsed_filters[key]
+                            # Normalize values to just numbers
+                            existing_num = existing.split('=')[-1] if '=' in existing else existing
+                            new_num = value
+
+                            # Build OR syntax
+                            if existing_num != new_num:  # Only add if different
+                                if "^OR" not in existing:
+                                    parsed_filters[key] = f"priority={existing_num}^ORpriority={new_num}"
+                                elif f"priority={new_num}" not in existing:
+                                    parsed_filters[key] += f"^ORpriority={new_num}"
+                        else:
+                            parsed_filters[key] = value
+
+                    confidence_score += 0.2
+                    explanations.append(f"Detected '{match.group()}' -> {filter_data}")
         
-        # Parse using language patterns
-        parsed_filters = {}
-        confidence_score = 0.0
-        explanations = []
-        
-        for pattern, filter_data in cls.LANGUAGE_PATTERNS.items():
-            matches = re.finditer(pattern, query_lower, re.IGNORECASE)
-            for match in matches:
-                if callable(filter_data):
-                    # Dynamic filter generation
-                    dynamic_filters = filter_data(match)
-                    parsed_filters.update(dynamic_filters)
-                else:
-                    parsed_filters.update(filter_data)
-                
-                confidence_score += 0.2
-                explanations.append(f"Detected '{match.group()}' -> {filter_data}")
-        
+        # Check for exclusion patterns (e.g., "excluding caller LogicMonitor Integration")
+        exclusion_pattern = r"\b(exclud(?:e|ing)|not|without)\s+(caller|reporter|assignee|user)\s+([\w\s]+?)(?=\s+(?:from|in|on|incidents?|tickets?|and|or|between|created|with)|$)"
+        exclusion_match = re.search(exclusion_pattern, query_lower, re.IGNORECASE)
+        if exclusion_match:
+            field = exclusion_match.group(2)
+            value = exclusion_match.group(3).strip()
+            exclusion_filters = cls._handle_exclusion_filter(field, value)
+            parsed_filters.update(exclusion_filters)
+            confidence_score += 0.2
+            explanations.append(f"Detected exclusion: {field} != {value}")
+
+        # Check for absolute date ranges (e.g., "September 29 2025 to October 5 2025")
+        # Import here to avoid circular dependency
+        from Table_Tools.generic_table_tools import _parse_date_range_from_text
+
+        # Only try date parsing if we haven't already found a date filter
+        if "sys_created_on" not in parsed_filters:
+            date_range = _parse_date_range_from_text(query_lower)
+            if date_range:
+                start_date, end_date = date_range
+                # Use BETWEEN syntax with JavaScript date functions for proper ServiceNow filtering
+                parsed_filters["sys_created_on"] = (
+                    f"sys_created_onBETWEENjavascript:gs.dateGenerate('{start_date}','00:00:00')"
+                    f"@javascript:gs.dateGenerate('{end_date}','23:59:59')"
+                )
+                confidence_score += 0.3
+                explanations.append(f"Detected date range: {start_date} to {end_date}")
+
         # Handle keyword-based filters if no patterns matched
         if not parsed_filters:
             keywords = extract_keywords(query_text)

@@ -187,7 +187,92 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
             date_range_match = re.search(r'(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', text)
             if date_range_match:
                 return (date_range_match.group(1), date_range_match.group(2))
-            
+
+            # Handle "Month DD YYYY to Month DD YYYY" format (cross-month ranges)
+            # Matches: "september 29 2025 to october 5 2025" or "from september 29, 2025 to october 5, 2025"
+            cross_month_match = re.search(
+                r'(?:from\s+)?(\w+)\s+(\d{1,2}),?\s+(\d{4})\s+to\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})',
+                text
+            )
+            if cross_month_match:
+                start_month_name = cross_month_match.group(1)
+                start_day = int(cross_month_match.group(2))
+                start_year = int(cross_month_match.group(3))
+                end_month_name = cross_month_match.group(4)
+                end_day = int(cross_month_match.group(5))
+                end_year = int(cross_month_match.group(6))
+
+                # Convert month names to numbers
+                months = {
+                    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+                    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+                    'september': 9, 'october': 10, 'november': 11, 'december': 12
+                }
+
+                start_month_num = months.get(start_month_name.lower())
+                end_month_num = months.get(end_month_name.lower())
+
+                if start_month_num and end_month_num:
+                    start_date = f"{start_year}-{start_month_num:02d}-{start_day:02d}"
+                    end_date = f"{end_year}-{end_month_num:02d}-{end_day:02d}"
+                    return (start_date, end_date)
+
+            # Handle "between Month DD, YYYY and Month DD, YYYY" format
+            # Matches: "between september 29, 2025 and october 5, 2025"
+            between_match = re.search(
+                r'between\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})\s+and\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})',
+                text
+            )
+            if between_match:
+                start_month_name = between_match.group(1)
+                start_day = int(between_match.group(2))
+                start_year = int(between_match.group(3))
+                end_month_name = between_match.group(4)
+                end_day = int(between_match.group(5))
+                end_year = int(between_match.group(6))
+
+                # Convert month names to numbers (reuse months dict)
+                months = {
+                    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+                    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+                    'september': 9, 'october': 10, 'november': 11, 'december': 12
+                }
+
+                start_month_num = months.get(start_month_name.lower())
+                end_month_num = months.get(end_month_name.lower())
+
+                if start_month_num and end_month_num:
+                    start_date = f"{start_year}-{start_month_num:02d}-{start_day:02d}"
+                    end_date = f"{end_year}-{end_month_num:02d}-{end_day:02d}"
+                    return (start_date, end_date)
+
+            # Handle "Month DD to Month DD YYYY" format (year at end)
+            # Matches: "September 29 to October 5 2025" or "from September 29 to October 5 2025"
+            year_at_end_match = re.search(
+                r'(?:from\s+)?(\w+)\s+(\d{1,2})\s+to\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})',
+                text
+            )
+            if year_at_end_match:
+                months = {
+                    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+                    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+                    'september': 9, 'october': 10, 'november': 11, 'december': 12
+                }
+
+                start_month_name = year_at_end_match.group(1)
+                start_day = int(year_at_end_match.group(2))
+                end_month_name = year_at_end_match.group(3)
+                end_day = int(year_at_end_match.group(4))
+                year = int(year_at_end_match.group(5))
+
+                start_month_num = months.get(start_month_name.lower())
+                end_month_num = months.get(end_month_name.lower())
+
+                if start_month_num and end_month_num:
+                    start_date = f"{year}-{start_month_num:02d}-{start_day:02d}"
+                    end_date = f"{year}-{end_month_num:02d}-{end_day:02d}"
+                    return (start_date, end_date)
+
             return None
             
     except TimeoutError:
