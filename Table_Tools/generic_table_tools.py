@@ -162,8 +162,8 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
                 
                 return (week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'))
             
-            # Handle "Month DD-DD, YYYY" format - ReDoS-safe regex
-            month_range_match = re.search(r'(\w+) (\d{1,2})-(\d{1,2}), ?(\d{4})', text)
+            # Handle "Month DD-DD, YYYY" format - ReDoS-safe regex with bounded quantifiers
+            month_range_match = re.search(r'(\w{3,9}) (\d{1,2})-(\d{1,2}), ?(\d{4})', text)
             if month_range_match:
                 month_name = month_range_match.group(1)
                 start_day = int(month_range_match.group(2))
@@ -190,9 +190,9 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
 
             # Handle "Month DD YYYY to Month DD YYYY" format (cross-month ranges)
             # Matches: "september 29 2025 to october 5 2025" or "from september 29, 2025 to october 5, 2025"
-            # Security Fix #2: Use single spaces instead of \s to prevent ReDoS
+            # Security Fix #2: Use bounded quantifiers to prevent ReDoS (max month length = 9 chars)
             cross_month_match = re.search(
-                r'(?:from )?(\w+) (\d{1,2}),? (\d{4}) to (\w+) (\d{1,2}),? (\d{4})',
+                r'(?:from )?(\w{3,9}) (\d{1,2}),? (\d{4}) to (\w{3,9}) (\d{1,2}),? (\d{4})',
                 text
             )
             if cross_month_match:
@@ -220,9 +220,9 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
 
             # Handle "between Month DD, YYYY and Month DD, YYYY" format
             # Matches: "between september 29, 2025 and october 5, 2025"
-            # Security Fix #6: Use single spaces instead of \s to prevent ReDoS
+            # Security Fix #6: Use bounded quantifiers to prevent ReDoS (max month length = 9 chars)
             between_match = re.search(
-                r'between (\w+) (\d{1,2}),? (\d{4}) and (\w+) (\d{1,2}),? (\d{4})',
+                r'between (\w{3,9}) (\d{1,2}),? (\d{4}) and (\w{3,9}) (\d{1,2}),? (\d{4})',
                 text
             )
             if between_match:
@@ -250,9 +250,9 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
 
             # Handle "Month DD to Month DD YYYY" format (year at end)
             # Matches: "September 29 to October 5 2025" or "from September 29 to October 5 2025"
-            # Security Fix #5: Use single spaces instead of \s to prevent ReDoS
+            # Security Fix #5: Use bounded quantifiers to prevent ReDoS (max month length = 9 chars)
             year_at_end_match = re.search(
-                r'(?:from )?(\w+) (\d{1,2}) to (\w+) (\d{1,2}),? (\d{4})',
+                r'(?:from )?(\w{3,9}) (\d{1,2}) to (\w{3,9}) (\d{1,2}),? (\d{4})',
                 text
             )
             if year_at_end_match:
