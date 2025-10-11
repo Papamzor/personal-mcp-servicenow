@@ -190,9 +190,9 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
 
             # Handle "Month DD YYYY to Month DD YYYY" format (cross-month ranges)
             # Matches: "september 29 2025 to october 5 2025" or "from september 29, 2025 to october 5, 2025"
-            # Security Fix #2: Use atomic grouping and limit quantifiers to prevent ReDoS
+            # Security Fix #2: Use single spaces instead of \s to prevent ReDoS
             cross_month_match = re.search(
-                r'(?:from\s)?([a-zA-Z]+)\s(\d{1,2}),?\s(\d{4})\sto\s([a-zA-Z]+)\s(\d{1,2}),?\s(\d{4})',
+                r'(?:from )?(\w+) (\d{1,2}),? (\d{4}) to (\w+) (\d{1,2}),? (\d{4})',
                 text
             )
             if cross_month_match:
@@ -220,8 +220,9 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
 
             # Handle "between Month DD, YYYY and Month DD, YYYY" format
             # Matches: "between september 29, 2025 and october 5, 2025"
+            # Security Fix #6: Use single spaces instead of \s to prevent ReDoS
             between_match = re.search(
-                r'between\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})\s+and\s+(\w+)\s+(\d{1,2}),?\s+(\d{4})',
+                r'between (\w+) (\d{1,2}),? (\d{4}) and (\w+) (\d{1,2}),? (\d{4})',
                 text
             )
             if between_match:
@@ -249,9 +250,9 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
 
             # Handle "Month DD to Month DD YYYY" format (year at end)
             # Matches: "September 29 to October 5 2025" or "from September 29 to October 5 2025"
-            # Security Fix #5: Use atomic grouping and limit quantifiers to prevent ReDoS
+            # Security Fix #5: Use single spaces instead of \s to prevent ReDoS
             year_at_end_match = re.search(
-                r'(?:from\s)?([a-zA-Z]+)\s(\d{1,2})\sto\s([a-zA-Z]+)\s(\d{1,2}),?\s(\d{4})',
+                r'(?:from )?(\w+) (\d{1,2}) to (\w+) (\d{1,2}),? (\d{4})',
                 text
             )
             if year_at_end_match:
