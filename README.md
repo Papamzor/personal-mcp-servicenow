@@ -203,7 +203,6 @@ source venv/bin/activate  # On Windows: venv\\Scripts\\activate
 
 # Install dependencies
 pip install -r requirements.txt
-python -m spacy download en_core_web_sm
 ```
 
 ### 2. **Configuration**
@@ -315,7 +314,7 @@ MCP Server (FastMCP Framework)
 │   ├── Private Task Tools (vtb_task_tools.py)
 │   └── CMDB Tools (cmdb_tools.py) 🆕
 ├── Intelligence Layer
-│   ├── NLP Processing (utils.py + SpaCy)
+│   ├── NLP Processing (utils.py - Lightweight Regex)
 │   ├── Keyword Extraction
 │   └── Similarity Matching
 └── Utility & Testing
