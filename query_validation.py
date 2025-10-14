@@ -117,7 +117,7 @@ class QueryValidationResult:
         return not self.is_valid or len(self.warnings) > 0
 
 
-def _has_comma_syntax_issue(priority_value: str, has_multiple: bool, has_or: bool, has_comma: bool) -> bool:
+def _has_comma_syntax_issue(has_multiple: bool, has_or: bool, has_comma: bool) -> bool:
     """Check if priority filter has comma syntax issue. Complexity: 2"""
     return has_multiple and not has_or and has_comma
 
@@ -142,7 +142,7 @@ def validate_priority_filter(priority_value: str) -> QueryValidationResult:
     has_comma_syntax = "," in priority_value
 
     # Check for comma syntax issue
-    if _has_comma_syntax_issue(priority_value, has_multiple_priorities, has_or_syntax, has_comma_syntax):
+    if _has_comma_syntax_issue(has_multiple_priorities, has_or_syntax, has_comma_syntax):
         result.add_warning(
             f"Priority filter '{priority_value}' uses comma syntax instead of OR"
         )
