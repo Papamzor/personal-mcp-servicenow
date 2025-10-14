@@ -127,157 +127,184 @@ def _is_complete_servicenow_filter(value: str) -> bool:
     """Check if value is already a complete ServiceNow filter (e.g., priority=1^ORpriority=2)."""
     return isinstance(value, str) and ('^OR' in value or 'ON' in value)
 
-def _parse_date_range_from_text(text: str) -> Optional[tuple]:
-    """Parse date range from natural language text with ReDoS protection.
-    
-    Handles formats like:
-    - "Week 35 2025" or "week 35 of 2025"
-    - "August 25-31, 2025" 
-    - "2025-08-25 to 2025-08-31"
-    - "last week", "this week"
-    """
+# Month name to number mapping used by date parsers
+_MONTH_MAP = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+    'september': 9, 'october': 10, 'november': 11, 'december': 12
+}
+
+def _parse_week_format(text: str) -> Optional[tuple]:
+    """Parse 'Week X YYYY' format. Complexity: 3"""
     import re
     from datetime import datetime, timedelta
-    
+
+    week_match = re.search(r'week (\d{1,2}) (?:of )?(\d{4})', text)
+    if not week_match:
+        return None
+
+    week_num = int(week_match.group(1))
+    year = int(week_match.group(2))
+
+    # Calculate start date of the week (assuming week starts on Monday)
+    jan_4 = datetime(year, 1, 4)
+    week_start = jan_4 - timedelta(days=jan_4.weekday()) + timedelta(weeks=week_num - 1)
+    week_end = week_start + timedelta(days=6)
+
+    return (week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'))
+
+def _parse_month_range_format(text: str) -> Optional[tuple]:
+    """Parse 'Month DD-DD, YYYY' format. Complexity: 4"""
+    import re
+
+    month_range_match = re.search(r'(\w{3,9}) (\d{1,2})-(\d{1,2}), ?(\d{4})', text)
+    if not month_range_match:
+        return None
+
+    month_name = month_range_match.group(1)
+    start_day = int(month_range_match.group(2))
+    end_day = int(month_range_match.group(3))
+    year = int(month_range_match.group(4))
+
+    month_num = _MONTH_MAP.get(month_name.lower())
+    if not month_num:
+        return None
+
+    start_date = f"{year}-{month_num:02d}-{start_day:02d}"
+    end_date = f"{year}-{month_num:02d}-{end_day:02d}"
+    return (start_date, end_date)
+
+def _parse_iso_date_range(text: str) -> Optional[tuple]:
+    """Parse 'YYYY-MM-DD to YYYY-MM-DD' format. Complexity: 2"""
+    import re
+
+    date_range_match = re.search(r'(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', text)
+    if not date_range_match:
+        return None
+
+    return (date_range_match.group(1), date_range_match.group(2))
+
+def _parse_cross_month_range(text: str) -> Optional[tuple]:
+    """Parse 'Month DD YYYY to Month DD YYYY' format. Complexity: 5"""
+    import re
+
+    cross_month_match = re.search(
+        r'(?:from )?(\w{3,9}) (\d{1,2}),? (\d{4}) to (\w{3,9}) (\d{1,2}),? (\d{4})',
+        text
+    )
+    if not cross_month_match:
+        return None
+
+    start_month_name = cross_month_match.group(1)
+    start_day = int(cross_month_match.group(2))
+    start_year = int(cross_month_match.group(3))
+    end_month_name = cross_month_match.group(4)
+    end_day = int(cross_month_match.group(5))
+    end_year = int(cross_month_match.group(6))
+
+    start_month_num = _MONTH_MAP.get(start_month_name.lower())
+    end_month_num = _MONTH_MAP.get(end_month_name.lower())
+
+    if not (start_month_num and end_month_num):
+        return None
+
+    start_date = f"{start_year}-{start_month_num:02d}-{start_day:02d}"
+    end_date = f"{end_year}-{end_month_num:02d}-{end_day:02d}"
+    return (start_date, end_date)
+
+def _parse_between_format(text: str) -> Optional[tuple]:
+    """Parse 'between Month DD, YYYY and Month DD, YYYY' format. Complexity: 5"""
+    import re
+
+    between_match = re.search(
+        r'between (\w{3,9}) (\d{1,2}),? (\d{4}) and (\w{3,9}) (\d{1,2}),? (\d{4})',
+        text
+    )
+    if not between_match:
+        return None
+
+    start_month_name = between_match.group(1)
+    start_day = int(between_match.group(2))
+    start_year = int(between_match.group(3))
+    end_month_name = between_match.group(4)
+    end_day = int(between_match.group(5))
+    end_year = int(between_match.group(6))
+
+    start_month_num = _MONTH_MAP.get(start_month_name.lower())
+    end_month_num = _MONTH_MAP.get(end_month_name.lower())
+
+    if not (start_month_num and end_month_num):
+        return None
+
+    start_date = f"{start_year}-{start_month_num:02d}-{start_day:02d}"
+    end_date = f"{end_year}-{end_month_num:02d}-{end_day:02d}"
+    return (start_date, end_date)
+
+def _parse_year_at_end_format(text: str) -> Optional[tuple]:
+    """Parse 'Month DD to Month DD YYYY' format (year at end). Complexity: 5"""
+    import re
+
+    year_at_end_match = re.search(
+        r'(?:from )?(\w{3,9}) (\d{1,2}) to (\w{3,9}) (\d{1,2}),? (\d{4})',
+        text
+    )
+    if not year_at_end_match:
+        return None
+
+    start_month_name = year_at_end_match.group(1)
+    start_day = int(year_at_end_match.group(2))
+    end_month_name = year_at_end_match.group(3)
+    end_day = int(year_at_end_match.group(4))
+    year = int(year_at_end_match.group(5))
+
+    start_month_num = _MONTH_MAP.get(start_month_name.lower())
+    end_month_num = _MONTH_MAP.get(end_month_name.lower())
+
+    if not (start_month_num and end_month_num):
+        return None
+
+    start_date = f"{year}-{start_month_num:02d}-{start_day:02d}"
+    end_date = f"{year}-{end_month_num:02d}-{end_day:02d}"
+    return (start_date, end_date)
+
+def _parse_date_range_from_text(text: str) -> Optional[tuple]:
+    """Parse date range from natural language text with ReDoS protection.
+
+    Handles formats like:
+    - "Week 35 2025" or "week 35 of 2025"
+    - "August 25-31, 2025"
+    - "2025-08-25 to 2025-08-31"
+    - "last week", "this week"
+
+    Complexity: 8 (reduced from ~30-35)
+    """
     # Security Fix #1 & #4: Pre-validate input to prevent ReDoS attacks
     if not _validate_regex_input(text):
         return None
-    
+
     text = text.lower().strip()
-    
+
     try:
         # Security Fix #3: Timeout protection for regex operations
         with timeout_protection(seconds=2):
-            # Handle "Week X YYYY" format
-            week_match = re.search(r'week (\d{1,2}) (?:of )?(\d{4})', text)
-            if week_match:
-                week_num = int(week_match.group(1))
-                year = int(week_match.group(2))
-                
-                # Calculate start date of the week (assuming week starts on Monday)
-                # Week 1 is the first week with at least 4 days in the new year
-                jan_4 = datetime(year, 1, 4)
-                week_start = jan_4 - timedelta(days=jan_4.weekday()) + timedelta(weeks=week_num - 1)
-                week_end = week_start + timedelta(days=6)
-                
-                return (week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'))
-            
-            # Handle "Month DD-DD, YYYY" format - ReDoS-safe regex with bounded quantifiers
-            month_range_match = re.search(r'(\w{3,9}) (\d{1,2})-(\d{1,2}), ?(\d{4})', text)
-            if month_range_match:
-                month_name = month_range_match.group(1)
-                start_day = int(month_range_match.group(2))
-                end_day = int(month_range_match.group(3))
-                year = int(month_range_match.group(4))
-                
-                # Convert month name to number
-                months = {
-                    'january': 1, 'february': 2, 'march': 3, 'april': 4,
-                    'may': 5, 'june': 6, 'july': 7, 'august': 8,
-                    'september': 9, 'october': 10, 'november': 11, 'december': 12
-                }
-                
-                month_num = months.get(month_name.lower())
-                if month_num:
-                    start_date = f"{year}-{month_num:02d}-{start_day:02d}"
-                    end_date = f"{year}-{month_num:02d}-{end_day:02d}"
-                    return (start_date, end_date)
-            
-            # Handle "YYYY-MM-DD to YYYY-MM-DD" format
-            date_range_match = re.search(r'(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', text)
-            if date_range_match:
-                return (date_range_match.group(1), date_range_match.group(2))
+            # Date parser registry - try each parser in sequence
+            parsers = [
+                _parse_week_format,
+                _parse_month_range_format,
+                _parse_iso_date_range,
+                _parse_cross_month_range,
+                _parse_between_format,
+                _parse_year_at_end_format
+            ]
 
-            # Handle "Month DD YYYY to Month DD YYYY" format (cross-month ranges)
-            # Matches: "september 29 2025 to october 5 2025" or "from september 29, 2025 to october 5, 2025"
-            # Security Fix #2: Use bounded quantifiers to prevent ReDoS (max month length = 9 chars)
-            cross_month_match = re.search(
-                r'(?:from )?(\w{3,9}) (\d{1,2}),? (\d{4}) to (\w{3,9}) (\d{1,2}),? (\d{4})',
-                text
-            )
-            if cross_month_match:
-                start_month_name = cross_month_match.group(1)
-                start_day = int(cross_month_match.group(2))
-                start_year = int(cross_month_match.group(3))
-                end_month_name = cross_month_match.group(4)
-                end_day = int(cross_month_match.group(5))
-                end_year = int(cross_month_match.group(6))
-
-                # Convert month names to numbers
-                months = {
-                    'january': 1, 'february': 2, 'march': 3, 'april': 4,
-                    'may': 5, 'june': 6, 'july': 7, 'august': 8,
-                    'september': 9, 'october': 10, 'november': 11, 'december': 12
-                }
-
-                start_month_num = months.get(start_month_name.lower())
-                end_month_num = months.get(end_month_name.lower())
-
-                if start_month_num and end_month_num:
-                    start_date = f"{start_year}-{start_month_num:02d}-{start_day:02d}"
-                    end_date = f"{end_year}-{end_month_num:02d}-{end_day:02d}"
-                    return (start_date, end_date)
-
-            # Handle "between Month DD, YYYY and Month DD, YYYY" format
-            # Matches: "between september 29, 2025 and october 5, 2025"
-            # Security Fix #6: Use bounded quantifiers to prevent ReDoS (max month length = 9 chars)
-            between_match = re.search(
-                r'between (\w{3,9}) (\d{1,2}),? (\d{4}) and (\w{3,9}) (\d{1,2}),? (\d{4})',
-                text
-            )
-            if between_match:
-                start_month_name = between_match.group(1)
-                start_day = int(between_match.group(2))
-                start_year = int(between_match.group(3))
-                end_month_name = between_match.group(4)
-                end_day = int(between_match.group(5))
-                end_year = int(between_match.group(6))
-
-                # Convert month names to numbers (reuse months dict)
-                months = {
-                    'january': 1, 'february': 2, 'march': 3, 'april': 4,
-                    'may': 5, 'june': 6, 'july': 7, 'august': 8,
-                    'september': 9, 'october': 10, 'november': 11, 'december': 12
-                }
-
-                start_month_num = months.get(start_month_name.lower())
-                end_month_num = months.get(end_month_name.lower())
-
-                if start_month_num and end_month_num:
-                    start_date = f"{start_year}-{start_month_num:02d}-{start_day:02d}"
-                    end_date = f"{end_year}-{end_month_num:02d}-{end_day:02d}"
-                    return (start_date, end_date)
-
-            # Handle "Month DD to Month DD YYYY" format (year at end)
-            # Matches: "September 29 to October 5 2025" or "from September 29 to October 5 2025"
-            # Security Fix #5: Use bounded quantifiers to prevent ReDoS (max month length = 9 chars)
-            year_at_end_match = re.search(
-                r'(?:from )?(\w{3,9}) (\d{1,2}) to (\w{3,9}) (\d{1,2}),? (\d{4})',
-                text
-            )
-            if year_at_end_match:
-                months = {
-                    'january': 1, 'february': 2, 'march': 3, 'april': 4,
-                    'may': 5, 'june': 6, 'july': 7, 'august': 8,
-                    'september': 9, 'october': 10, 'november': 11, 'december': 12
-                }
-
-                start_month_name = year_at_end_match.group(1)
-                start_day = int(year_at_end_match.group(2))
-                end_month_name = year_at_end_match.group(3)
-                end_day = int(year_at_end_match.group(4))
-                year = int(year_at_end_match.group(5))
-
-                start_month_num = months.get(start_month_name.lower())
-                end_month_num = months.get(end_month_name.lower())
-
-                if start_month_num and end_month_num:
-                    start_date = f"{year}-{start_month_num:02d}-{start_day:02d}"
-                    end_date = f"{year}-{end_month_num:02d}-{end_day:02d}"
-                    return (start_date, end_date)
+            # Try each parser until one succeeds
+            for parser in parsers:
+                result = parser(text)
+                if result:
+                    return result
 
             return None
-            
+
     except TimeoutError:
         # Regex operation timed out - likely ReDoS attack
         return None
@@ -571,6 +598,86 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
     return {"result": [], "message": NO_RECORDS_FOUND}
 
 
+def _determine_filter_sources(
+    intelligence_filters: Dict,
+    filters_from_nl: Dict,
+    filters_from_context: Dict
+) -> Dict[str, str]:
+    """Determine the source of each filter. Complexity: 4"""
+    filter_sources = {}
+    for field in intelligence_filters.keys():
+        if field in filters_from_context:
+            filter_sources[field] = "context"
+        elif field in filters_from_nl:
+            filter_sources[field] = "natural_language"
+        else:
+            filter_sources[field] = "combined"
+    return filter_sources
+
+def _build_debug_info(
+    intelligence_result: Dict,
+    context: Optional[Dict],
+    filters_from_nl: Dict,
+    filters_from_context: Dict,
+    encoded_query: str
+) -> Dict[str, Any]:
+    """Build debug information dictionary. Complexity: 2"""
+    return {
+        "encoded_query_sent_to_servicenow": encoded_query,
+        "context_received": context,
+        "filters_from_context": filters_from_context,
+        "filters_from_nl": filters_from_nl,
+        "final_merged_filters": intelligence_result["filters"]
+    }
+
+def _build_intelligence_response(
+    query_result: Dict,
+    intelligence_result: Dict,
+    filter_sources: Dict,
+    debug_info: Dict
+) -> Dict[str, Any]:
+    """Build successful intelligence response. Complexity: 2"""
+    return {
+        "result": query_result["result"],
+        "intelligence": {
+            "explanation": intelligence_result["explanation"],
+            "confidence": intelligence_result["confidence"],
+            "suggestions": intelligence_result["suggestions"],
+            "template_used": intelligence_result.get("template_used"),
+            "sql_equivalent": intelligence_result.get("sql_equivalent"),
+            "filters_used": intelligence_result["filters"],
+            "filter_sources": filter_sources,
+            "debug": debug_info
+        }
+    }
+
+def _build_fallback_response(
+    fallback_result: Dict,
+    natural_language_query: str,
+    table_name: str,
+    context: Optional[Dict]
+) -> Dict[str, Any]:
+    """Build fallback keyword search response. Complexity: 2"""
+    return {
+        "result": fallback_result.get("result", []) if isinstance(fallback_result, dict) else [],
+        "intelligence": {
+            "explanation": f"Fallback keyword search for: {natural_language_query}",
+            "confidence": 0.3,
+            "suggestions": ["Try being more specific with priorities, dates, or states"],
+            "template_used": None,
+            "sql_equivalent": f"SELECT * FROM {table_name} WHERE short_description CONTAINS '{natural_language_query}'",
+            "filters_used": {"short_description": f"short_descriptionCONTAINS{natural_language_query}"},
+            "filter_sources": {"short_description": "fallback"},
+            "debug": {
+                "encoded_query_sent_to_servicenow": f"short_descriptionCONTAINS{natural_language_query}",
+                "context_received": context,
+                "filters_from_context": {},
+                "filters_from_nl": {},
+                "final_merged_filters": {}
+            }
+        }
+    }
+
 async def query_table_intelligently(
     table_name: str,
     natural_language_query: str,
@@ -585,6 +692,8 @@ async def query_table_intelligently(
 
     Returns:
         Dictionary containing query results and intelligence metadata
+
+    Complexity: 10 (reduced from ~18-22)
     """
     # Build intelligent filter
     intelligence_result = build_smart_filter(natural_language_query, table_name, context)
@@ -607,60 +716,17 @@ async def query_table_intelligently(
 
         query_result = await query_table_with_filters(table_name, params)
 
-        # Determine source of each filter
-        filter_sources = {}
-        for field in intelligence_result["filters"].keys():
-            if field in filters_from_context:
-                filter_sources[field] = "context"
-            elif field in filters_from_nl:
-                filter_sources[field] = "natural_language"
-            else:
-                filter_sources[field] = "combined"
+        # Build response components
+        filter_sources = _determine_filter_sources(intelligence_result["filters"], filters_from_nl, filters_from_context)
+        debug_info = _build_debug_info(intelligence_result, context, filters_from_nl, filters_from_context, encoded_query)
 
-        # Combine query results with intelligence metadata
+        # Return successful response if we got results
         if isinstance(query_result, dict) and query_result.get('result'):
-            return {
-                "result": query_result["result"],
-                "intelligence": {
-                    "explanation": intelligence_result["explanation"],
-                    "confidence": intelligence_result["confidence"],
-                    "suggestions": intelligence_result["suggestions"],
-                    "template_used": intelligence_result.get("template_used"),
-                    "sql_equivalent": intelligence_result.get("sql_equivalent"),
-                    "filters_used": intelligence_result["filters"],
-                    "filter_sources": filter_sources,
-                    "debug": {
-                        "encoded_query_sent_to_servicenow": encoded_query,
-                        "context_received": context,
-                        "filters_from_context": filters_from_context,
-                        "filters_from_nl": filters_from_nl,
-                        "final_merged_filters": intelligence_result["filters"]
-                    }
-                }
-            }
+            return _build_intelligence_response(query_result, intelligence_result, filter_sources, debug_info)
 
-    # Fallback to keyword-based search if no intelligent filters were generated
+    # Fallback to keyword-based search
     fallback_result = await query_table_by_text(table_name, natural_language_query)
-
-    return {
-        "result": fallback_result.get("result", []) if isinstance(fallback_result, dict) else [],
-        "intelligence": {
-            "explanation": f"Fallback keyword search for: {natural_language_query}",
-            "confidence": 0.3,
-            "suggestions": ["Try being more specific with priorities, dates, or states"],
-            "template_used": None,
-            "sql_equivalent": f"SELECT * FROM {table_name} WHERE short_description CONTAINS '{natural_language_query}'",
-            "filters_used": {"short_description": f"short_descriptionCONTAINS{natural_language_query}"},
-            "filter_sources": {"short_description": "fallback"},
-            "debug": {
-                "encoded_query_sent_to_servicenow": f"short_descriptionCONTAINS{natural_language_query}",
-                "context_received": context,
-                "filters_from_context": {},
-                "filters_from_nl": {},
-                "final_merged_filters": {}
-            }
-        }
-    }
+    return _build_fallback_response(fallback_result, natural_language_query, table_name, context)
 
 
 def explain_filter_query(
