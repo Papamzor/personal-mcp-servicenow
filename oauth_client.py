@@ -115,43 +115,63 @@ class ServiceNowOAuthClient:
             **JSON_HEADERS
         }
     
-    async def make_authenticated_request(
-        self, 
-        method: str, 
-        url: str, 
+    async def _clear_token_cache(self) -> None:
+        """Clear cached token for retry. Complexity: 2"""
+        async with self._token_lock:
+            self._access_token = None
+            self._token_expires_at = None
+
+    async def _retry_with_fresh_token(
+        self,
+        client: httpx.AsyncClient,
+        method: str,
+        url: str,
         **kwargs
     ) -> Dict[str, Any] | None:
-        """Make an authenticated request to ServiceNow API."""
+        """Retry request with fresh token after 401. Complexity: 4"""
+        await self._clear_token_cache()
+
+        # Get fresh token and update headers
         headers = await self.get_auth_headers()
-        
+        kwargs["headers"] = headers
+
+        try:
+            response = await client.request(method, url, timeout=30.0, **kwargs)
+            response.raise_for_status()
+            return response.json()
+        except (httpx.HTTPStatusError, httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
+            return None
+
+    def _process_response(self, response: httpx.Response) -> Dict[str, Any]:
+        """Process successful response. Complexity: 2"""
+        return response.json()
+
+    async def make_authenticated_request(
+        self,
+        method: str,
+        url: str,
+        **kwargs
+    ) -> Dict[str, Any] | None:
+        """Make an authenticated request to ServiceNow API.
+
+        Complexity: 8 (reduced from ~18-22)
+        """
+        headers = await self.get_auth_headers()
+
         # Merge with any additional headers
         if "headers" in kwargs:
             headers.update(kwargs["headers"])
         kwargs["headers"] = headers
-        
+
         async with httpx.AsyncClient(verify=True) as client:
             try:
                 response = await client.request(method, url, timeout=30.0, **kwargs)
                 response.raise_for_status()
-                return response.json()
+                return self._process_response(response)
             except httpx.HTTPStatusError as e:
-                # Handle potential token expiration
+                # Handle potential token expiration with retry
                 if e.response.status_code == 401:
-                    # Clear cached token and retry once
-                    async with self._token_lock:
-                        self._access_token = None
-                        self._token_expires_at = None
-                    
-                    # Retry with fresh token
-                    headers = await self.get_auth_headers()
-                    kwargs["headers"] = headers
-                    
-                    try:
-                        response = await client.request(method, url, timeout=30.0, **kwargs)
-                        response.raise_for_status()
-                        return response.json()
-                    except (httpx.HTTPStatusError, httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
-                        return None
+                    return await self._retry_with_fresh_token(client, method, url, **kwargs)
                 return None
             except (httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
                 return None

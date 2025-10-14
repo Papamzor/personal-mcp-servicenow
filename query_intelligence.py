@@ -103,8 +103,126 @@ class QueryIntelligence:
             return {servicenow_field: f"!={value}"}
 
     @classmethod
+    def _try_template_match(cls, query_lower: str) -> Optional[Dict[str, Any]]:
+        """Check for template match and return template data. Complexity: 3"""
+        template_match = cls._match_filter_template(query_lower)
+        if not template_match:
+            return None
+
+        return {
+            "filters": template_match["filters"].copy(),
+            "template_name": template_match["name"],
+            "confidence": 0.9,
+            "explanation": f"Used predefined template: {template_match['name']}"
+        }
+
+    @classmethod
+    def _parse_language_patterns(cls, query_lower: str, parsed_filters: Dict) -> Tuple[float, List[str]]:
+        """Parse language patterns and update filters. Returns (confidence, explanations). Complexity: 8"""
+        confidence_score = 0.0
+        explanations = []
+
+        for pattern, filter_data in cls.LANGUAGE_PATTERNS.items():
+            matches = re.finditer(pattern, query_lower, re.IGNORECASE)
+            for match in matches:
+                # Get filter data (callable or static)
+                if callable(filter_data):
+                    dynamic_filters = filter_data(match)
+                else:
+                    dynamic_filters = filter_data
+
+                # Merge filters
+                for key, value in dynamic_filters.items():
+                    if key == "priority" and key in parsed_filters:
+                        # Merge priorities with OR syntax
+                        parsed_filters[key] = cls._merge_priority_filters(parsed_filters[key], value)
+                    else:
+                        parsed_filters[key] = value
+
+                confidence_score += 0.2
+                explanations.append(f"Detected '{match.group()}' -> {filter_data}")
+
+        return (confidence_score, explanations)
+
+    @classmethod
+    def _merge_priority_filters(cls, existing: str, new_value: str) -> str:
+        """Merge two priority values with OR syntax. Complexity: 4"""
+        existing_num = existing.split('=')[-1] if '=' in existing else existing
+        new_num = new_value
+
+        if existing_num == new_num:
+            return existing
+
+        if "^OR" not in existing:
+            return f"priority={existing_num}^ORpriority={new_num}"
+        elif f"priority={new_num}" not in existing:
+            return existing + f"^ORpriority={new_num}"
+
+        return existing
+
+    @classmethod
+    def _parse_exclusion_patterns(cls, query_lower: str) -> Optional[Dict[str, Any]]:
+        """Parse exclusion patterns and return exclusion filters. Complexity: 4"""
+        exclusion_pattern = r"\b(exclud(?:e|ing)|not|without)\s+(caller|reporter|assignee|user)\s+([\w\s]+?)(?=\s+(?:from|in|on|incidents?|tickets?|and|or|between|created|with)|$)"
+        exclusion_match = re.search(exclusion_pattern, query_lower, re.IGNORECASE)
+
+        if not exclusion_match:
+            return None
+
+        field = exclusion_match.group(2)
+        value = exclusion_match.group(3).strip()
+        exclusion_filters = cls._handle_exclusion_filter(field, value)
+
+        return {
+            "filters": exclusion_filters,
+            "confidence": 0.2,
+            "explanation": f"Detected exclusion: {field} != {value}"
+        }
+
+    @classmethod
+    def _try_date_range_parsing(cls, query_lower: str, existing_filters: Dict) -> Optional[Dict[str, Any]]:
+        """Try to parse date range from query. Complexity: 4"""
+        # Skip if date filter already exists
+        if "sys_created_on" in existing_filters:
+            return None
+
+        from Table_Tools.generic_table_tools import _parse_date_range_from_text
+
+        date_range = _parse_date_range_from_text(query_lower)
+        if not date_range:
+            return None
+
+        start_date, end_date = date_range
+        date_filter = (
+            f"sys_created_onBETWEENjavascript:gs.dateGenerate('{start_date}','00:00:00')"
+            f"@javascript:gs.dateGenerate('{end_date}','23:59:59')"
+        )
+
+        return {
+            "filter": {"sys_created_on": date_filter},
+            "confidence": 0.3,
+            "explanation": f"Detected date range: {start_date} to {end_date}"
+        }
+
+    @classmethod
+    def _build_keyword_fallback(cls, query_text: str) -> Dict[str, Any]:
+        """Build keyword-based fallback filter. Complexity: 3"""
+        keywords = extract_keywords(query_text)
+        if not keywords:
+            return {"filters": {}, "confidence": 0.0, "explanation": ""}
+
+        return {
+            "filters": {"short_description": f"short_descriptionCONTAINS{keywords[0]}"},
+            "confidence": 0.5,
+            "explanation": f"Using keyword search for: {keywords[0]}"
+        }
+
+    @classmethod
     def parse_natural_language(cls, query_text: str, table_name: str = "incident") -> Dict[str, Any]:
-        """Parse natural language query into ServiceNow filters with intelligence."""
+        """Parse natural language query into ServiceNow filters with intelligence.
+
+        Complexity: 10 (reduced from ~25-30)
+        """
         result = {
             "filters": {},
             "explanation": "",
@@ -112,102 +230,58 @@ class QueryIntelligence:
             "suggestions": [],
             "template_used": None
         }
-        
+
         query_lower = query_text.lower().strip()
-        
-        # Check for template matches first
-        template_match = cls._match_filter_template(query_lower)
-        if template_match:
-            parsed_filters = template_match["filters"].copy()
-            result["template_used"] = template_match["name"]
-            confidence_score = 0.9
-            explanations = [f"Used predefined template: {template_match['name']}"]
-            # Continue to check for date ranges even if template matched
+        explanations = []
+        confidence_score = 0.0
+
+        # Try template match first
+        template_data = cls._try_template_match(query_lower)
+        if template_data:
+            parsed_filters = template_data["filters"]
+            result["template_used"] = template_data["template_name"]
+            confidence_score = template_data["confidence"]
+            explanations.append(template_data["explanation"])
         else:
             parsed_filters = {}
-            confidence_score = 0.0
-            explanations = []
+            # Parse language patterns
+            pattern_confidence, pattern_explanations = cls._parse_language_patterns(query_lower, parsed_filters)
+            confidence_score += pattern_confidence
+            explanations.extend(pattern_explanations)
 
-        # Parse using language patterns (only if not from template)
-        if not template_match:
-            for pattern, filter_data in cls.LANGUAGE_PATTERNS.items():
-                matches = re.finditer(pattern, query_lower, re.IGNORECASE)
-                for match in matches:
-                    if callable(filter_data):
-                        # Dynamic filter generation
-                        dynamic_filters = filter_data(match)
-                    else:
-                        dynamic_filters = filter_data
+        # Parse exclusions
+        exclusion_data = cls._parse_exclusion_patterns(query_lower)
+        if exclusion_data:
+            parsed_filters.update(exclusion_data["filters"])
+            confidence_score += exclusion_data["confidence"]
+            explanations.append(exclusion_data["explanation"])
 
-                    # Merge filters intelligently (don't overwrite priority with OR logic)
-                    for key, value in dynamic_filters.items():
-                        if key == "priority" and key in parsed_filters:
-                            # Merge priorities with OR syntax
-                            existing = parsed_filters[key]
-                            # Normalize values to just numbers
-                            existing_num = existing.split('=')[-1] if '=' in existing else existing
-                            new_num = value
+        # Try date range parsing
+        date_data = cls._try_date_range_parsing(query_lower, parsed_filters)
+        if date_data:
+            parsed_filters.update(date_data["filter"])
+            confidence_score += date_data["confidence"]
+            explanations.append(date_data["explanation"])
 
-                            # Build OR syntax
-                            if existing_num != new_num:  # Only add if different
-                                if "^OR" not in existing:
-                                    parsed_filters[key] = f"priority={existing_num}^ORpriority={new_num}"
-                                elif f"priority={new_num}" not in existing:
-                                    parsed_filters[key] += f"^ORpriority={new_num}"
-                        else:
-                            parsed_filters[key] = value
-
-                    confidence_score += 0.2
-                    explanations.append(f"Detected '{match.group()}' -> {filter_data}")
-        
-        # Check for exclusion patterns (e.g., "excluding caller LogicMonitor Integration")
-        exclusion_pattern = r"\b(exclud(?:e|ing)|not|without)\s+(caller|reporter|assignee|user)\s+([\w\s]+?)(?=\s+(?:from|in|on|incidents?|tickets?|and|or|between|created|with)|$)"
-        exclusion_match = re.search(exclusion_pattern, query_lower, re.IGNORECASE)
-        if exclusion_match:
-            field = exclusion_match.group(2)
-            value = exclusion_match.group(3).strip()
-            exclusion_filters = cls._handle_exclusion_filter(field, value)
-            parsed_filters.update(exclusion_filters)
-            confidence_score += 0.2
-            explanations.append(f"Detected exclusion: {field} != {value}")
-
-        # Check for absolute date ranges (e.g., "September 29 2025 to October 5 2025")
-        # Import here to avoid circular dependency
-        from Table_Tools.generic_table_tools import _parse_date_range_from_text
-
-        # Only try date parsing if we haven't already found a date filter
-        if "sys_created_on" not in parsed_filters:
-            date_range = _parse_date_range_from_text(query_lower)
-            if date_range:
-                start_date, end_date = date_range
-                # Use BETWEEN syntax with JavaScript date functions for proper ServiceNow filtering
-                parsed_filters["sys_created_on"] = (
-                    f"sys_created_onBETWEENjavascript:gs.dateGenerate('{start_date}','00:00:00')"
-                    f"@javascript:gs.dateGenerate('{end_date}','23:59:59')"
-                )
-                confidence_score += 0.3
-                explanations.append(f"Detected date range: {start_date} to {end_date}")
-
-        # Handle keyword-based filters if no patterns matched
+        # Fallback to keyword search if no filters
         if not parsed_filters:
-            keywords = extract_keywords(query_text)
-            if keywords:
-                # Use keywords for text search
-                parsed_filters["short_description"] = f"short_descriptionCONTAINS{keywords[0]}"
-                confidence_score = 0.5
-                explanations.append(f"Using keyword search for: {keywords[0]}")
-        
-        # Validate and improve the parsed filters
+            keyword_data = cls._build_keyword_fallback(query_text)
+            parsed_filters = keyword_data["filters"]
+            confidence_score = keyword_data["confidence"]
+            if keyword_data["explanation"]:
+                explanations.append(keyword_data["explanation"])
+
+        # Validate and improve filters
         validation_result = cls._validate_and_improve_filters(parsed_filters, table_name)
         if validation_result.corrected_filters:
             parsed_filters = validation_result.corrected_filters
             explanations.extend(validation_result.suggestions)
-        
+
         result["filters"] = parsed_filters
         result["confidence"] = min(confidence_score, 1.0)
         result["explanation"] = " | ".join(explanations)
         result["suggestions"] = validation_result.suggestions
-        
+
         return result
     
     @classmethod
@@ -451,26 +525,60 @@ class QueryIntelligence:
 
 class QueryExplainer:
     """Explains existing filters and suggests improvements."""
-    
+
     @classmethod
-    def explain_filter(cls, filters: Dict[str, str], table_name: str) -> Dict[str, Any]:
-        """Explain what an existing filter does and suggest improvements."""
-        explanation = QueryIntelligence._generate_filter_explanation(filters, table_name)
-        sql_equivalent = QueryIntelligence._generate_sql_equivalent(filters, table_name)
-        
-        # Analyze for potential issues
+    def _check_priority_filter_issue(cls, field: str, value: str) -> Optional[Tuple[str, str]]:
+        """Check for priority filter issues. Returns (issue, suggestion) or None. Complexity: 3"""
+        if field == "priority" and "," in value and "^OR" not in value:
+            return (
+                "Priority filter may not work - comma separation doesn't work in ServiceNow",
+                "Use OR syntax: priority=1^ORpriority=2"
+            )
+        return None
+
+    @classmethod
+    def _check_date_filter_issue(cls, field: str, value: str) -> Optional[Tuple[str, str]]:
+        """Check for date filter issues. Returns (issue, suggestion) or None. Complexity: 3"""
+        if field == "sys_created_on" and ">=" in value and "<=" not in value:
+            return (
+                "Date range incomplete - may return more results than expected",
+                "Add end date for complete range"
+            )
+        return None
+
+    @classmethod
+    def _analyze_filter_issues(cls, filters: Dict[str, str]) -> Tuple[List[str], List[str]]:
+        """Analyze filters for issues. Returns (issues, suggestions). Complexity: 5"""
         issues = []
         suggestions = []
-        
+
         for field, value in filters.items():
-            if field == "priority" and "," in value and "^OR" not in value:
-                issues.append("Priority filter may not work - comma separation doesn't work in ServiceNow")
-                suggestions.append("Use OR syntax: priority=1^ORpriority=2")
-            
-            if field == "sys_created_on" and ">=" in value and "<=" not in value:
-                issues.append("Date range incomplete - may return more results than expected")
-                suggestions.append("Add end date for complete range")
-        
+            # Check priority issues
+            priority_issue = cls._check_priority_filter_issue(field, value)
+            if priority_issue:
+                issues.append(priority_issue[0])
+                suggestions.append(priority_issue[1])
+
+            # Check date issues
+            date_issue = cls._check_date_filter_issue(field, value)
+            if date_issue:
+                issues.append(date_issue[0])
+                suggestions.append(date_issue[1])
+
+        return (issues, suggestions)
+
+    @classmethod
+    def explain_filter(cls, filters: Dict[str, str], table_name: str) -> Dict[str, Any]:
+        """Explain what an existing filter does and suggest improvements.
+
+        Complexity: 6 (reduced from ~15-17)
+        """
+        explanation = QueryIntelligence._generate_filter_explanation(filters, table_name)
+        sql_equivalent = QueryIntelligence._generate_sql_equivalent(filters, table_name)
+
+        # Analyze for potential issues
+        issues, suggestions = cls._analyze_filter_issues(filters)
+
         return {
             "explanation": explanation,
             "sql_equivalent": sql_equivalent,
@@ -480,32 +588,58 @@ class QueryExplainer:
         }
     
     @classmethod
-    def _estimate_result_size(cls, filters: Dict[str, str], table_name: str) -> str:
-        """Provide rough estimate of expected result size."""
-        # This is a heuristic-based estimation
-        if not filters:
-            return "Large (all records)"
-        
-        size_factors = 0
-        
-        if "priority" in filters:
-            if "1" in filters["priority"]:
-                size_factors += 1  # P1 incidents are rare
-            if "^OR" in filters.get("priority", ""):
-                size_factors -= 0.5  # OR expands results
-        
-        if "sys_created_on" in filters:
-            if "daysAgoStart(1)" in filters["sys_created_on"]:
-                size_factors += 2  # Today only - very small
-            elif "daysAgoStart(7)" in filters["sys_created_on"]:
-                size_factors += 1  # Last week - small
-        
+    def _calculate_priority_factor(cls, filters: Dict[str, str]) -> float:
+        """Calculate priority contribution to size factor. Complexity: 4"""
+        if "priority" not in filters:
+            return 0.0
+
+        factor = 0.0
+        if "1" in filters["priority"]:
+            factor += 1  # P1 incidents are rare
+
+        if "^OR" in filters.get("priority", ""):
+            factor -= 0.5  # OR expands results
+
+        return factor
+
+    @classmethod
+    def _calculate_date_factor(cls, filters: Dict[str, str]) -> float:
+        """Calculate date contribution to size factor. Complexity: 4"""
+        if "sys_created_on" not in filters:
+            return 0.0
+
+        if "daysAgoStart(1)" in filters["sys_created_on"]:
+            return 2  # Today only - very small
+        elif "daysAgoStart(7)" in filters["sys_created_on"]:
+            return 1  # Last week - small
+
+        return 0.0
+
+    @classmethod
+    def _determine_size_category(cls, size_factors: float) -> str:
+        """Determine size category from factors. Complexity: 3"""
         if size_factors >= 2:
             return "Small (< 50 records)"
         elif size_factors >= 1:
             return "Medium (50-200 records)"
         else:
             return "Large (> 200 records)"
+
+    @classmethod
+    def _estimate_result_size(cls, filters: Dict[str, str], table_name: str) -> str:
+        """Provide rough estimate of expected result size.
+
+        Complexity: 6 (reduced from ~15-17)
+        """
+        if not filters:
+            return "Large (all records)"
+
+        # Calculate size factors from different filter types
+        priority_factor = cls._calculate_priority_factor(filters)
+        date_factor = cls._calculate_date_factor(filters)
+        total_factors = priority_factor + date_factor
+
+        return cls._determine_size_category(total_factors)
 
 
 # Convenience functions for easy integration
