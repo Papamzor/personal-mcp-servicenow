@@ -21,3 +21,6 @@ claude/
 claude.json
 .claude.json
 CLAUDE.md
+
+# Settings files
+settings.json
