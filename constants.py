@@ -109,10 +109,17 @@ SERVICENOW_DATE_RANGE_EXAMPLE = ">=2024-01-01 00:00:00^<=2024-01-31 23:59:59"
 # Common ServiceNow priority values
 PRIORITY_VALUES = {
     "critical": "1",
-    "high": "2", 
+    "high": "2",
     "moderate": "3",
     "low": "4",
     "planning": "5"
+}
+
+# Month name to number mapping for date parsing
+MONTH_NAME_TO_NUMBER = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+    'september': 9, 'october': 10, 'november': 11, 'december': 12
 }
 
 # Query validation messages
