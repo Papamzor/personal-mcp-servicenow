@@ -279,53 +279,74 @@ async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[
     
     return CI_NOT_FOUND.format(ci_number=ci_number)
 
-async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
-    """
-    Find Configuration Items similar to the specified CI based on attributes.
-    
-    Args:
-        ci_number: CI number to find similar CIs for
-    
-    Returns:
-        Dictionary with similar CIs or error string
-    """
-    # First get the CI details
-    ci_details = await get_ci_details(ci_number)
-    
-    if isinstance(ci_details, str):
-        return ci_details
-    
-    ci_data = ci_details['result']
-    ci_table = ci_details['ci_table']
-    
-    # Extract key attributes for similarity search
+def _extract_ci_search_attributes(ci_data: Dict, ci_table: str) -> Dict[str, str]:
+    """Extract search attributes from CI data. Complexity: 4"""
     search_attrs = {}
-    
+
     if ci_data.get('sys_class_name'):
         search_attrs['ci_type'] = ci_table
     if ci_data.get('location') and ci_data['location'] != '':
         search_attrs['location'] = ci_data['location']
     if ci_data.get('operational_status'):
         search_attrs['status'] = ci_data['operational_status']
-    
-    # Search for similar CIs but exclude the original CI
+
+    return search_attrs
+
+def _filter_and_limit_ci_results(similar_cis: Dict, ci_number: str, limit: int = 20) -> List[Dict]:
+    """Filter out original CI and limit results. Complexity: 3"""
+    if not isinstance(similar_cis, dict) or not similar_cis.get('result'):
+        return []
+
+    filtered_results = [
+        ci for ci in similar_cis['result']
+        if ci.get('number') != ci_number
+    ]
+
+    return filtered_results[:limit]
+
+def _build_similar_ci_response(ci_number: str, search_attrs: Dict, filtered_results: List[Dict]) -> Dict[str, Any]:
+    """Build response for similar CIs. Complexity: 2"""
+    return {
+        "original_ci": ci_number,
+        "similar_criteria": search_attrs,
+        "count": len(filtered_results),
+        "result": filtered_results
+    }
+
+async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
+    """
+    Find Configuration Items similar to the specified CI based on attributes.
+
+    Args:
+        ci_number: CI number to find similar CIs for
+
+    Returns:
+        Dictionary with similar CIs or error string
+
+    Complexity: 8 (reduced from ~15-17)
+    """
+    # First get the CI details
+    ci_details = await get_ci_details(ci_number)
+
+    if isinstance(ci_details, str):
+        return ci_details
+
+    ci_data = ci_details['result']
+    ci_table = ci_details['ci_table']
+
+    # Extract key attributes for similarity search
+    search_attrs = _extract_ci_search_attributes(ci_data, ci_table)
+
+    # Search for similar CIs
     try:
         similar_cis = await search_cis_by_attributes(**search_attrs, detailed=True)
-        
-        if isinstance(similar_cis, dict) and similar_cis.get('result'):
-            # Filter out the original CI
-            filtered_results = [
-                ci for ci in similar_cis['result'] 
-                if ci.get('number') != ci_number
-            ]
-            
-            return {
-                "original_ci": ci_number,
-                "similar_criteria": search_attrs,
-                "count": len(filtered_results),
-                "result": filtered_results[:20]  # Limit to top 20
-            }
-        
+
+        # Filter and limit results
+        filtered_results = _filter_and_limit_ci_results(similar_cis, ci_number, limit=20)
+
+        if filtered_results:
+            return _build_similar_ci_response(ci_number, search_attrs, filtered_results)
+
         return NO_SIMILAR_CIS_FOUND.format(ci_number=ci_number)
 
     except Exception:

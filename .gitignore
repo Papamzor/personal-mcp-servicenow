@@ -7,6 +7,10 @@ __pycache__/
 /Table_Tools/__pycache__/
 **/pyvenv.cfg
 
+# IDE settings
+.vscode/settings.json
+settings.json
+
 # ...existing code...
 *.egg-info/
 dist/
