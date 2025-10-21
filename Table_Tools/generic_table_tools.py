@@ -15,7 +15,8 @@ from constants import (
     REQUEST_FAILED_ERROR,
     NO_FIELD_CONFIG_ERROR,
     NO_VALID_PRIORITIES_ERROR,
-    TABLE_NO_PRIORITY_SUPPORT_ERROR
+    TABLE_NO_PRIORITY_SUPPORT_ERROR,
+    MONTH_NAME_TO_NUMBER
 )
 from query_validation import (
     validate_query_filters, 
@@ -127,13 +128,6 @@ def _is_complete_servicenow_filter(value: str) -> bool:
     """Check if value is already a complete ServiceNow filter (e.g., priority=1^ORpriority=2)."""
     return isinstance(value, str) and ('^OR' in value or 'ON' in value)
 
-# Month name to number mapping used by date parsers
-_MONTH_MAP = {
-    'january': 1, 'february': 2, 'march': 3, 'april': 4,
-    'may': 5, 'june': 6, 'july': 7, 'august': 8,
-    'september': 9, 'october': 10, 'november': 11, 'december': 12
-}
-
 def _parse_week_format(text: str) -> Optional[tuple]:
     """Parse 'Week X YYYY' format. Complexity: 3"""
     import re
@@ -166,7 +160,7 @@ def _parse_month_range_format(text: str) -> Optional[tuple]:
     end_day = int(month_range_match.group(3))
     year = int(month_range_match.group(4))
 
-    month_num = _MONTH_MAP.get(month_name.lower())
+    month_num = MONTH_NAME_TO_NUMBER.get(month_name.lower())
     if not month_num:
         return None
 
@@ -202,8 +196,8 @@ def _parse_cross_month_range(text: str) -> Optional[tuple]:
     end_day = int(cross_month_match.group(5))
     end_year = int(cross_month_match.group(6))
 
-    start_month_num = _MONTH_MAP.get(start_month_name.lower())
-    end_month_num = _MONTH_MAP.get(end_month_name.lower())
+    start_month_num = MONTH_NAME_TO_NUMBER.get(start_month_name.lower())
+    end_month_num = MONTH_NAME_TO_NUMBER.get(end_month_name.lower())
 
     if not (start_month_num and end_month_num):
         return None
@@ -230,8 +224,8 @@ def _parse_between_format(text: str) -> Optional[tuple]:
     end_day = int(between_match.group(5))
     end_year = int(between_match.group(6))
 
-    start_month_num = _MONTH_MAP.get(start_month_name.lower())
-    end_month_num = _MONTH_MAP.get(end_month_name.lower())
+    start_month_num = MONTH_NAME_TO_NUMBER.get(start_month_name.lower())
+    end_month_num = MONTH_NAME_TO_NUMBER.get(end_month_name.lower())
 
     if not (start_month_num and end_month_num):
         return None
@@ -257,8 +251,8 @@ def _parse_year_at_end_format(text: str) -> Optional[tuple]:
     end_day = int(year_at_end_match.group(4))
     year = int(year_at_end_match.group(5))
 
-    start_month_num = _MONTH_MAP.get(start_month_name.lower())
-    end_month_num = _MONTH_MAP.get(end_month_name.lower())
+    start_month_num = MONTH_NAME_TO_NUMBER.get(start_month_name.lower())
+    end_month_num = MONTH_NAME_TO_NUMBER.get(end_month_name.lower())
 
     if not (start_month_num and end_month_num):
         return None
