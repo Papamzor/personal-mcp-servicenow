@@ -13,11 +13,15 @@ from constants import ESSENTIAL_FIELDS, DETAIL_FIELDS
 
 class QueryIntelligence:
     """Smart query building and validation for ServiceNow filters."""
-    
+
+    # Constants for commonly used filter values
+    PRIORITY_P1_P2_OR = "priority=1^ORpriority=2"
+    STATE_EXCLUDE_RESOLVED = "state!=6^state!=7^state!=8"
+
     # Common filter templates for frequent scenarios
     FILTER_TEMPLATES = {
         "high_priority_last_week": {
-            "_complete_query": "sys_created_onONLast week@javascript:gs.beginningOfLastWeek()@javascript:gs.endOfLastWeek()^priority=1^ORpriority=2"
+            "_complete_query": f"sys_created_onONLast week@javascript:gs.beginningOfLastWeek()@javascript:gs.endOfLastWeek()^{PRIORITY_P1_P2_OR}"
         },
         "critical_recent": {
             "priority": "1",
@@ -32,11 +36,11 @@ class QueryIntelligence:
             "sys_created_on": ">=javascript:gs.beginningOfThisMonth()"
         },
         "active_p1_p2": {
-            "priority": "priority=1^ORpriority=2",
-            "state": "state!=6^state!=7^state!=8"
+            "priority": PRIORITY_P1_P2_OR,
+            "state": STATE_EXCLUDE_RESOLVED
         },
         "p1_p2_all_states": {
-            "priority": "priority=1^ORpriority=2"
+            "priority": PRIORITY_P1_P2_OR
         }
     }
     
@@ -47,7 +51,7 @@ class QueryIntelligence:
         r"\b(high|p2|priority\s*2|important)\b": {"priority": "2"},
         r"\b(medium|p3|priority\s*3|normal)\b": {"priority": "3"},
         r"\b(low|p4|priority\s*4)\b": {"priority": "4"},
-        r"\b(p1\s*and\s*p2|high\s*priority|critical\s*and\s*high)\b": {"priority": "priority=1^ORpriority=2"},
+        r"\b(p1\s*and\s*p2|high\s*priority|critical\s*and\s*high)\b": {"priority": PRIORITY_P1_P2_OR},
         
         # Time patterns
         r"\b(last\s*week|past\s*week)\b": {"sys_created_on": ">=javascript:gs.beginningOfLastWeek()^<=javascript:gs.endOfLastWeek()"},
@@ -163,7 +167,8 @@ class QueryIntelligence:
     @classmethod
     def _parse_exclusion_patterns(cls, query_lower: str) -> Optional[Dict[str, Any]]:
         """Parse exclusion patterns and return exclusion filters. Complexity: 4"""
-        exclusion_pattern = r"\b(exclud(?:e|ing)|not|without)\s+(caller|reporter|assignee|user)\s+([\w\s]+?)(?=\s+(?:from|in|on|incidents?|tickets?|and|or|between|created|with)|$)"
+        # Simplified regex - match basic structure without complex lookahead
+        exclusion_pattern = r"\b(exclud(?:e|ing)|not|without)\s+(caller|reporter|assignee|user)\s+([\w\s]+)"
         exclusion_match = re.search(exclusion_pattern, query_lower, re.IGNORECASE)
 
         if not exclusion_match:
@@ -171,6 +176,17 @@ class QueryIntelligence:
 
         field = exclusion_match.group(2)
         value = exclusion_match.group(3).strip()
+
+        # Extract only the relevant part before stop words (replaces complex lookahead)
+        stop_words = ['from', 'in', 'on', 'incidents', 'incident', 'tickets', 'ticket',
+                      'and', 'or', 'between', 'created', 'with']
+
+        # Split value by stop words and take the first part
+        for stop_word in stop_words:
+            if ' ' + stop_word + ' ' in ' ' + value.lower() + ' ':
+                value = value.lower().split(stop_word)[0].strip()
+                break
+
         exclusion_filters = cls._handle_exclusion_filter(field, value)
 
         return {
@@ -393,7 +409,7 @@ class QueryIntelligence:
 
         # Only apply state filters if explicitly requested via context
         if context.get("exclude_resolved") is True:
-            context_filters["state"] = "state!=6^state!=7^state!=8"
+            context_filters["state"] = cls.STATE_EXCLUDE_RESOLVED
 
         if context.get("user_assigned_only"):
             context_filters["assigned_to"] = "javascript:gs.getUserID()"
@@ -532,7 +548,7 @@ class QueryExplainer:
         if field == "priority" and "," in value and "^OR" not in value:
             return (
                 "Priority filter may not work - comma separation doesn't work in ServiceNow",
-                "Use OR syntax: priority=1^ORpriority=2"
+                f"Use OR syntax: {QueryIntelligence.PRIORITY_P1_P2_OR}"
             )
         return None
 
