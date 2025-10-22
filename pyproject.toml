@@ -44,4 +44,5 @@ addopts = [
 markers = [
     "integration: marks tests as integration tests (may require external resources)",
     "unit: marks tests as unit tests",
+    "asyncio: marks tests as async tests",
 ]
