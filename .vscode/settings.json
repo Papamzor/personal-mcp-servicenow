@@ -1,0 +1,6 @@
+{
+    "sonarlint.connectedMode.project": {
+        "connectionId": "matecocloud",
+        "projectKey": "matecocloud_smos-mcp-server"
+    }
+}
