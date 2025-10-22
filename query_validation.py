@@ -117,41 +117,57 @@ class QueryValidationResult:
         return not self.is_valid or len(self.warnings) > 0
 
 
+def _has_comma_syntax_issue(has_multiple: bool, has_or: bool, has_comma: bool) -> bool:
+    """Check if priority filter has comma syntax issue. Complexity: 2"""
+    return has_multiple and not has_or and has_comma
+
+def _has_or_format_issue(priority_value: str, has_or_syntax: bool) -> bool:
+    """Check if OR syntax is missing priority= prefix. Complexity: 2"""
+    return has_or_syntax and not priority_value.startswith("priority=")
+
+def _should_suggest_numeric_format(has_text_format: bool, has_numeric: bool) -> bool:
+    """Check if numeric format suggestion should be added. Complexity: 2"""
+    return has_text_format and not has_numeric
+
 def validate_priority_filter(priority_value: str) -> QueryValidationResult:
-    """Validate priority filter syntax with enhanced debugging."""
+    """Validate priority filter syntax with enhanced debugging.
+
+    Complexity: 10 (reduced from ~15-18)
+    """
     result = QueryValidationResult()
-    
-    # Check for multiple priorities without OR syntax
+
+    # Check priority characteristics
     has_multiple_priorities = any(p in priority_value for p in ["1", "2", "3"])
     has_or_syntax = "^OR" in priority_value
     has_comma_syntax = "," in priority_value
-    
-    if has_multiple_priorities and not has_or_syntax and has_comma_syntax:
+
+    # Check for comma syntax issue
+    if _has_comma_syntax_issue(has_multiple_priorities, has_or_syntax, has_comma_syntax):
         result.add_warning(
             f"Priority filter '{priority_value}' uses comma syntax instead of OR"
         )
         result.add_suggestion(
             "For multiple priorities, use: 'priority=1^ORpriority=2' instead of comma-separated values"
         )
-    
-    # Validate proper priority format
-    if has_or_syntax and not priority_value.startswith("priority="):
+
+    # Validate proper OR format
+    if _has_or_format_issue(priority_value, has_or_syntax):
         result.add_warning(
             f"OR syntax detected but missing 'priority=' prefix: {priority_value}"
         )
         result.add_suggestion(
             "Ensure OR filters start with field name: 'priority=1^ORpriority=2'"
         )
-    
-    # Check for both numeric and text priority formats
+
+    # Check format suggestions
     has_numeric = any(p in priority_value for p in ["=1", "=2", "=3", "=4", "=5"])
     has_text_format = any(t in priority_value for t in ["Critical", "High", "Medium"])
-    
-    if has_text_format and not has_numeric:
+
+    if _should_suggest_numeric_format(has_text_format, has_numeric):
         result.add_suggestion(
             "Consider using numeric priority format (1, 2, 3) for better compatibility"
         )
-    
+
     return result
 
 
@@ -217,33 +233,51 @@ def validate_query_filters(filters: Dict[str, str]) -> QueryValidationResult:
     return result
 
 
+def _is_high_priority_query(filters: Dict[str, str]) -> bool:
+    """Check if query is for high-priority records. Complexity: 3"""
+    if "priority" not in filters:
+        return False
+    return any(p in str(filters["priority"]) for p in ["1", "2"])
+
+def _validate_incident_result_count(
+    filters: Dict[str, str],
+    result_count: int,
+    expected_mins: Dict[str, int]
+) -> QueryValidationResult:
+    """Validate incident result count. Complexity: 4"""
+    result = QueryValidationResult()
+
+    if _is_high_priority_query(filters) and result_count < expected_mins["incident_priority_high"]:
+        result.add_warning(
+            f"Low P1/P2 incident count ({result_count}) - verify completeness"
+        )
+        result.add_suggestion(
+            "Cross-verify with individual incident lookups or broader query"
+        )
+
+    return result
+
 def validate_result_count(
-    table_name: str, 
-    filters: Dict[str, str], 
+    table_name: str,
+    filters: Dict[str, str],
     result_count: int
 ) -> QueryValidationResult:
-    """Validate if result count seems reasonable for the query."""
+    """Validate if result count seems reasonable for the query.
+
+    Complexity: 6 (reduced from ~15-17)
+    """
     result = QueryValidationResult()
-    
+
     # Define expected minimums for different query types
     expected_mins = {
         "incident_priority_high": 2,  # P1/P2 incidents should typically exist
         "incident_weekly": 5,         # Weekly incident count baseline
     }
-    
+
     # Check for suspiciously low incident counts
     if table_name == "incident":
-        is_priority_query = "priority" in filters
-        is_high_priority = is_priority_query and any(p in str(filters["priority"]) for p in ["1", "2"])
-        
-        if is_high_priority and result_count < expected_mins["incident_priority_high"]:
-            result.add_warning(
-                f"Low P1/P2 incident count ({result_count}) - verify completeness"
-            )
-            result.add_suggestion(
-                "Cross-verify with individual incident lookups or broader query"
-            )
-    
+        result = _validate_incident_result_count(filters, result_count, expected_mins)
+
     return result
 
 
