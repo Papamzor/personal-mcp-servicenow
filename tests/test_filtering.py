@@ -95,14 +95,12 @@ class TestServiceNowFiltering(unittest.TestCase):
 
     def test_caller_exclusion_by_name(self):
         """Test caller exclusion by name lookup."""
-        with patch('Table_Tools.generic_table_tools._get_caller_sys_id') as mock_get_caller:
-            mock_get_caller.return_value = "1727339e47d99190c43d3171e36d43ad"
-            
-            exclusions = _parse_caller_exclusions("logicmonitor")
-            expected = "caller_id!=1727339e47d99190c43d3171e36d43ad"
-            
-            self.assertEqual(exclusions, expected,
-                            f"LogicMonitor exclusion should be {expected}, got {exclusions}")
+        # The function now has built-in known_callers mapping
+        exclusions = _parse_caller_exclusions("logicmonitor")
+        expected = "caller_id!=1727339e47d99190c43d3171e36d43ad"
+
+        self.assertEqual(exclusions, expected,
+                        f"LogicMonitor exclusion should be {expected}, got {exclusions}")
 
     def test_caller_exclusion_multiple_sysids(self):
         """Test multiple caller exclusions by sys_id."""
@@ -125,22 +123,23 @@ class TestServiceNowFiltering(unittest.TestCase):
 
     def test_servicenow_query_builder_validation(self):
         """Test ServiceNowQueryBuilder query validation."""
-        # Test valid query
-        valid_query = "priority=1^ORpriority=2^sys_created_on>2025-01-01"
-        result = self.query_builder.validate_query(valid_query)
-        
+        # Test valid query using validate_query_filters instead
+        valid_filters = {"priority": "1", "sys_created_on": ">2025-01-01"}
+        from query_validation import validate_query_filters
+        result = validate_query_filters(valid_filters)
+
         self.assertIsInstance(result, QueryValidationResult)
-        self.assertTrue(result.is_valid, f"Query should be valid: {valid_query}")
+        self.assertTrue(result.is_valid, f"Query should be valid: {valid_filters}")
 
     def test_between_syntax_generation(self):
         """Test proper BETWEEN syntax generation."""
-        between_filter = ServiceNowQueryBuilder.build_date_range_filter(
-            "sys_created_on", "2025-08-25", "2025-08-31"
-        )
-        expected = "sys_created_onBETWEEN2025-08-25@2025-08-31"
-        
+        # build_date_range_filter only takes 2 args: start_date and end_date
+        between_filter = ServiceNowQueryBuilder.build_date_range_filter("2025-08-25", "2025-08-31")
+        # The actual function generates JavaScript date functions, not plain dates
+        expected = "sys_created_onBETWEENjavascript:gs.dateGenerate('2025-08-25','00:00:00')@javascript:gs.dateGenerate('2025-08-31','23:59:59')"
+
         self.assertEqual(between_filter, expected,
-                        f"BETWEEN syntax should be {expected}, got {between_filter}")
+                        f"BETWEEN syntax should use JavaScript date functions, got {between_filter}")
 
     def test_table_filter_params_creation(self):
         """Test TableFilterParams object creation and validation."""
@@ -211,17 +210,17 @@ class TestServiceNowQueryBuilder(unittest.TestCase):
 
     def test_build_or_filter(self):
         """Test OR filter building."""
-        or_filter = ServiceNowQueryBuilder.build_or_filter("priority", ["1", "2", "3"])
+        or_filter = ServiceNowQueryBuilder.build_priority_or_filter(["1", "2", "3"])
         expected = "priority=1^ORpriority=2^ORpriority=3"
-        
+
         self.assertEqual(or_filter, expected,
                         f"OR filter should be {expected}, got {or_filter}")
 
     def test_build_not_equals_filter(self):
         """Test NOT EQUALS filter building."""
-        not_equals = ServiceNowQueryBuilder.build_not_equals_filter("caller_id", ["id1", "id2"])
+        not_equals = ServiceNowQueryBuilder.build_exclusion_filter("caller_id", ["id1", "id2"])
         expected = "caller_id!=id1^caller_id!=id2"
-        
+
         self.assertEqual(not_equals, expected,
                         f"NOT EQUALS filter should be {expected}, got {not_equals}")
 

@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, List
 
 # Add the project root to the path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from query_validation import ServiceNowQueryBuilder, QueryValidationResult
 from Table_Tools.consolidated_tools import get_priority_incidents
