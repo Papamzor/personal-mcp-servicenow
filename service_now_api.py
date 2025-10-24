@@ -1,3 +1,12 @@
+"""
+DEPRECATED: This file contains legacy Basic Auth implementation.
+
+This file is no longer used in the project. All authentication is now handled via OAuth 2.0.
+Use service_now_api_oauth.py instead.
+
+Kept for reference only.
+"""
+
 import httpx
 from typing import Any
 from dotenv import load_dotenv
@@ -7,7 +16,7 @@ from constants import JSON_HEADERS
 # Load environment variables from .env file
 load_dotenv()
 SERVICENOW_USERNAME = os.getenv("SERVICENOW_USERNAME")
-SERVICENOW_PASSWORD = os.getenv("SERVICENOW_PASSWORD") 
+SERVICENOW_PASSWORD = os.getenv("SERVICENOW_PASSWORD")
 SERVICENOW_INSTANCE = os.getenv("SERVICENOW_INSTANCE")
 
 NWS_API_BASE = SERVICENOW_INSTANCE

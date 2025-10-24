@@ -23,38 +23,24 @@ from constants import (
 )
 
 async def _get_authenticated_headers() -> Dict[str, str]:
-    """Get headers with appropriate authentication."""
-    from service_now_api_oauth import _should_use_oauth
+    """Get headers with OAuth authentication."""
     from oauth_client import get_oauth_client
-    
-    headers = JSON_HEADERS.copy()
-    
-    if _should_use_oauth():
-        oauth_client = get_oauth_client()
-        auth_headers = await oauth_client.get_auth_headers()
-        headers.update(auth_headers)
-    
-    return headers
+
+    oauth_client = get_oauth_client()
+    return await oauth_client.get_auth_headers()
 
 async def _make_authenticated_request(
-    method: str, 
-    url: str, 
+    method: str,
+    url: str,
     json_data: Optional[Dict] = None,
     operation: str = "operation"
 ) -> Dict[str, Any] | str:
     """Make an authenticated HTTP request with error handling."""
-    from service_now_api_oauth import SERVICENOW_USERNAME, SERVICENOW_PASSWORD, _should_use_oauth
-    
     headers = await _get_authenticated_headers()
-    
+
     async with httpx.AsyncClient(verify=True) as client:
         try:
-            if _should_use_oauth():
-                response = await client.request(method, url, json=json_data, headers=headers, timeout=30.0)
-            else:
-                auth = (SERVICENOW_USERNAME, SERVICENOW_PASSWORD)
-                response = await client.request(method, url, json=json_data, headers=headers, auth=auth, timeout=30.0)
-            
+            response = await client.request(method, url, json=json_data, headers=headers, timeout=30.0)
             response.raise_for_status()
             result = response.json()
             
