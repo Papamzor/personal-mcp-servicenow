@@ -63,7 +63,7 @@ TABLE_ERROR_MESSAGES = {
 
 # Table Field Definitions
 ESSENTIAL_FIELDS = {
-    "incident": ["number", "short_description", "priority", "state", "sys_created_on"],
+    "incident": ["number", "short_description", "priority", "state", "category", "sys_created_on"],
     "change_request": ["number", "short_description", "priority", "state", "sys_created_on"],
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on"],
     "kb_knowledge": ["number", "short_description", "kb_category", "state", "sys_created_on"],
@@ -72,7 +72,7 @@ ESSENTIAL_FIELDS = {
 }
 
 DETAIL_FIELDS = {
-    "incident": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id", "major_incident_state"],
+    "incident": ["number", "short_description", "description", "priority", "state", "category", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id", "major_incident_state"],
     "change_request": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci"],
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "u_reference_1", "company", "cmdb_ci"],
     "kb_knowledge": ["number", "short_description", "text","kb_category", "state", "sys_created_on", "assigned_to"],
@@ -129,6 +129,14 @@ QUERY_WARNINGS = {
     "low_critical_incident_count": "Unusually low count for critical incidents - verify completeness",
     "zero_results_high_priority": "No results for high priority query - check filter syntax"
 }
+
+# Incident Category Filtering Configuration
+ENABLE_INCIDENT_CATEGORY_FILTERING = True  # Toggle to enable/disable category filtering
+EXCLUDED_INCIDENT_CATEGORIES = [
+    "Payroll",
+    "People Support",
+    "Workplace"
+]
 # ServiceNow table configurations
 TABLE_CONFIGS = {
     "incident": {

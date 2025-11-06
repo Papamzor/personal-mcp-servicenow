@@ -16,7 +16,9 @@ from constants import (
     NO_FIELD_CONFIG_ERROR,
     NO_VALID_PRIORITIES_ERROR,
     TABLE_NO_PRIORITY_SUPPORT_ERROR,
-    MONTH_NAME_TO_NUMBER
+    MONTH_NAME_TO_NUMBER,
+    ENABLE_INCIDENT_CATEGORY_FILTERING,
+    EXCLUDED_INCIDENT_CATEGORIES
 )
 from query_validation import (
     validate_query_filters, 
@@ -51,16 +53,55 @@ def _validate_regex_input(text: str) -> bool:
         return False
     return True
 
+
+def _apply_incident_category_filter(table_name: str, existing_query: str = "") -> str:
+    """
+    Apply category-based filtering for incidents to block sensitive categories.
+
+    This function automatically adds category exclusions when querying the incident table,
+    ensuring that incidents with sensitive categories (Payroll, People Support, Workplace)
+    are automatically filtered out from all API responses.
+
+    Args:
+        table_name: The ServiceNow table being queried
+        existing_query: The existing query string to append category filters to
+
+    Returns:
+        The query string with category filters applied (for incidents only)
+
+    Note:
+        - Only applies to 'incident' table
+        - Can be disabled via ENABLE_INCIDENT_CATEGORY_FILTERING constant
+        - Non-breaking for other table types
+    """
+    # Only apply filtering to incident table when enabled
+    if table_name != "incident" or not ENABLE_INCIDENT_CATEGORY_FILTERING:
+        return existing_query
+
+    # Build category exclusion filter using ServiceNow syntax
+    # Format: category!=Payroll^category!=People Support^category!=Workplace
+    category_filters = [f"category!={category}" for category in EXCLUDED_INCIDENT_CATEGORIES]
+    category_query = "^".join(category_filters)
+
+    # Combine with existing query if present
+    if existing_query:
+        return f"{existing_query}^{category_query}"
+    return category_query
+
+
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any]:
     """Generic function to query any ServiceNow table by text similarity."""
     fields = DETAIL_FIELDS[table_name] if detailed else ESSENTIAL_FIELDS[table_name]
     keywords = extract_keywords(input_text)
-    
+
     for keyword in keywords:
-        base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=short_descriptionCONTAINS{keyword}"
+        query = f"short_descriptionCONTAINS{keyword}"
+        # Apply category filtering for incidents
+        query = _apply_incident_category_filter(table_name, query)
+        base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}"
         # Use pagination to limit results for text searches
         all_results = await _make_paginated_request(base_url, max_results=50)  # Limit text searches to 50 results
-        
+
         if all_results:
             result_count = len(all_results)
             return {
@@ -72,14 +113,20 @@ async def query_table_by_text(table_name: str, input_text: str, detailed: bool =
 
 async def get_record_description(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get short_description for any record."""
-    url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query=number={record_number}"
+    query = f"number={record_number}"
+    # Apply category filtering for incidents
+    query = _apply_incident_category_filter(table_name, query)
+    url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query={query}"
     data = await make_nws_request(url)
     return data if data else {"result": [], "message": RECORD_NOT_FOUND}
 
 async def get_record_details(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get detailed information for any record."""
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
-    url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query=number={record_number}&sysparm_display_value=true"
+    query = f"number={record_number}"
+    # Apply category filtering for incidents
+    query = _apply_incident_category_filter(table_name, query)
+    url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}&sysparm_display_value=true"
     data = await make_nws_request(url)
     return data if data else {"result": [], "message": RECORD_NOT_FOUND}
 
@@ -569,10 +616,12 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
             print(f"Query validation warnings: {validation_result.warnings}")
     
     query_string = _build_query_string(params.filters)
+    # Apply category filtering for incidents
+    query_string = _apply_incident_category_filter(table_name, query_string)
     encoded_query = _encode_query_string(query_string)
-    
+
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
-    
+
     if encoded_query:
         base_url += f"&sysparm_query={encoded_query}"
     
@@ -848,10 +897,12 @@ async def get_records_by_priority(
     if additional_filters:
         for field, value in additional_filters.items():
             filters.append(f"{field}={value}")
-    
+
     final_query = "^".join(filters)
+    # Apply category filtering for incidents
+    final_query = _apply_incident_category_filter(table_name, final_query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
-    
+
     if final_query:
         base_url += f"&sysparm_query={final_query}"
     
@@ -887,10 +938,12 @@ async def query_table_with_generic_filters(
             filter_parts.append(value)
         else:
             filter_parts.append(f"{field}={value}")
-    
+
     query = "^".join(filter_parts)
+    # Apply category filtering for incidents
+    query = _apply_incident_category_filter(table_name, query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
-    
+
     if query:
         base_url += f"&sysparm_query={query}"
     
