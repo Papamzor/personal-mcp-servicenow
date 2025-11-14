@@ -8,6 +8,18 @@ A Model Context Protocol (MCP) server for ServiceNow integration, featuring **AI
 [![AI Powered](https://img.shields.io/badge/AI-Natural%20Language%20Processing-purple.svg)](#)
 [![Security](https://img.shields.io/badge/Security-ReDoS%20Protected-red.svg)](#)
 
+---
+
+## 💖 Support This Project
+
+If this ServiceNow MCP integration is valuable to your workflow, consider supporting its continued development:
+
+[![PayPal](https://img.shields.io/badge/PayPal-Support%20Development-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.me/papamzor)
+
+Your support helps maintain and improve this project with new features, bug fixes, and better documentation.
+
+---
+
 ## 🚨 Version 2.0 - BREAKING CHANGES
 
 **Version 2.0 includes significant breaking changes.** If you're upgrading from v1.x:
