@@ -20,7 +20,8 @@ from constants import (
     ENABLE_INCIDENT_CATEGORY_FILTERING,
     EXCLUDED_INCIDENT_CATEGORIES,
     ENABLE_SC_CATALOG_FILTERING,
-    ALLOWED_SC_CATALOG_CATEGORIES,
+    EXCLUDED_SC_CATALOG_CATEGORIES,
+    EXCLUDED_SC_ASSIGNMENT_GROUPS,
     SC_CATALOG_TABLES
 )
 from query_validation import (
@@ -94,38 +95,49 @@ def _apply_incident_category_filter(table_name: str, existing_query: str = "") -
 
 def _apply_sc_catalog_filter(table_name: str, existing_query: str = "") -> str:
     """
-    Apply catalog-based filtering for service catalog tables to only allow specific categories.
+    Apply exclusion-based filtering for service catalog tables to block sensitive records.
 
-    This function automatically adds catalog inclusion filters when querying service catalog
-    tables (sc_request, sc_req_item, sc_task), ensuring that only records with allowed
-    catalog categories (Tech Support, Restaurant Support) are returned from API responses.
+    This function automatically adds exclusion filters when querying service catalog
+    tables (sc_request, sc_req_item, sc_task), ensuring that records with sensitive
+    catalog categories (e.g., People_Pay) or assignment groups (e.g., Payroll, HR teams)
+    are blocked from API responses.
 
     Args:
         table_name: The ServiceNow table being queried
-        existing_query: The existing query string to append catalog filters to
+        existing_query: The existing query string to append exclusion filters to
 
     Returns:
-        The query string with catalog filters applied (for service catalog tables only)
+        The query string with exclusion filters applied (for service catalog tables only)
 
     Note:
         - Only applies to tables in SC_CATALOG_TABLES (sc_request, sc_req_item, sc_task)
         - Can be disabled via ENABLE_SC_CATALOG_FILTERING constant
-        - Uses OR syntax to allow multiple catalog categories
+        - Uses exclusion (!=) to block sensitive categories and assignment groups
         - Non-breaking for other table types
     """
     # Only apply filtering to service catalog tables when enabled
     if table_name not in SC_CATALOG_TABLES or not ENABLE_SC_CATALOG_FILTERING:
         return existing_query
 
-    # Build catalog inclusion filter using ServiceNow OR syntax
-    # Format: cat_item.sc_catalogs.title=Tech Support^ORcat_item.sc_catalogs.title=Restaurant Support
-    catalog_filters = [f"cat_item.sc_catalogs.title={category}" for category in ALLOWED_SC_CATALOG_CATEGORIES]
-    catalog_query = "^OR".join(catalog_filters)
+    exclusion_filters = []
+
+    # Build catalog exclusion filters
+    # Format: cat_item.sc_catalogs.title!=People_Pay
+    for category in EXCLUDED_SC_CATALOG_CATEGORIES:
+        exclusion_filters.append(f"cat_item.sc_catalogs.title!={category}")
+
+    # Build assignment group exclusion filters
+    # Format: assignment_group.name!=Payroll Specialists
+    for group in EXCLUDED_SC_ASSIGNMENT_GROUPS:
+        exclusion_filters.append(f"assignment_group.name!={group}")
+
+    # Join all exclusions with AND (^)
+    exclusion_query = "^".join(exclusion_filters)
 
     # Combine with existing query if present
     if existing_query:
-        return f"{existing_query}^{catalog_query}"
-    return catalog_query
+        return f"{existing_query}^{exclusion_query}"
+    return exclusion_query
 
 
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any]:
