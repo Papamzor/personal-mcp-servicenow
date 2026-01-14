@@ -55,6 +55,7 @@ TABLE_ERROR_MESSAGES = {
     "incident": "Incident not found.",
     "change_request": "Change not found.",
     "sc_req_item": "Request Item not found.",
+    "sc_task": "Service Catalog Task not found.",
     "kb_knowledge": "Knowledge article not found.",
     "vtb_task": "Private task not found.",
     "universal_request": "Universal Request not found.",
@@ -68,7 +69,9 @@ ESSENTIAL_FIELDS = {
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on"],
     "kb_knowledge": ["number", "short_description", "kb_category", "state", "sys_created_on"],
     "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on"],
-    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on"]
+    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on"],
+    "sc_req_item": ["number", "short_description", "priority", "state", "sys_created_on", "cat_item"],
+    "sc_task": ["number", "short_description", "priority", "state", "sys_created_on", "request_item"]
 }
 
 DETAIL_FIELDS = {
@@ -77,7 +80,9 @@ DETAIL_FIELDS = {
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "u_reference_1", "company", "cmdb_ci"],
     "kb_knowledge": ["number", "short_description", "text","kb_category", "state", "sys_created_on", "assigned_to"],
     "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
-    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on", "breach_time", "business_time_left", "duration", "has_breached", "business_duration", "business_elapsed_time", "planned_end_time"]
+    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on", "breach_time", "business_time_left", "duration", "has_breached", "business_duration", "business_elapsed_time", "planned_end_time"],
+    "sc_req_item": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "cat_item", "request", "stage"],
+    "sc_task": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "request_item", "request"]
 }
 
 # VTB Task specific field definitions
@@ -190,10 +195,19 @@ TABLE_CONFIGS = {
     },
     "sc_req_item": {
         "display_name": "Service Catalog Request Item",
-        "api_name": "sc_req_item", 
+        "api_name": "sc_req_item",
         "supports_work_notes": False,
         "supports_comments": True,
         "number_prefix": "RITM",
+        "priority_field": "priority",
+        "state_field": "state"
+    },
+    "sc_task": {
+        "display_name": "Service Catalog Task",
+        "api_name": "sc_task",
+        "supports_work_notes": True,
+        "supports_comments": True,
+        "number_prefix": "SCTASK",
         "priority_field": "priority",
         "state_field": "state"
     },
