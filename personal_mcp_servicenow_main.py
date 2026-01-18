@@ -5,6 +5,7 @@ MCP ServiceNow Server
 A Model Context Protocol server for ServiceNow integration.
 """
 import argparse
+import getpass
 import sys
 
 __version__ = "2.0.0"
@@ -49,11 +50,11 @@ def run_setup():
     if auth_choice == '1':
         config['auth_type'] = 'oauth'
         config['client_id'] = input("OAuth Client ID: ").strip()
-        config['client_secret'] = input("OAuth Client Secret: ").strip()
+        config['client_secret'] = getpass.getpass("OAuth Client Secret: ").strip()
     else:
         config['auth_type'] = 'basic'
         config['username'] = input("Username: ").strip()
-        config['password'] = input("Password: ").strip()
+        config['password'] = getpass.getpass("Password: ").strip()
 
     save_config(config)
     print(f"\nConfiguration saved to: {get_config_file_path()}")
