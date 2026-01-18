@@ -16,7 +16,7 @@ setup(
     description="MCP ServiceNow integration tools",
     entry_points={
         "console_scripts": [
-            "mcp-snow=personal-mcp-servicenow-main:main",
+            "mcp-snow=personal_mcp_servicenow_main:main",
         ],
     }
 )

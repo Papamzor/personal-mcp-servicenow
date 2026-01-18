@@ -55,6 +55,7 @@ TABLE_ERROR_MESSAGES = {
     "incident": "Incident not found.",
     "change_request": "Change not found.",
     "sc_req_item": "Request Item not found.",
+    "sc_task": "Service Catalog Task not found.",
     "kb_knowledge": "Knowledge article not found.",
     "vtb_task": "Private task not found.",
     "universal_request": "Universal Request not found.",
@@ -63,21 +64,25 @@ TABLE_ERROR_MESSAGES = {
 
 # Table Field Definitions
 ESSENTIAL_FIELDS = {
-    "incident": ["number", "short_description", "priority", "state", "sys_created_on"],
+    "incident": ["number", "short_description", "priority", "state", "category", "sys_created_on"],
     "change_request": ["number", "short_description", "priority", "state", "sys_created_on"],
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on"],
     "kb_knowledge": ["number", "short_description", "kb_category", "state", "sys_created_on"],
     "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on"],
-    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on"]
+    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on"],
+    "sc_req_item": ["number", "short_description", "priority", "state", "sys_created_on", "cat_item"],
+    "sc_task": ["number", "short_description", "priority", "state", "sys_created_on", "request_item"]
 }
 
 DETAIL_FIELDS = {
-    "incident": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id", "major_incident_state"],
+    "incident": ["number", "short_description", "description", "priority", "state", "category", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id", "major_incident_state"],
     "change_request": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci"],
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "u_reference_1", "company", "cmdb_ci"],
     "kb_knowledge": ["number", "short_description", "text","kb_category", "state", "sys_created_on", "assigned_to"],
     "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
-    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on", "breach_time", "business_time_left", "duration", "has_breached", "business_duration", "business_elapsed_time", "planned_end_time"]
+    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on", "breach_time", "business_time_left", "duration", "has_breached", "business_duration", "business_elapsed_time", "planned_end_time"],
+    "sc_req_item": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "cat_item", "request", "stage"],
+    "sc_task": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "request_item", "request"]
 }
 
 # VTB Task specific field definitions
@@ -129,6 +134,45 @@ QUERY_WARNINGS = {
     "low_critical_incident_count": "Unusually low count for critical incidents - verify completeness",
     "zero_results_high_priority": "No results for high priority query - check filter syntax"
 }
+
+# Incident Category Filtering Configuration
+ENABLE_INCIDENT_CATEGORY_FILTERING = True  # Toggle to enable/disable category filtering
+EXCLUDED_INCIDENT_CATEGORIES = [
+    "Payroll",
+    "People Support",
+    "Workplace"
+]
+
+# Service Catalog Filtering Configuration
+# Applies to: sc_request (REQ), sc_req_item (RITM), sc_task (SCTASK)
+# Uses EXCLUSION-based filtering to block sensitive HR/Payroll records
+ENABLE_SC_CATALOG_FILTERING = True  # Toggle to enable/disable service catalog filtering
+
+# Excluded catalog categories - records with these catalogs will be blocked
+EXCLUDED_SC_CATALOG_CATEGORIES = [
+    "People_Pay",  # HR/Payroll sensitive data
+]
+
+# Excluded assignment groups - records assigned to these groups will be blocked
+EXCLUDED_SC_ASSIGNMENT_GROUPS = [
+    # Payroll Teams
+    "Payroll Managers",
+    "Payroll Representatives",
+    "Payroll Specialists",
+    # People/HR Teams
+    "People Business Partners",
+    "People Business Partners - SGSC",
+    "People Knowledge Approvers",
+    "People Support Tier 1",
+    "People Support Tier 2",
+    "People Technology Team",
+    # Talent/Recruiting
+    "Talent Acquisition",
+    # Benefits (sensitive compensation data)
+    "SG_Benefits Allowed Variable View",
+]
+
+SC_CATALOG_TABLES = ["sc_request", "sc_req_item", "sc_task"]
 # ServiceNow table configurations
 TABLE_CONFIGS = {
     "incident": {
@@ -151,10 +195,19 @@ TABLE_CONFIGS = {
     },
     "sc_req_item": {
         "display_name": "Service Catalog Request Item",
-        "api_name": "sc_req_item", 
+        "api_name": "sc_req_item",
         "supports_work_notes": False,
         "supports_comments": True,
         "number_prefix": "RITM",
+        "priority_field": "priority",
+        "state_field": "state"
+    },
+    "sc_task": {
+        "display_name": "Service Catalog Task",
+        "api_name": "sc_task",
+        "supports_work_notes": True,
+        "supports_comments": True,
+        "number_prefix": "SCTASK",
         "priority_field": "priority",
         "state_field": "state"
     },

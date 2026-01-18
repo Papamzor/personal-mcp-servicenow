@@ -16,6 +16,11 @@ settings.json
 dist/
 build/
 
+# Nuitka build artifacts
+*.build/
+*.dist/
+*.onefile-build/
+
 # Claude related files and folders
 claude/
 .claude/
