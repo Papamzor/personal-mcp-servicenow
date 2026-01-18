@@ -43,6 +43,8 @@ def get_output_name():
 
 def build(output_dir='dist'):
     """Run Nuitka build."""
+    import sysconfig
+
     output_name = get_output_name()
     output_path = os.path.join(output_dir, output_name)
 
@@ -63,7 +65,12 @@ def build(output_dir='dist'):
     print(f"Command: {' '.join(cmd)}")
     print()
 
-    result = subprocess.run(cmd)
+    # Set PYTHONHOME to help Nuitka find libpython on Python Build Standalone
+    env = os.environ.copy()
+    env['PYTHONHOME'] = sys.base_prefix
+    print(f"Using PYTHONHOME={sys.base_prefix}")
+
+    result = subprocess.run(cmd, env=env)
 
     if result.returncode != 0:
         print(f"Build failed with exit code {result.returncode}")
