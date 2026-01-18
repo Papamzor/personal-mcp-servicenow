@@ -1,0 +1,149 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [x86_64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install nuitka
+
+      - name: Build binary
+        run: |
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            ARCH_FLAG="--macos-target-arch=arm64"
+          else
+            ARCH_FLAG="--macos-target-arch=x86_64"
+          fi
+
+          python -m nuitka \
+            --standalone \
+            --onefile \
+            --output-filename=mcp-servicenow-darwin-${{ matrix.arch }} \
+            --output-dir=dist \
+            --assume-yes-for-downloads \
+            $ARCH_FLAG \
+            personal_mcp_servicenow_main.py
+
+      - name: Smoke test
+        if: matrix.arch == 'arm64'  # Only test native arch
+        run: |
+          chmod +x dist/mcp-servicenow-darwin-${{ matrix.arch }}
+          ./dist/mcp-servicenow-darwin-${{ matrix.arch }} --version
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-servicenow-darwin-${{ matrix.arch }}
+          path: dist/mcp-servicenow-darwin-${{ matrix.arch }}
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install nuitka
+          sudo apt-get update
+          sudo apt-get install -y patchelf
+
+      - name: Build binary
+        run: |
+          python -m nuitka \
+            --standalone \
+            --onefile \
+            --output-filename=mcp-servicenow-linux-amd64 \
+            --output-dir=dist \
+            --assume-yes-for-downloads \
+            personal_mcp_servicenow_main.py
+
+      - name: Smoke test
+        run: |
+          chmod +x dist/mcp-servicenow-linux-amd64
+          ./dist/mcp-servicenow-linux-amd64 --version
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-servicenow-linux-amd64
+          path: dist/mcp-servicenow-linux-amd64
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install nuitka
+
+      - name: Build binary
+        run: |
+          python -m nuitka `
+            --standalone `
+            --onefile `
+            --output-filename=mcp-servicenow-windows-amd64.exe `
+            --output-dir=dist `
+            --assume-yes-for-downloads `
+            personal_mcp_servicenow_main.py
+
+      - name: Smoke test
+        run: |
+          .\dist\mcp-servicenow-windows-amd64.exe --version
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-servicenow-windows-amd64
+          path: dist/mcp-servicenow-windows-amd64.exe
+
+  release:
+    needs: [build-macos, build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/mcp-servicenow-darwin-x86_64/mcp-servicenow-darwin-x86_64
+            artifacts/mcp-servicenow-darwin-arm64/mcp-servicenow-darwin-arm64
+            artifacts/mcp-servicenow-linux-amd64/mcp-servicenow-linux-amd64
+            artifacts/mcp-servicenow-windows-amd64/mcp-servicenow-windows-amd64.exe
+          generate_release_notes: true
