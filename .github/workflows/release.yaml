@@ -10,10 +10,14 @@ permissions:
 
 jobs:
   build-macos:
-    runs-on: macos-latest
     strategy:
       matrix:
-        arch: [x86_64, arm64]
+        include:
+          - arch: arm64
+            runner: macos-latest
+          - arch: x86_64
+            runner: macos-13
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,23 +33,15 @@ jobs:
 
       - name: Build binary
         run: |
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            ARCH_FLAG="--macos-target-arch=arm64"
-          else
-            ARCH_FLAG="--macos-target-arch=x86_64"
-          fi
-
           python -m nuitka \
             --standalone \
             --onefile \
             --output-filename=mcp-servicenow-darwin-${{ matrix.arch }} \
             --output-dir=dist \
             --assume-yes-for-downloads \
-            $ARCH_FLAG \
             personal_mcp_servicenow_main.py
 
       - name: Smoke test
-        if: matrix.arch == 'arm64'  # Only test native arch
         run: |
           chmod +x dist/mcp-servicenow-darwin-${{ matrix.arch }}
           ./dist/mcp-servicenow-darwin-${{ matrix.arch }} --version
