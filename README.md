@@ -20,6 +20,66 @@ Your support helps maintain and improve this project with new features, bug fixe
 
 ---
 
+## Installation
+
+### Option 1: Binary (Recommended)
+
+Download the latest binary for your platform from [Releases](../../releases):
+
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | `mcp-servicenow-darwin-arm64` |
+| macOS (Intel) | `mcp-servicenow-darwin-x86_64` |
+| Linux | `mcp-servicenow-linux-amd64` |
+| Windows | `mcp-servicenow-windows-amd64.exe` |
+
+**macOS/Linux Setup:**
+```bash
+# Download and install
+chmod +x mcp-servicenow-darwin-arm64
+sudo mv mcp-servicenow-darwin-arm64 /usr/local/bin/mcp-servicenow
+
+# Run setup wizard
+mcp-servicenow --setup
+
+# Verify
+mcp-servicenow --version
+```
+
+**Windows Setup:**
+```powershell
+# Move to a directory in your PATH
+Move-Item mcp-servicenow-windows-amd64.exe C:\Users\$env:USERNAME\AppData\Local\bin\mcp-servicenow.exe
+
+# Run setup wizard
+mcp-servicenow.exe --setup
+```
+
+### Claude Code Configuration
+
+Add to your Claude Code MCP configuration (`~/.claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "servicenow": {
+      "command": "/usr/local/bin/mcp-servicenow"
+    }
+  }
+}
+```
+
+### Option 2: From Source
+
+```bash
+git clone <repo-url>
+cd mcp-servicenow
+pip install -r requirements.txt
+python personal_mcp_servicenow_main.py
+```
+
+---
+
 ## 🚨 Version 2.0 - BREAKING CHANGES
 
 **Version 2.0 includes significant breaking changes.** If you're upgrading from v1.x:
