@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="personal-mcp-servicenow",
+    name="personal_mcp_servicenow",
     version="2.0.0",
     packages=find_packages(),
     install_requires=[
