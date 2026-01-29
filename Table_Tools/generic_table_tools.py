@@ -955,7 +955,11 @@ async def get_records_by_priority(
     filters = [priority_filter]
     if additional_filters:
         for field, value in additional_filters.items():
-            filters.append(f"{field}={value}")
+            if field == "_date_range":
+                # Pre-built date filter string (e.g., "sys_created_on>=2026-01-01 00:00:00")
+                filters.append(value)
+            else:
+                filters.append(f"{field}={value}")
 
     final_query = "^".join(filters)
     # Apply category filtering for incidents

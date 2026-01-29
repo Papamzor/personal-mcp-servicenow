@@ -3,18 +3,32 @@ Consolidated tools interface using generic table functions.
 All table-specific operations are now unified through generic functions with cognitive complexity < 15.
 """
 
+import logging
+from datetime import datetime
 from .generic_table_tools import (
-    query_table_by_text, 
-    get_record_description, 
-    get_record_details, 
+    query_table_by_text,
+    get_record_description,
+    get_record_details,
     find_similar_records,
     query_table_with_filters,
     get_records_by_priority,
     query_table_with_generic_filters,
     TableFilterParams
 )
+from .date_utils import (
+    validate_date_format,
+    build_date_filter,
+    build_last_n_days_filter,
+    get_current_month_range,
+    get_last_n_days_range,
+    get_this_week_range,
+    get_today_range,
+    get_yesterday_range
+)
 from typing import Any, Dict, Optional, List
 from constants import TABLE_ERROR_MESSAGES, TASK_NUMBER_FIELD
+
+logger = logging.getLogger(__name__)
 
 
 # Helper function to get table-specific error message
@@ -45,12 +59,293 @@ async def get_incidents_by_filter(filters: Dict[str, str], fields: Optional[List
     params = TableFilterParams(filters=filters, fields=fields)
     return await query_table_with_filters("incident", params)
 
-async def get_priority_incidents(priorities: List[str], **additional_filters) -> Dict[str, Any]:
-    """Get incidents by priority using proper ServiceNow OR syntax."""
-    return await get_records_by_priority("incident", priorities, additional_filters, detailed=True)
+async def get_priority_incidents(
+    priorities: List[str],
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    additional_filters: Optional[Dict[str, Any]] = None,
+    include_metadata: bool = False,
+    **deprecated_kwargs
+) -> Dict[str, Any]:
+    """
+    Get incidents by priority with optional date range filtering.
+
+    Uses simple >= and <= operators for date filtering instead of
+    JavaScript-based date functions for improved reliability.
+
+    Args:
+        priorities: List of priority values (e.g., ["1", "2"] or ["P1", "P2"])
+        start_date: Optional start date (format: "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS")
+        end_date: Optional end date (format: "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS")
+        additional_filters: Optional dict of additional field filters
+        include_metadata: If True, return enhanced response with metadata
+        **deprecated_kwargs: Deprecated - use additional_filters instead
+
+    Returns:
+        Dict with "result" list and optionally "metadata" if include_metadata=True
+
+    Examples:
+        # Basic priority query
+        >>> await get_priority_incidents(["1", "2"])
+
+        # With date range
+        >>> await get_priority_incidents(
+        ...     ["1", "2"],
+        ...     start_date="2026-01-01",
+        ...     end_date="2026-01-28"
+        ... )
+
+        # With additional filters and metadata
+        >>> await get_priority_incidents(
+        ...     ["1", "2"],
+        ...     start_date="2026-01-01",
+        ...     additional_filters={"state": "New"},
+        ...     include_metadata=True
+        ... )
+    """
+    query_timestamp = datetime.utcnow().isoformat() + "Z"
+
+    # Handle deprecated kwargs for backward compatibility
+    if deprecated_kwargs:
+        logger.warning(
+            "Passing filters as **kwargs is deprecated. "
+            "Use additional_filters dict instead. Got: %s",
+            list(deprecated_kwargs.keys())
+        )
+        if additional_filters is None:
+            additional_filters = {}
+        additional_filters.update(deprecated_kwargs)
+
+    # Validate date formats if provided
+    if start_date:
+        is_valid, error = validate_date_format(start_date)
+        if not is_valid:
+            logger.error("Invalid start_date format: %s - %s", start_date, error)
+            return {"error": f"Invalid start_date: {error}"}
+
+    if end_date:
+        is_valid, error = validate_date_format(end_date)
+        if not is_valid:
+            logger.error("Invalid end_date format: %s - %s", end_date, error)
+            return {"error": f"Invalid end_date: {error}"}
+
+    # Build merged filters
+    merged_filters = additional_filters.copy() if additional_filters else {}
+
+    # Add date filter using simple operators
+    date_filter = build_date_filter(start_date, end_date)
+    if date_filter:
+        merged_filters["_date_range"] = date_filter
+        logger.debug("Built date filter: %s", date_filter)
+
+    logger.info(
+        "Querying priority incidents: priorities=%s, start_date=%s, end_date=%s, filters=%s",
+        priorities, start_date, end_date, list(merged_filters.keys()) if merged_filters else []
+    )
+
+    # Call the underlying generic function
+    result = await get_records_by_priority(
+        "incident",
+        priorities,
+        merged_filters if merged_filters else None,
+        detailed=True
+    )
+
+    # Return basic format if metadata not requested
+    if not include_metadata:
+        return result
+
+    # Build enhanced response with metadata
+    record_count = len(result.get("result", []))
+
+    return {
+        "result": result.get("result", []),
+        "metadata": {
+            "count": record_count,
+            "priorities_queried": priorities,
+            "date_range": {
+                "start": start_date,
+                "end": end_date
+            } if start_date or end_date else None,
+            "filters_applied": additional_filters,
+            "query_timestamp": query_timestamp,
+            "message": _build_priority_result_message(
+                record_count, priorities, start_date, end_date
+            )
+        }
+    }
 
 
-# CHANGE TOOLS - Using generic functions  
+def _build_priority_result_message(
+    count: int,
+    priorities: List[str],
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+) -> str:
+    """Build human-readable result message for priority queries."""
+    priority_str = ",".join(priorities)
+    msg = f"Found {count} priority {priority_str} incident(s)"
+
+    if start_date and end_date:
+        msg += f" from {start_date} to {end_date}"
+    elif start_date:
+        msg += f" from {start_date} onwards"
+    elif end_date:
+        msg += f" up to {end_date}"
+
+    return msg
+
+
+# Convenience helper functions for common date range queries
+
+async def get_priority_incidents_current_month(
+    priorities: List[str],
+    additional_filters: Optional[Dict[str, Any]] = None,
+    include_metadata: bool = False
+) -> Dict[str, Any]:
+    """
+    Get priority incidents for the current calendar month.
+
+    Args:
+        priorities: List of priority values (e.g., ["1", "2"])
+        additional_filters: Optional additional field filters
+        include_metadata: If True, return enhanced response with metadata
+
+    Returns:
+        Dict with incident results
+
+    Example:
+        >>> await get_priority_incidents_current_month(["1", "2"])
+    """
+    start_date, end_date = get_current_month_range()
+    return await get_priority_incidents(
+        priorities,
+        start_date=start_date,
+        end_date=end_date,
+        additional_filters=additional_filters,
+        include_metadata=include_metadata
+    )
+
+
+async def get_priority_incidents_last_n_days(
+    priorities: List[str],
+    days: int = 7,
+    additional_filters: Optional[Dict[str, Any]] = None,
+    include_metadata: bool = False
+) -> Dict[str, Any]:
+    """
+    Get priority incidents from the last N days (including today).
+
+    Args:
+        priorities: List of priority values
+        days: Number of days to look back (default: 7)
+        additional_filters: Optional additional field filters
+        include_metadata: If True, return enhanced response with metadata
+
+    Returns:
+        Dict with incident results
+
+    Example:
+        >>> await get_priority_incidents_last_n_days(["1", "2"], days=14)
+    """
+    start_date, end_date = get_last_n_days_range(days)
+    return await get_priority_incidents(
+        priorities,
+        start_date=start_date,
+        end_date=end_date,
+        additional_filters=additional_filters,
+        include_metadata=include_metadata
+    )
+
+
+async def get_priority_incidents_this_week(
+    priorities: List[str],
+    additional_filters: Optional[Dict[str, Any]] = None,
+    include_metadata: bool = False
+) -> Dict[str, Any]:
+    """
+    Get priority incidents for the current week (Monday to Sunday).
+
+    Args:
+        priorities: List of priority values
+        additional_filters: Optional additional field filters
+        include_metadata: If True, return enhanced response with metadata
+
+    Returns:
+        Dict with incident results
+
+    Example:
+        >>> await get_priority_incidents_this_week(["1", "2"])
+    """
+    start_date, end_date = get_this_week_range()
+    return await get_priority_incidents(
+        priorities,
+        start_date=start_date,
+        end_date=end_date,
+        additional_filters=additional_filters,
+        include_metadata=include_metadata
+    )
+
+
+async def get_priority_incidents_yesterday(
+    priorities: List[str],
+    additional_filters: Optional[Dict[str, Any]] = None,
+    include_metadata: bool = False
+) -> Dict[str, Any]:
+    """
+    Get priority incidents from yesterday only.
+
+    Args:
+        priorities: List of priority values
+        additional_filters: Optional additional field filters
+        include_metadata: If True, return enhanced response with metadata
+
+    Returns:
+        Dict with incident results
+
+    Example:
+        >>> await get_priority_incidents_yesterday(["1", "2"])
+    """
+    start_date, end_date = get_yesterday_range()
+    return await get_priority_incidents(
+        priorities,
+        start_date=start_date,
+        end_date=end_date,
+        additional_filters=additional_filters,
+        include_metadata=include_metadata
+    )
+
+
+async def get_priority_incidents_today(
+    priorities: List[str],
+    additional_filters: Optional[Dict[str, Any]] = None,
+    include_metadata: bool = False
+) -> Dict[str, Any]:
+    """
+    Get priority incidents from today.
+
+    Args:
+        priorities: List of priority values
+        additional_filters: Optional additional field filters
+        include_metadata: If True, return enhanced response with metadata
+
+    Returns:
+        Dict with incident results
+
+    Example:
+        >>> await get_priority_incidents_today(["1"])
+    """
+    start_date, end_date = get_today_range()
+    return await get_priority_incidents(
+        priorities,
+        start_date=start_date,
+        end_date=end_date,
+        additional_filters=additional_filters,
+        include_metadata=include_metadata
+    )
+
+
+# CHANGE TOOLS - Using generic functions
 async def similar_changes_for_text(input_text: str) -> Dict[str, Any]:
     """Find changes based on input text."""
     return await query_table_by_text("change_request", input_text)
@@ -190,11 +485,23 @@ async def get_breaching_slas(time_threshold_minutes: Optional[int] = 60) -> Dict
     params = TableFilterParams(filters=filters, fields=None)
     return await query_table_with_filters("task_sla", params)
 
-async def get_breached_slas(filters: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """Get SLAs that have already breached. Defaults to recent breaches (last 7 days) to avoid token overload."""
+async def get_breached_slas(filters: Optional[Dict[str, str]] = None, days: int = 7) -> Dict[str, Any]:
+    """
+    Get SLAs that have already breached.
+
+    Defaults to recent breaches (last 7 days) to avoid token overload.
+    Uses simple >= operator instead of JavaScript date functions.
+
+    Args:
+        filters: Optional additional filters to apply
+        days: Number of days to look back (default: 7)
+
+    Returns:
+        Dict with breached SLA records
+    """
     base_filters = {
         "has_breached": "true",
-        "sys_created_on": ">=javascript:gs.dateGenerate(gs.daysAgo(7))"  # Default to last 7 days
+        "sys_created_on": build_last_n_days_filter(days)
     }
     if filters:
         base_filters.update(filters)
@@ -217,11 +524,23 @@ async def get_active_slas(filters: Optional[Dict[str, str]] = None) -> Dict[str,
     params = TableFilterParams(filters=base_filters)
     return await query_table_with_filters("task_sla", params)
 
-async def get_sla_performance_summary(filters: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """Get SLA performance metrics with detailed information. Defaults to recent data (last 30 days) for efficiency."""
+async def get_sla_performance_summary(filters: Optional[Dict[str, str]] = None, days: int = 30) -> Dict[str, Any]:
+    """
+    Get SLA performance metrics with detailed information.
+
+    Defaults to recent data (last 30 days) for efficiency.
+    Uses simple >= operator instead of JavaScript date functions.
+
+    Args:
+        filters: Optional additional filters to apply
+        days: Number of days to look back (default: 30)
+
+    Returns:
+        Dict with SLA performance records
+    """
     # Default to recent data to avoid token overload
     default_filters = {
-        "sys_created_on": ">=javascript:gs.dateGenerate(gs.daysAgo(30))"
+        "sys_created_on": build_last_n_days_filter(days)
     }
     if filters:
         default_filters.update(filters)
@@ -236,10 +555,21 @@ async def get_sla_performance_summary(filters: Optional[Dict[str, str]] = None) 
     return await query_table_with_filters("task_sla", params)
 
 async def get_recent_breached_slas(days: int = 1) -> Dict[str, Any]:
-    """Get recently breached SLAs for immediate attention. Default to last 24 hours."""
+    """
+    Get recently breached SLAs for immediate attention.
+
+    Default to last 24 hours.
+    Uses simple >= operator instead of JavaScript date functions.
+
+    Args:
+        days: Number of days to look back (default: 1)
+
+    Returns:
+        Dict with recently breached SLA records
+    """
     filters = {
         "has_breached": "true",
-        "sys_created_on": f">=javascript:gs.dateGenerate(gs.daysAgo({days}))"
+        "sys_created_on": build_last_n_days_filter(days)
     }
     params = TableFilterParams(filters=filters)
     return await query_table_with_filters("task_sla", params)
