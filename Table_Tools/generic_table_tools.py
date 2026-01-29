@@ -928,20 +928,46 @@ def _build_url_with_params(table_name: str, fields: List[str], query: str) -> st
     
     return f"{base_url}?{field_param}&{query_param}"
 
+def _build_additional_filters(additional_filters: Optional[Dict[str, str]]) -> List[str]:
+    """Convert additional_filters dict into a list of filter strings."""
+    if not additional_filters:
+        return []
+    result = []
+    for field, value in additional_filters.items():
+        if field == "_date_range":
+            # Pre-built date filter string (e.g., "sys_created_on>=2026-01-01 00:00:00")
+            result.append(value)
+        else:
+            result.append(f"{field}={value}")
+    return result
+
+
+def _format_priority_results(all_results: list, max_results: int) -> Dict[str, Any]:
+    """Format paginated results into a standard response dict."""
+    if not all_results:
+        return {"result": [], "message": NO_RECORDS_FOUND}
+    result_count = len(all_results)
+    limit_note = f" (limited to {max_results})" if result_count == max_results else ""
+    return {
+        "result": all_results,
+        "message": f"Found {result_count} records{limit_note}"
+    }
+
+
 async def get_records_by_priority(
     table_name: str,
-    priorities: List[str], 
+    priorities: List[str],
     additional_filters: Optional[Dict[str, str]] = None,
     detailed: bool = False
 ) -> Dict[str, Any]:
     """Generic function to get records by priority for any table that supports priority."""
     from constants import TABLE_CONFIGS
-    
+
     # Validate table supports priority
     table_config = TABLE_CONFIGS.get(table_name)
     if not table_config or not table_config.get("priority_field"):
         return {"error": TABLE_NO_PRIORITY_SUPPORT_ERROR.format(table_name=table_name)}
-    
+
     fields = DETAIL_FIELDS.get(table_name, []) if detailed else ESSENTIAL_FIELDS.get(table_name, [])
     if not fields:
         return {"error": NO_FIELD_CONFIG_ERROR.format(table_name=table_name)}
@@ -950,39 +976,22 @@ async def get_records_by_priority(
     priority_filter = _build_priority_filter(priorities)
     if not priority_filter:
         return {"error": NO_VALID_PRIORITIES_ERROR}
-    
-    # Add additional filters if provided
-    filters = [priority_filter]
-    if additional_filters:
-        for field, value in additional_filters.items():
-            if field == "_date_range":
-                # Pre-built date filter string (e.g., "sys_created_on>=2026-01-01 00:00:00")
-                filters.append(value)
-            else:
-                filters.append(f"{field}={value}")
+
+    # Build complete filter list
+    filters = [priority_filter] + _build_additional_filters(additional_filters)
 
     final_query = "^".join(filters)
-    # Apply category filtering for incidents
     final_query = _apply_incident_category_filter(table_name, final_query)
-    # Apply catalog filtering for service catalog tables
     final_query = _apply_sc_catalog_filter(table_name, final_query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
 
     if final_query:
         base_url += f"&sysparm_query={final_query}"
-    
+
+    max_results = 100
     try:
-        # Use pagination to prevent excessive results
-        all_results = await _make_paginated_request(base_url, max_results=100)  # Default limit of 100 for priority queries
-        
-        if all_results:
-            result_count = len(all_results)
-            return {
-                "result": all_results,
-                "message": f"Found {result_count} records" + (" (limited to 100)" if result_count == 100 else "")
-            }
-        else:
-            return {"result": [], "message": NO_RECORDS_FOUND}
+        all_results = await _make_paginated_request(base_url, max_results=max_results)
+        return _format_priority_results(all_results, max_results)
     except Exception as e:
         return {"error": REQUEST_FAILED_ERROR.format(error=str(e))}
 

@@ -4,7 +4,7 @@ All table-specific operations are now unified through generic functions with cog
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from .generic_table_tools import (
     query_table_by_text,
     get_record_description,
@@ -59,6 +59,71 @@ async def get_incidents_by_filter(filters: Dict[str, str], fields: Optional[List
     params = TableFilterParams(filters=filters, fields=fields)
     return await query_table_with_filters("incident", params)
 
+def _validate_date_param(date_string: Optional[str], param_name: str) -> Optional[Dict[str, Any]]:
+    """Validate a date parameter and return an error dict if invalid, or None if valid."""
+    if not date_string:
+        return None
+    is_valid, error = validate_date_format(date_string)
+    if not is_valid:
+        logger.error("Invalid %s format: %s - %s", param_name, date_string, error)
+        return {"error": f"Invalid {param_name}: {error}"}
+    return None
+
+
+def _merge_filters(
+    additional_filters: Optional[Dict[str, Any]],
+    deprecated_kwargs: Dict[str, Any],
+    start_date: Optional[str],
+    end_date: Optional[str]
+) -> Dict[str, Any]:
+    """Merge additional filters, deprecated kwargs, and date filters into one dict."""
+    if deprecated_kwargs:
+        logger.warning(
+            "Passing filters as **kwargs is deprecated. "
+            "Use additional_filters dict instead. Got: %s",
+            list(deprecated_kwargs.keys())
+        )
+        merged = (additional_filters or {}).copy()
+        merged.update(deprecated_kwargs)
+    else:
+        merged = additional_filters.copy() if additional_filters else {}
+
+    date_filter = build_date_filter(start_date, end_date)
+    if date_filter:
+        merged["_date_range"] = date_filter
+        logger.debug("Built date filter: %s", date_filter)
+
+    return merged
+
+
+def _build_metadata(
+    result: Dict[str, Any],
+    priorities: List[str],
+    start_date: Optional[str],
+    end_date: Optional[str],
+    additional_filters: Optional[Dict[str, Any]],
+    query_timestamp: str
+) -> Dict[str, Any]:
+    """Build enhanced response with metadata."""
+    records = result.get("result", [])
+    record_count = len(records)
+    date_range = {"start": start_date, "end": end_date} if start_date or end_date else None
+
+    return {
+        "result": records,
+        "metadata": {
+            "count": record_count,
+            "priorities_queried": priorities,
+            "date_range": date_range,
+            "filters_applied": additional_filters,
+            "query_timestamp": query_timestamp,
+            "message": _build_priority_result_message(
+                record_count, priorities, start_date, end_date
+            )
+        }
+    }
+
+
 async def get_priority_incidents(
     priorities: List[str],
     start_date: Optional[str] = None,
@@ -103,40 +168,16 @@ async def get_priority_incidents(
         ...     include_metadata=True
         ... )
     """
-    query_timestamp = datetime.utcnow().isoformat() + "Z"
-
-    # Handle deprecated kwargs for backward compatibility
-    if deprecated_kwargs:
-        logger.warning(
-            "Passing filters as **kwargs is deprecated. "
-            "Use additional_filters dict instead. Got: %s",
-            list(deprecated_kwargs.keys())
-        )
-        if additional_filters is None:
-            additional_filters = {}
-        additional_filters.update(deprecated_kwargs)
+    query_timestamp = datetime.now(timezone.utc).isoformat()
 
     # Validate date formats if provided
-    if start_date:
-        is_valid, error = validate_date_format(start_date)
-        if not is_valid:
-            logger.error("Invalid start_date format: %s - %s", start_date, error)
-            return {"error": f"Invalid start_date: {error}"}
-
-    if end_date:
-        is_valid, error = validate_date_format(end_date)
-        if not is_valid:
-            logger.error("Invalid end_date format: %s - %s", end_date, error)
-            return {"error": f"Invalid end_date: {error}"}
+    for date_val, name in [(start_date, "start_date"), (end_date, "end_date")]:
+        error_result = _validate_date_param(date_val, name)
+        if error_result:
+            return error_result
 
     # Build merged filters
-    merged_filters = additional_filters.copy() if additional_filters else {}
-
-    # Add date filter using simple operators
-    date_filter = build_date_filter(start_date, end_date)
-    if date_filter:
-        merged_filters["_date_range"] = date_filter
-        logger.debug("Built date filter: %s", date_filter)
+    merged_filters = _merge_filters(additional_filters, deprecated_kwargs, start_date, end_date)
 
     logger.info(
         "Querying priority incidents: priorities=%s, start_date=%s, end_date=%s, filters=%s",
@@ -147,33 +188,14 @@ async def get_priority_incidents(
     result = await get_records_by_priority(
         "incident",
         priorities,
-        merged_filters if merged_filters else None,
+        merged_filters or None,
         detailed=True
     )
 
-    # Return basic format if metadata not requested
     if not include_metadata:
         return result
 
-    # Build enhanced response with metadata
-    record_count = len(result.get("result", []))
-
-    return {
-        "result": result.get("result", []),
-        "metadata": {
-            "count": record_count,
-            "priorities_queried": priorities,
-            "date_range": {
-                "start": start_date,
-                "end": end_date
-            } if start_date or end_date else None,
-            "filters_applied": additional_filters,
-            "query_timestamp": query_timestamp,
-            "message": _build_priority_result_message(
-                record_count, priorities, start_date, end_date
-            )
-        }
-    }
+    return _build_metadata(result, priorities, start_date, end_date, additional_filters, query_timestamp)
 
 
 def _build_priority_result_message(
