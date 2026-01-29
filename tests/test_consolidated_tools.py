@@ -9,6 +9,7 @@ from typing import Dict, Any
 
 from Table_Tools.consolidated_tools import (
     _get_error_message,
+    _build_priority_result_message,
     # Incident tools
     similar_incidents_for_text,
     get_short_desc_for_incident,
@@ -16,6 +17,12 @@ from Table_Tools.consolidated_tools import (
     get_incident_details,
     get_incidents_by_filter,
     get_priority_incidents,
+    # Incident helper functions
+    get_priority_incidents_current_month,
+    get_priority_incidents_last_n_days,
+    get_priority_incidents_this_week,
+    get_priority_incidents_yesterday,
+    get_priority_incidents_today,
     # Change tools
     similar_changes_for_text,
     get_short_desc_for_change,
@@ -139,15 +146,311 @@ class TestIncidentTools:
             assert result is not None
 
     @pytest.mark.asyncio
-    async def test_get_priority_incidents(self):
-        """Test getting priority incidents."""
+    async def test_get_priority_incidents_basic(self):
+        """Test getting priority incidents with basic call."""
         with patch('Table_Tools.consolidated_tools.get_records_by_priority') as mock_priority:
+            mock_priority.return_value = {"result": [{"number": "INC001", "priority": "1"}]}
+
+            result = await get_priority_incidents(["1", "2"])
+
+            mock_priority.assert_called_once_with("incident", ["1", "2"], None, detailed=True)
+            assert result is not None
+            assert "result" in result
+
+    @pytest.mark.asyncio
+    async def test_get_priority_incidents_deprecated_kwargs(self):
+        """Test getting priority incidents with deprecated kwargs logs warning."""
+        with patch('Table_Tools.consolidated_tools.get_records_by_priority') as mock_priority, \
+             patch('Table_Tools.consolidated_tools.logger') as mock_logger:
             mock_priority.return_value = {"result": [{"number": "INC001", "priority": "1"}]}
 
             result = await get_priority_incidents(["1", "2"], state="New")
 
-            mock_priority.assert_called_once_with("incident", ["1", "2"], {"state": "New"}, detailed=True)
-            assert result is not None
+            # Verify deprecation warning was logged
+            mock_logger.warning.assert_called()
+            # Verify state was still passed to underlying function
+            call_args = mock_priority.call_args
+            filters = call_args[0][2]
+            assert filters.get("state") == "New"
+
+
+class TestGetPriorityIncidentsEnhanced:
+    """Test enhanced get_priority_incidents function with date filtering."""
+
+    @pytest.mark.asyncio
+    async def test_with_date_range(self):
+        """Test with start and end dates."""
+        with patch('Table_Tools.consolidated_tools.get_records_by_priority') as mock_priority:
+            mock_priority.return_value = {"result": [{"number": "INC001"}]}
+
+            result = await get_priority_incidents(
+                ["1", "2"],
+                start_date="2026-01-01",
+                end_date="2026-01-28"
+            )
+
+            # Verify date filter was passed
+            call_args = mock_priority.call_args
+            filters = call_args[0][2]
+            assert "_date_range" in filters
+            assert "2026-01-01" in filters["_date_range"]
+            assert "2026-01-28" in filters["_date_range"]
+
+    @pytest.mark.asyncio
+    async def test_with_start_date_only(self):
+        """Test with only start date."""
+        with patch('Table_Tools.consolidated_tools.get_records_by_priority') as mock_priority:
+            mock_priority.return_value = {"result": [{"number": "INC001"}]}
+
+            result = await get_priority_incidents(
+                ["1"],
+                start_date="2026-01-01"
+            )
+
+            call_args = mock_priority.call_args
+            filters = call_args[0][2]
+            assert "_date_range" in filters
+            assert "sys_created_on>=2026-01-01 00:00:00" in filters["_date_range"]
+
+    @pytest.mark.asyncio
+    async def test_with_end_date_only(self):
+        """Test with only end date."""
+        with patch('Table_Tools.consolidated_tools.get_records_by_priority') as mock_priority:
+            mock_priority.return_value = {"result": [{"number": "INC001"}]}
+
+            result = await get_priority_incidents(
+                ["1"],
+                end_date="2026-01-28"
+            )
+
+            call_args = mock_priority.call_args
+            filters = call_args[0][2]
+            assert "_date_range" in filters
+            assert "sys_created_on<=2026-01-28 23:59:59" in filters["_date_range"]
+
+    @pytest.mark.asyncio
+    async def test_invalid_start_date_format(self):
+        """Test invalid start date returns error."""
+        result = await get_priority_incidents(
+            ["1", "2"],
+            start_date="01-28-2026"  # Wrong format
+        )
+
+        assert "error" in result
+        assert "start_date" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_invalid_end_date_format(self):
+        """Test invalid end date returns error."""
+        result = await get_priority_incidents(
+            ["1", "2"],
+            end_date="2026/01/28"  # Wrong format
+        )
+
+        assert "error" in result
+        assert "end_date" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_with_metadata(self):
+        """Test include_metadata returns enhanced response."""
+        with patch('Table_Tools.consolidated_tools.get_records_by_priority') as mock_priority:
+            mock_priority.return_value = {"result": [{"number": "INC001"}, {"number": "INC002"}]}
+
+            result = await get_priority_incidents(
+                ["1", "2"],
+                start_date="2026-01-01",
+                end_date="2026-01-28",
+                include_metadata=True
+            )
+
+            assert "metadata" in result
+            assert result["metadata"]["count"] == 2
+            assert result["metadata"]["priorities_queried"] == ["1", "2"]
+            assert result["metadata"]["date_range"]["start"] == "2026-01-01"
+            assert result["metadata"]["date_range"]["end"] == "2026-01-28"
+            assert "query_timestamp" in result["metadata"]
+            assert "message" in result["metadata"]
+
+    @pytest.mark.asyncio
+    async def test_with_additional_filters(self):
+        """Test with additional_filters dict."""
+        with patch('Table_Tools.consolidated_tools.get_records_by_priority') as mock_priority:
+            mock_priority.return_value = {"result": []}
+
+            result = await get_priority_incidents(
+                ["1"],
+                additional_filters={"state": "New", "assigned_to": "admin"}
+            )
+
+            call_args = mock_priority.call_args
+            filters = call_args[0][2]
+            assert filters.get("state") == "New"
+            assert filters.get("assigned_to") == "admin"
+
+    @pytest.mark.asyncio
+    async def test_combined_date_and_additional_filters(self):
+        """Test with both date range and additional filters."""
+        with patch('Table_Tools.consolidated_tools.get_records_by_priority') as mock_priority:
+            mock_priority.return_value = {"result": []}
+
+            result = await get_priority_incidents(
+                ["1", "2"],
+                start_date="2026-01-01",
+                end_date="2026-01-28",
+                additional_filters={"state": "New"}
+            )
+
+            call_args = mock_priority.call_args
+            filters = call_args[0][2]
+            assert "_date_range" in filters
+            assert filters.get("state") == "New"
+
+    @pytest.mark.asyncio
+    async def test_metadata_without_date_range(self):
+        """Test metadata when no date range provided."""
+        with patch('Table_Tools.consolidated_tools.get_records_by_priority') as mock_priority:
+            mock_priority.return_value = {"result": [{"number": "INC001"}]}
+
+            result = await get_priority_incidents(
+                ["1"],
+                include_metadata=True
+            )
+
+            assert "metadata" in result
+            assert result["metadata"]["date_range"] is None
+
+
+class TestBuildPriorityResultMessage:
+    """Test the result message builder function."""
+
+    def test_message_with_both_dates(self):
+        """Test message with both start and end dates."""
+        msg = _build_priority_result_message(5, ["1", "2"], "2026-01-01", "2026-01-28")
+        assert "Found 5 priority 1,2 incident(s)" in msg
+        assert "from 2026-01-01 to 2026-01-28" in msg
+
+    def test_message_with_start_date_only(self):
+        """Test message with only start date."""
+        msg = _build_priority_result_message(3, ["1"], "2026-01-01", None)
+        assert "Found 3 priority 1 incident(s)" in msg
+        assert "from 2026-01-01 onwards" in msg
+
+    def test_message_with_end_date_only(self):
+        """Test message with only end date."""
+        msg = _build_priority_result_message(10, ["1", "2", "3"], None, "2026-01-28")
+        assert "Found 10 priority 1,2,3 incident(s)" in msg
+        assert "up to 2026-01-28" in msg
+
+    def test_message_without_dates(self):
+        """Test message without any dates."""
+        msg = _build_priority_result_message(0, ["1"], None, None)
+        assert "Found 0 priority 1 incident(s)" in msg
+        assert "from" not in msg
+        assert "to" not in msg
+
+
+class TestPriorityIncidentsHelpers:
+    """Test convenience helper functions."""
+
+    @pytest.mark.asyncio
+    async def test_current_month(self):
+        """Test get_priority_incidents_current_month."""
+        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
+             patch('Table_Tools.consolidated_tools.get_current_month_range') as mock_range:
+            mock_range.return_value = ("2026-01-01", "2026-01-31")
+            mock_func.return_value = {"result": []}
+
+            await get_priority_incidents_current_month(["1", "2"])
+
+            mock_func.assert_called_once()
+            call_kwargs = mock_func.call_args[1]
+            assert call_kwargs["start_date"] == "2026-01-01"
+            assert call_kwargs["end_date"] == "2026-01-31"
+
+    @pytest.mark.asyncio
+    async def test_current_month_with_filters(self):
+        """Test get_priority_incidents_current_month with additional filters."""
+        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
+             patch('Table_Tools.consolidated_tools.get_current_month_range') as mock_range:
+            mock_range.return_value = ("2026-01-01", "2026-01-31")
+            mock_func.return_value = {"result": []}
+
+            await get_priority_incidents_current_month(
+                ["1"],
+                additional_filters={"state": "New"},
+                include_metadata=True
+            )
+
+            call_kwargs = mock_func.call_args[1]
+            assert call_kwargs["additional_filters"] == {"state": "New"}
+            assert call_kwargs["include_metadata"] is True
+
+    @pytest.mark.asyncio
+    async def test_last_n_days_default(self):
+        """Test get_priority_incidents_last_n_days with default 7 days."""
+        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
+             patch('Table_Tools.consolidated_tools.get_last_n_days_range') as mock_range:
+            mock_range.return_value = ("2026-01-21", "2026-01-28")
+            mock_func.return_value = {"result": []}
+
+            await get_priority_incidents_last_n_days(["1"])
+
+            mock_range.assert_called_once_with(7)
+
+    @pytest.mark.asyncio
+    async def test_last_n_days_custom(self):
+        """Test get_priority_incidents_last_n_days with custom days."""
+        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
+             patch('Table_Tools.consolidated_tools.get_last_n_days_range') as mock_range:
+            mock_range.return_value = ("2026-01-14", "2026-01-28")
+            mock_func.return_value = {"result": []}
+
+            await get_priority_incidents_last_n_days(["1", "2"], days=14)
+
+            mock_range.assert_called_once_with(14)
+
+    @pytest.mark.asyncio
+    async def test_this_week(self):
+        """Test get_priority_incidents_this_week."""
+        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
+             patch('Table_Tools.consolidated_tools.get_this_week_range') as mock_range:
+            mock_range.return_value = ("2026-01-26", "2026-02-01")
+            mock_func.return_value = {"result": []}
+
+            await get_priority_incidents_this_week(["1", "2"])
+
+            mock_func.assert_called_once()
+            call_kwargs = mock_func.call_args[1]
+            assert call_kwargs["start_date"] == "2026-01-26"
+            assert call_kwargs["end_date"] == "2026-02-01"
+
+    @pytest.mark.asyncio
+    async def test_today(self):
+        """Test get_priority_incidents_today."""
+        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
+             patch('Table_Tools.consolidated_tools.get_today_range') as mock_range:
+            mock_range.return_value = ("2026-01-28", "2026-01-28")
+            mock_func.return_value = {"result": []}
+
+            await get_priority_incidents_today(["1"])
+
+            call_kwargs = mock_func.call_args[1]
+            assert call_kwargs["start_date"] == "2026-01-28"
+            assert call_kwargs["end_date"] == "2026-01-28"
+
+    @pytest.mark.asyncio
+    async def test_yesterday(self):
+        """Test get_priority_incidents_yesterday."""
+        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
+             patch('Table_Tools.consolidated_tools.get_yesterday_range') as mock_range:
+            mock_range.return_value = ("2026-01-27", "2026-01-27")
+            mock_func.return_value = {"result": []}
+
+            await get_priority_incidents_yesterday(["1", "2"])
+
+            call_kwargs = mock_func.call_args[1]
+            assert call_kwargs["start_date"] == "2026-01-27"
+            assert call_kwargs["end_date"] == "2026-01-27"
 
 
 class TestChangeTools:
@@ -626,7 +929,9 @@ class TestSLATools:
             args = mock_query.call_args
             params = args[0][1]
             assert params.filters["has_breached"] == "true"
-            assert "daysAgo(1)" in params.filters["sys_created_on"]
+            # Now uses simple >= operator instead of JavaScript daysAgo()
+            assert "sys_created_on>=" in params.filters["sys_created_on"]
+            assert "javascript" not in params.filters["sys_created_on"]
 
     @pytest.mark.asyncio
     async def test_get_recent_breached_slas_custom_days(self):
@@ -639,7 +944,9 @@ class TestSLATools:
             mock_query.assert_called_once()
             args = mock_query.call_args
             params = args[0][1]
-            assert "daysAgo(7)" in params.filters["sys_created_on"]
+            # Now uses simple >= operator instead of JavaScript daysAgo()
+            assert "sys_created_on>=" in params.filters["sys_created_on"]
+            assert "javascript" not in params.filters["sys_created_on"]
 
     @pytest.mark.asyncio
     async def test_get_critical_sla_status(self):
