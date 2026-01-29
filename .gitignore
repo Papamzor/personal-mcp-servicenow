@@ -7,6 +7,10 @@ __pycache__/
 /Table_Tools/__pycache__/
 **/pyvenv.cfg
 
+# Coverage artifacts
+.coverage
+htmlcov/
+
 # IDE settings
 .vscode/settings.json
 settings.json
