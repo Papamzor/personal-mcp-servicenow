@@ -225,12 +225,30 @@ class TableFilterParams(BaseModel):
     fields: Optional[List[str]] = Field(None, description="Fields to return")
 
 def _has_operator_in_value(value: str) -> bool:
-    """Check if value already contains a comparison operator."""
-    return isinstance(value, str) and any(op in value for op in ['>=', '<=', '>', '<', '='])
+    """Check if value already contains a comparison operator or ServiceNow text operator."""
+    if not isinstance(value, str):
+        return False
+    # Standard comparison operators
+    if any(op in value for op in ['>=', '<=', '>', '<', '=', '!=']):
+        return True
+    # ServiceNow text/date operators that prefix the value (e.g., "ONLast week", "LIKEfoo")
+    sn_operators = ['BETWEEN', 'ONLAST', 'ONTODAY', 'ON', 'LIKE', 'STARTSWITH',
+                    'ENDSWITH', 'ISEMPTY', 'ISNOTEMPTY', 'NOTIN', 'IN', 'NOT IN']
+    return any(value.startswith(op) for op in sn_operators)
 
 def _is_complete_servicenow_filter(value: str) -> bool:
-    """Check if value is already a complete ServiceNow filter (e.g., priority=1^ORpriority=2)."""
-    return isinstance(value, str) and ('^OR' in value or 'ON' in value)
+    """Check if value is already a complete ServiceNow filter (e.g., priority=1^ORpriority=2).
+
+    A complete filter must have field=value structure before any ^OR operator.
+    Values like "1^ORpriority=2" are NOT complete filters (missing field name before first value).
+    """
+    if not isinstance(value, str):
+        return False
+    if '^OR' in value:
+        # Verify it's truly a complete filter: text before ^OR must contain '=' (field=value)
+        before_or = value.split('^OR')[0]
+        return '=' in before_or
+    return False
 
 def _parse_week_format(text: str) -> Optional[tuple]:
     """Parse 'Week X YYYY' format. Complexity: 3"""
@@ -537,6 +555,23 @@ def _handle_caller_exclusion_condition(field: str, value: str) -> Optional[str]:
     return None
 
 
+def _handle_bare_or_value_condition(field: str, value: str) -> Optional[str]:
+    """Handle values with ^OR where the first segment is a bare value (missing field name).
+
+    When an LLM constructs a filter like {"priority": "1^ORpriority=2"}, the "1" before
+    ^OR is missing its field name. This handler prepends the field name to produce a valid
+    ServiceNow query: "priority=1^ORpriority=2".
+
+    Works for any field (priority, task.priority, state, etc.).
+    """
+    if "^OR" not in value:
+        return None
+    before_or = value.split("^OR")[0]
+    if "=" not in before_or:
+        return f"{field}={value}"
+    return None
+
+
 def _handle_servicenow_filter_condition(field: str, value: str) -> Optional[str]:
     """Handle complete ServiceNow filters."""
     if _is_complete_servicenow_filter(value):
@@ -588,6 +623,7 @@ def _build_query_condition(field: str, value: str) -> str:
         _handle_date_range_condition,
         _handle_priority_condition,
         _handle_caller_exclusion_condition,
+        _handle_bare_or_value_condition,
         _handle_servicenow_filter_condition,
         _handle_operator_condition,
         _handle_suffix_operator_condition,
@@ -1005,13 +1041,10 @@ async def query_table_with_generic_filters(
     if not fields:
         return {"error": NO_FIELD_CONFIG_ERROR.format(table_name=table_name)}
     
-    # Build query from filters
+    # Build query from filters using the same handler chain as query_table_with_filters
     filter_parts = []
     for field, value in filters.items():
-        if _is_complete_servicenow_filter(value):
-            filter_parts.append(value)
-        else:
-            filter_parts.append(f"{field}={value}")
+        filter_parts.append(_build_query_condition(field, value))
 
     query = "^".join(filter_parts)
     # Apply category filtering for incidents
