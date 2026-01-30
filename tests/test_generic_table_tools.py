@@ -24,6 +24,7 @@ from Table_Tools.generic_table_tools import (
     _parse_caller_exclusions,
     _has_operator_in_value,
     _is_complete_servicenow_filter,
+    _handle_bare_or_value_condition,
     _build_query_condition,
     _build_query_string,
     _encode_query_string,
@@ -279,20 +280,107 @@ class TestQueryBuilding:
         assert _has_operator_in_value("<=2024-12-31") is True
         assert _has_operator_in_value(">100") is True
 
+    def test_has_operator_in_value_servicenow_operators(self):
+        """Test detecting ServiceNow text/date operators at start of value."""
+        assert _has_operator_in_value("ONLast week") is True
+        assert _has_operator_in_value("ONToday") is True
+        assert _has_operator_in_value("ONLAST7days") is True
+        assert _has_operator_in_value("LIKEfoo") is True
+        assert _has_operator_in_value("STARTSWITHabc") is True
+        assert _has_operator_in_value("ENDSWITHxyz") is True
+        assert _has_operator_in_value("BETWEENa@b") is True
+        assert _has_operator_in_value("ISEMPTY") is True
+        assert _has_operator_in_value("ISNOTEMPTY") is True
+
     def test_has_operator_in_value_false(self):
         """Test non-operator values."""
         assert _has_operator_in_value("2024-01-01") is False
         assert _has_operator_in_value("100") is False
+        assert _has_operator_in_value("New") is False
 
     def test_is_complete_servicenow_filter_true(self):
-        """Test detecting complete ServiceNow filters."""
+        """Test detecting complete ServiceNow filters with ^OR and proper field=value structure."""
         assert _is_complete_servicenow_filter("priority=1^ORpriority=2") is True
-        assert _is_complete_servicenow_filter("sys_created_onONLast week") is True
+        assert _is_complete_servicenow_filter("state=1^ORstate=2^ORstate=3") is True
 
     def test_is_complete_servicenow_filter_false(self):
         """Test non-complete filters."""
         assert _is_complete_servicenow_filter("priority=1") is False
         assert _is_complete_servicenow_filter("1,2") is False
+
+    def test_is_complete_servicenow_filter_rejects_malformed_or(self):
+        """Test that values with ^OR but no field=value before ^OR are rejected.
+
+        This is the key bug fix: "1^ORpriority=2" is NOT a complete filter because
+        the "1" before ^OR has no field name, so it would produce an invalid query.
+        """
+        assert _is_complete_servicenow_filter("1^ORpriority=2") is False
+        assert _is_complete_servicenow_filter("2^ORpriority=3") is False
+
+    def test_handle_bare_or_value_fixes_missing_field(self):
+        """Test that bare values before ^OR get the field name prepended.
+
+        This is the core fix for the MCP bug where LLMs send:
+        {"priority": "1^ORpriority=2"} -> should produce "priority=1^ORpriority=2"
+        """
+        result = _handle_bare_or_value_condition("priority", "1^ORpriority=2")
+        assert result == "priority=1^ORpriority=2"
+
+    def test_handle_bare_or_value_task_priority(self):
+        """Test fix works for dotted field names like task.priority."""
+        result = _handle_bare_or_value_condition("task.priority", "1^ORtask.priority=2")
+        assert result == "task.priority=1^ORtask.priority=2"
+
+    def test_handle_bare_or_value_skips_complete_filter(self):
+        """Test that already-complete filters are not modified."""
+        result = _handle_bare_or_value_condition("priority", "priority=1^ORpriority=2")
+        assert result is None  # Should be handled by _handle_servicenow_filter_condition
+
+    def test_handle_bare_or_value_skips_no_or(self):
+        """Test that values without ^OR are not handled."""
+        assert _handle_bare_or_value_condition("priority", "1") is None
+        assert _handle_bare_or_value_condition("priority", "1,2") is None
+        assert _handle_bare_or_value_condition("state", "New") is None
+
+    def test_build_query_condition_malformed_priority_or(self):
+        """Test the full handler chain correctly fixes malformed priority ^OR values.
+
+        Reproduces the exact MCP bug: {"priority": "1^ORpriority=2"} was producing
+        an invalid query "1^ORpriority=2" (missing "priority=" prefix on first value).
+        """
+        result = _build_query_condition("priority", "1^ORpriority=2")
+        assert result == "priority=1^ORpriority=2"
+
+    def test_build_query_condition_malformed_task_priority_or(self):
+        """Test fix for task.priority field with malformed ^OR value."""
+        result = _build_query_condition("task.priority", "1^ORtask.priority=2")
+        assert result == "task.priority=1^ORtask.priority=2"
+
+    def test_build_query_condition_complete_or_filter_passthrough(self):
+        """Test that properly-formed ^OR filters pass through unchanged."""
+        result = _build_query_condition("_filter", "priority=1^ORpriority=2")
+        assert result == "priority=1^ORpriority=2"
+
+    def test_build_query_condition_servicenow_in_operator(self):
+        """Test ServiceNow IN operator handling (e.g., task.priorityIN1,2)."""
+        result = _build_query_condition("task.priority", "IN1,2")
+        assert result == "task.priorityIN1,2"
+
+    def test_build_query_string_with_malformed_or_value(self):
+        """Test full query string building with the MCP bug pattern.
+
+        Simulates the exact filter dict sent by the MCP LLM:
+        {"priority": "1^ORpriority=2", "caller_id": "!=xxx", "sys_created_on": ">=2026-01-01"}
+        """
+        filters = {
+            "priority": "1^ORpriority=2",
+            "caller_id": "!=xxx",
+        }
+        result = _build_query_string(filters)
+        # Must contain "priority=1^ORpriority=2" (with field= prefix)
+        assert "priority=1^ORpriority=2" in result
+        # Must contain caller_id condition
+        assert "caller_id!=xxx" in result
 
     def test_build_query_condition_complete_query(self):
         """Test building complete query condition."""

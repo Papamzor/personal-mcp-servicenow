@@ -960,6 +960,6 @@ class TestSLATools:
             args = mock_query.call_args
             params = args[0][1]
             assert params.filters["active"] == "true"
-            assert "task.priority" in params.filters
+            assert params.filters["task.priority"] == "IN1,2"
             assert params.filters["business_percentage"] == ">80"
             assert params.fields is not None

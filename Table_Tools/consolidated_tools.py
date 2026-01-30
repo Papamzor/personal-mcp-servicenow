@@ -600,7 +600,7 @@ async def get_critical_sla_status() -> Dict[str, Any]:
     """Get high-priority SLA status summary for dashboard/monitoring."""
     filters = {
         "active": "true",
-        "task.priority": "1^ORtask.priority=2",  # P1 and P2 tasks only
+        "task.priority": "IN1,2",  # P1 and P2 tasks only (uses ServiceNow IN operator)
         "business_percentage": ">80"  # Close to or over SLA target
     }
     fields = [

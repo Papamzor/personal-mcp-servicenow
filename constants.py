@@ -136,7 +136,7 @@ QUERY_WARNINGS = {
 }
 
 # Incident Category Filtering Configuration
-ENABLE_INCIDENT_CATEGORY_FILTERING = True  # Toggle to enable/disable category filtering
+ENABLE_INCIDENT_CATEGORY_FILTERING = False  # Toggle to enable/disable category filtering
 EXCLUDED_INCIDENT_CATEGORIES = [
     "Payroll",
     "People Support",
