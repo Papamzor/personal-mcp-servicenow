@@ -467,7 +467,7 @@ class TestUpdatePrivateTask:
             mock_sys_id.assert_called_once_with("VTB0001234")
             mock_request.assert_called_once()
             args = mock_request.call_args
-            assert args[0][0] == "PUT"
+            assert args[0][0] == "PATCH"
 
     @pytest.mark.asyncio
     async def test_update_private_task_no_update_data(self):
