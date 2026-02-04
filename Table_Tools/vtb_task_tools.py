@@ -182,7 +182,7 @@ async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> 
         return PRIVATE_TASK_NOT_FOUND_UPDATE
     
     url = f"{NWS_API_BASE}/api/now/table/vtb_task/{sys_id}"
-    return await _make_authenticated_request("PUT", url, update_data, "update")
+    return await _make_authenticated_request("PATCH", url, update_data, "update")
 
 async def get_private_tasks_by_filter(filters: Dict[str, str], fields: Optional[List[str]] = None) -> dict[str, Any] | str:
     """Get private task records with custom filters.
