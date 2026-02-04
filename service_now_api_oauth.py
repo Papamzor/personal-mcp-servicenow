@@ -32,14 +32,24 @@ def _extract_display_values(data: dict[str, Any]) -> dict[str, Any]:
                       for item in data['result']]
     return data
 
+def _add_default_params(url: str, display_value: bool = True) -> str:
+    """Add default performance and display parameters to a ServiceNow API URL."""
+    params = []
+    if display_value and "sysparm_display_value" not in url:
+        params.append("sysparm_display_value=true")
+    if "sysparm_exclude_reference_link" not in url:
+        params.append("sysparm_exclude_reference_link=true")
+    if "sysparm_no_count" not in url:
+        params.append("sysparm_no_count=true")
+    if not params:
+        return url
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}{'&'.join(params)}"
+
 async def make_nws_request(url: str, display_value: bool = True) -> dict[str, Any] | None:
     """Make a request to the ServiceNow API using OAuth 2.0 authentication."""
-    
-    # Add display value parameter if requested
-    if display_value and "sysparm_display_value" not in url:
-        separator = "&" if "?" in url else "?"
-        url = f"{url}{separator}sysparm_display_value=true"
-    
+    url = _add_default_params(url, display_value)
+
     try:
         result = await make_oauth_request(url)
         return _extract_display_values(result) if result and display_value else result

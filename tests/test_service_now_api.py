@@ -2,15 +2,14 @@
 """
 unittest version of ServiceNow API tests.
 
-Tests the service_now_api.py module functionality with proper mocking 
+Tests the service_now_api_oauth.py module functionality with proper mocking
 to avoid live API calls and achieve comprehensive coverage.
 """
 
 import unittest
 import sys
 import os
-from unittest.mock import patch, AsyncMock, MagicMock
-import httpx
+from unittest.mock import patch, AsyncMock
 
 # Add the project root to the path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,14 +21,15 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         """Set up test fixtures for async tests."""
         try:
-            from service_now_api import (
-                _extract_field_value, _process_item_dict, _extract_display_values, 
-                make_nws_request, NWS_API_BASE
+            from service_now_api_oauth import (
+                _extract_field_value, _process_item_dict, _extract_display_values,
+                _add_default_params, make_nws_request, NWS_API_BASE
             )
             self.api_available = True
             self._extract_field_value = _extract_field_value
             self._process_item_dict = _process_item_dict
             self._extract_display_values = _extract_display_values
+            self._add_default_params = _add_default_params
             self.make_nws_request = make_nws_request
             self.NWS_API_BASE = NWS_API_BASE
         except ImportError as e:
@@ -40,12 +40,12 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         """Test extracting field value when display_value is available."""
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
-        
+
         test_value = {
             'value': 'raw_value',
             'display_value': 'Human Readable Value'
         }
-        
+
         result = self._extract_field_value(test_value)
         self.assertEqual(result, 'Human Readable Value')
 
@@ -53,10 +53,10 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         """Test extracting simple non-dict values."""
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
-        
+
         result = self._extract_field_value("simple_string")
         self.assertEqual(result, "simple_string")
-        
+
         result = self._extract_field_value(12345)
         self.assertEqual(result, 12345)
 
@@ -64,28 +64,28 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         """Test processing a dictionary item with mixed field types."""
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
-        
+
         test_item = {
             'number': {'value': 'INC001001', 'display_value': 'INC001001'},
             'state': {'value': '1', 'display_value': 'New'},
             'simple_field': 'simple_value'
         }
-        
+
         result = self._process_item_dict(test_item)
-        
+
         expected = {
             'number': 'INC001001',
             'state': 'New',
             'simple_field': 'simple_value'
         }
-        
+
         self.assertEqual(result, expected)
 
     async def test_extract_display_values_with_results(self):
         """Test extracting display values from API response with results."""
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
-        
+
         test_data = {
             'result': [
                 {
@@ -94,9 +94,9 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
                 }
             ]
         }
-        
+
         result = self._extract_display_values(test_data)
-        
+
         expected = {
             'result': [
                 {
@@ -105,51 +105,110 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
                 }
             ]
         }
-        
+
         self.assertEqual(result, expected)
 
     async def test_extract_display_values_non_dict_input(self):
         """Test extracting display values from non-dict input."""
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
-        
+
         result = self._extract_display_values("string_input")
         self.assertEqual(result, "string_input")
 
-    @patch('service_now_api.httpx.AsyncClient')
-    async def test_make_nws_request_success(self, mock_client_class):
-        """Test successful API request."""
+    # --- _add_default_params tests ---
+
+    async def test_add_default_params_no_query_string(self):
+        """Test adding params to URL with no existing query string."""
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
-        
-        # Mock the response
-        mock_response = MagicMock()
-        mock_response.json.return_value = {
+
+        url = "https://test.service-now.com/api/now/table/incident"
+        result = self._add_default_params(url)
+
+        self.assertIn("?", result)
+        self.assertIn("sysparm_display_value=true", result)
+        self.assertIn("sysparm_exclude_reference_link=true", result)
+        self.assertIn("sysparm_no_count=true", result)
+
+    async def test_add_default_params_existing_query_string(self):
+        """Test adding params to URL that already has a query string."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_fields=number"
+        result = self._add_default_params(url)
+
+        self.assertIn("sysparm_fields=number", result)
+        self.assertIn("&sysparm_display_value=true", result)
+        self.assertIn("sysparm_exclude_reference_link=true", result)
+        self.assertIn("sysparm_no_count=true", result)
+        self.assertEqual(result.count("?"), 1)
+
+    async def test_add_default_params_display_value_false(self):
+        """Test that display_value=False skips sysparm_display_value but adds perf params."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        url = "https://test.service-now.com/api/now/table/incident"
+        result = self._add_default_params(url, display_value=False)
+
+        self.assertNotIn("sysparm_display_value", result)
+        self.assertIn("sysparm_exclude_reference_link=true", result)
+        self.assertIn("sysparm_no_count=true", result)
+
+    async def test_add_default_params_idempotent(self):
+        """Test that params are not duplicated when already present."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        url = (
+            "https://test.service-now.com/api/now/table/incident"
+            "?sysparm_display_value=true"
+            "&sysparm_exclude_reference_link=true"
+            "&sysparm_no_count=true"
+        )
+        result = self._add_default_params(url)
+
+        self.assertEqual(result, url)
+
+    async def test_add_default_params_partial_existing(self):
+        """Test that only missing params are added when some already present."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_display_value=true"
+        result = self._add_default_params(url)
+
+        self.assertEqual(result.count("sysparm_display_value"), 1)
+        self.assertIn("sysparm_exclude_reference_link=true", result)
+        self.assertIn("sysparm_no_count=true", result)
+
+    # --- make_nws_request tests ---
+
+    @patch('service_now_api_oauth.make_oauth_request')
+    async def test_make_nws_request_success(self, mock_oauth_request):
+        """Test successful API request includes all default params."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        mock_oauth_request.return_value = {
             'result': [
                 {'number': {'value': 'INC001', 'display_value': 'INC001'}}
             ]
         }
-        mock_response.raise_for_status = MagicMock()
-        
-        # Mock the client context manager and get method
-        mock_client = MagicMock()
-        mock_client.get = AsyncMock(return_value=mock_response)
-        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client.__aexit__ = AsyncMock(return_value=None)
-        mock_client_class.return_value = mock_client
-        
+
         url = "https://test.service-now.com/api/now/table/incident"
         result = await self.make_nws_request(url)
-        
-        # Verify the request was made correctly
-        mock_client.get.assert_called_once()
-        call_args = mock_client.get.call_args
-        
-        # Check URL includes display_value parameter
-        called_url = call_args[0][0]
+
+        # Verify the request was made with all default params
+        mock_oauth_request.assert_called_once()
+        called_url = mock_oauth_request.call_args[0][0]
         self.assertIn("sysparm_display_value=true", called_url)
-        
-        # Check result is processed
+        self.assertIn("sysparm_exclude_reference_link=true", called_url)
+        self.assertIn("sysparm_no_count=true", called_url)
+
+        # Check result is processed (display values extracted)
         expected = {
             'result': [
                 {'number': 'INC001'}
@@ -157,23 +216,17 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         }
         self.assertEqual(result, expected)
 
-    @patch('service_now_api.httpx.AsyncClient')
-    async def test_make_nws_request_http_error(self, mock_client_class):
-        """Test API request with HTTP error."""
+    @patch('service_now_api_oauth.make_oauth_request')
+    async def test_make_nws_request_http_error(self, mock_oauth_request):
+        """Test API request with error returns None."""
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
-        
-        mock_client = MagicMock()
-        mock_client.get = AsyncMock(side_effect=httpx.HTTPStatusError(
-            "404 Not Found", request=MagicMock(), response=MagicMock()
-        ))
-        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client.__aexit__ = AsyncMock(return_value=None)
-        mock_client_class.return_value = mock_client
-        
+
+        mock_oauth_request.side_effect = Exception("404 Not Found")
+
         url = "https://test.service-now.com/api/now/table/nonexistent"
         result = await self.make_nws_request(url)
-        
+
         self.assertIsNone(result)
 
 
