@@ -23,12 +23,13 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         try:
             from service_now_api_oauth import (
                 _extract_field_value, _process_item_dict, _extract_display_values,
-                _add_default_params, make_nws_request, NWS_API_BASE
+                _ensure_query_encoded, _add_default_params, make_nws_request, NWS_API_BASE
             )
             self.api_available = True
             self._extract_field_value = _extract_field_value
             self._process_item_dict = _process_item_dict
             self._extract_display_values = _extract_display_values
+            self._ensure_query_encoded = _ensure_query_encoded
             self._add_default_params = _add_default_params
             self.make_nws_request = make_nws_request
             self.NWS_API_BASE = NWS_API_BASE
@@ -115,6 +116,66 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
 
         result = self._extract_display_values("string_input")
         self.assertEqual(result, "string_input")
+
+    # --- _ensure_query_encoded tests ---
+
+    async def test_ensure_query_encoded_no_sysparm_query(self):
+        """Test that URLs without sysparm_query pass through unchanged."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_limit=10"
+        result = self._ensure_query_encoded(url)
+        self.assertEqual(result, url)
+
+    async def test_ensure_query_encoded_spaces(self):
+        """Test that spaces in query values are percent-encoded."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionCONTAINSserver down"
+        result = self._ensure_query_encoded(url)
+        self.assertIn("sysparm_query=short_descriptionCONTAINSserver%20down", result)
+
+    async def test_ensure_query_encoded_preserves_sn_operators(self):
+        """Test that ServiceNow operators (=, ^, <, >, etc.) are preserved."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=priority=1^state=2^ORstate=3"
+        result = self._ensure_query_encoded(url)
+        self.assertEqual(result, url)
+
+    async def test_ensure_query_encoded_hash_character(self):
+        """Test that # in query is encoded to prevent URL fragment issues."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionCONTAINSissue #123"
+        result = self._ensure_query_encoded(url)
+        self.assertIn("sysparm_query=short_descriptionCONTAINSissue%20%23123", result)
+        self.assertNotIn("#", result.split("sysparm_query=")[1].split("&")[0])
+
+    async def test_ensure_query_encoded_idempotent(self):
+        """Test that already-encoded URLs are not double-encoded."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionCONTAINSserver%20down"
+        result = self._ensure_query_encoded(url)
+        self.assertIn("server%20down", result)
+        self.assertNotIn("%2520", result)
+
+    async def test_ensure_query_encoded_preserves_other_params(self):
+        """Test that other URL parameters are not affected by encoding."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_fields=number&sysparm_query=short_descriptionCONTAINSserver down&sysparm_limit=10"
+        result = self._ensure_query_encoded(url)
+        self.assertIn("sysparm_fields=number", result)
+        self.assertIn("sysparm_query=short_descriptionCONTAINSserver%20down", result)
+        self.assertIn("sysparm_limit=10", result)
 
     # --- _add_default_params tests ---
 
@@ -215,6 +276,21 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
             ]
         }
         self.assertEqual(result, expected)
+
+    @patch('service_now_api_oauth.make_oauth_request')
+    async def test_make_nws_request_encodes_query(self, mock_oauth_request):
+        """Test that make_nws_request encodes sysparm_query before sending."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        mock_oauth_request.return_value = {'result': []}
+
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionCONTAINSserver down"
+        await self.make_nws_request(url)
+
+        called_url = mock_oauth_request.call_args[0][0]
+        self.assertIn("server%20down", called_url)
+        self.assertNotIn("server down", called_url)
 
     @patch('service_now_api_oauth.make_oauth_request')
     async def test_make_nws_request_http_error(self, mock_oauth_request):

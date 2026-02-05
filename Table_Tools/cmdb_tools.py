@@ -216,10 +216,7 @@ async def search_cis_by_attributes(
     query_string = "^".join(query_parts)
     
     try:
-        from urllib.parse import quote
-        encoded_query = quote(query_string, safe='=^')
-        
-        url = f"{NWS_API_BASE}/api/now/table/{table}?sysparm_fields={','.join(fields)}&sysparm_query={encoded_query}&sysparm_display_value=true&sysparm_limit=100"
+        url = f"{NWS_API_BASE}/api/now/table/{table}?sysparm_fields={','.join(fields)}&sysparm_query={query_string}&sysparm_display_value=true&sysparm_limit=100"
         data = await make_nws_request(url)
         
         if data and data.get('result'):
@@ -405,10 +402,7 @@ async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
         ]
         
         query_string = "^OR".join(query_parts)
-        from urllib.parse import quote
-        encoded_query = quote(query_string, safe='=^')
-        
-        url = f"{NWS_API_BASE}/api/now/table/cmdb_ci?sysparm_fields={','.join(ESSENTIAL_CI_FIELDS)}&sysparm_query={encoded_query}&sysparm_display_value=true&sysparm_limit=50"
+        url = f"{NWS_API_BASE}/api/now/table/cmdb_ci?sysparm_fields={','.join(ESSENTIAL_CI_FIELDS)}&sysparm_query={query_string}&sysparm_display_value=true&sysparm_limit=50"
         data = await make_nws_request(url)
         
         if data and data.get('result'):
