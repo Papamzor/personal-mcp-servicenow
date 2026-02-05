@@ -112,6 +112,11 @@ CC: ~4.
 pytest tests/test_service_now_api.py tests/test_generic_table_tools.py -v --tb=short
 ```
 
+### Summary
+All `sysparm_query` values are now centrally percent-encoded in `make_nws_request()` via a new `_ensure_query_encoded()` helper (CC 4). The helper unquotes first to prevent double-encoding, then applies `quote(value, safe='=<>&^():@!')` to preserve ServiceNow operators. Ad-hoc `quote()` calls in `cmdb_tools.py` were removed. 7 new tests cover: passthrough for URLs without query, space/hash encoding, operator preservation, idempotency, and integration via mock.
+
+**Status**: Done
+
 ---
 
 ## Step 4: Sort Order for Pagination (Improvement 4)
