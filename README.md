@@ -80,16 +80,31 @@ python personal_mcp_servicenow_main.py
 
 ---
 
-## 🚨 Version 2.0 - BREAKING CHANGES
+## 🆕 What's New in v3.0
 
-**Version 2.0 includes significant breaking changes.** If you're upgrading from v1.x:
+**v3.0 is a quality-of-life and performance release** with no breaking API changes for end users.
+
+| Change | Impact |
+|--------|--------|
+| **Tool consolidation** | 24 table-specific wrappers replaced by 5 generic tools (`search_records`, `get_record`, `get_record_summary`, `find_similar`, `filter_records`) — pass any supported table name as a parameter. Total tools reduced from 55 to 36. |
+| **Faster API responses** | All requests now include `sysparm_exclude_reference_link=true` and `sysparm_no_count=true`, reducing payload size and eliminating unnecessary server-side COUNT queries. |
+| **Deterministic pagination** | Paginated queries automatically sort by `sys_created_on DESC`, preventing records from being skipped or duplicated across pages. |
+| **Centralized URL encoding** | `sysparm_query` values are percent-encoded in a single place, fixing edge cases where special characters caused silent over-fetching. |
+| **Correct HTTP semantics** | Partial updates to private tasks now use `PATCH` instead of `PUT`. |
+
+Upgrading from v2.x requires no configuration changes.
+
+---
+
+## 🚨 Version 2.0 - BREAKING CHANGES (from v1.x)
+
+If you're upgrading from v1.x:
 
 - 📖 **Read the Migration Guide**: [`MIGRATION_V2.md`](MIGRATION_V2.md) - Complete step-by-step migration instructions
 - 📋 **Review Breaking Changes**: [`CHANGELOG.md`](CHANGELOG.md) - Full list of changes and new features
 - 🔧 **OAuth 2.0 Required**: Basic authentication has been removed - OAuth setup is mandatory
-- 📁 **Files Deleted**: Individual table tools consolidated into `consolidated_tools.py`
 
-**New Installations**: Start directly with v2.0 - follow the setup instructions below.
+**New Installations**: Start directly with v3.0 - follow the setup instructions below.
 
 ## ✨ Features
 
@@ -109,12 +124,12 @@ python personal_mcp_servicenow_main.py
 - **Attack Resistance** - Comprehensive protection against SQL injection, XSS, and path traversal
 - **Security Monitoring** - Real-time validation with intelligent safety warnings
 
-### 📦 **Consolidated Architecture**
+### 📦 **Consolidated Architecture (v3.0)**
 
-- **70% Code Reduction** - 4 files deleted, 562 lines removed, 420 lines added (net -142 lines)
-- **Unified Interface** - All table operations through single `consolidated_tools.py` interface
-- **Zero Regression** - 100% backward compatibility maintained through generic approach
-- **Generic Foundation** - 7 enhanced generic functions power 30+ specialized tools
+- **55 → 36 tools** - 24 near-duplicate wrappers replaced by 5 generic parameterized tools
+- **Unified Interface** - `search_records(table, query)` works across all 8 supported tables
+- **Zero Regression** - Generic tools delegate to the same core engine and API path
+- **Performance optimized** - All requests include performance params, centralized URL encoding, deterministic pagination
 - **AI Integration** - Natural language processing seamlessly integrated throughout
 
 ### 🗄️ **Comprehensive Table Support (Enhanced)**
@@ -152,91 +167,69 @@ python personal_mcp_servicenow_main.py
 - **Constants Module** - Centralized configuration eliminating hardcoded values
 - **Query Validation** - Built-in ServiceNow syntax validation with intelligent corrections
 
-## 🛠️ Available Tools (30+ Consolidated AI-Enhanced)
+## 🛠️ Available Tools (36)
 
-### **🧠 AI-Powered Intelligent Query Tools (5 NEW)**
+### **📦 Generic Table Tools (5) — NEW in v3.0**
 
-- `intelligent_search(query, table, context)` - **Natural language search**: "high priority incidents from last week"
-- `build_smart_servicenow_filter(query, table, context)` - **Smart filter building**: Convert natural language to ServiceNow syntax
-- `explain_servicenow_filters(filters, table)` - **AI explanations**: Understand what complex filters will do
-- `get_servicenow_filter_templates()` - **Predefined templates**: Ready-to-use filters for common scenarios
-- `get_query_examples()` - **Example queries**: Natural language examples that work with intelligent search
+These replace 24 table-specific wrappers. Pass any supported table: `incident`, `change_request`, `sc_req_item`, `sc_task`, `universal_request`, `kb_knowledge`, `vtb_task`, `task_sla`.
 
-### **🔧 Server & Authentication (Enhanced)**
+- `search_records(table, query)` - Text similarity search across any supported table
+- `get_record_summary(table, number)` - Short description for a single record
+- `get_record(table, number)` - Full detail fields for a single record
+- `find_similar(table, number)` - Find records similar to an existing record
+- `filter_records(table, filters, fields)` - Query with field-value filters, operators, and date ranges
 
-- `nowtest()` - Server connectivity verification with enhanced diagnostics
-- `now_test_oauth()` - OAuth 2.0 authentication testing with detailed validation
-- `now_auth_info()` - Current authentication method information and security status
-- `nowtestauth()` - ServiceNow API endpoint validation with comprehensive checks
+### **🧠 Intelligent Query Tools (5)**
 
-### **📦 Incident Management (AI-Enhanced through Consolidated Interface)**
+- `intelligent_search(query, table, context)` - Natural language search: "high priority incidents from last week"
+- `build_smart_servicenow_filter(query, table, context)` - Convert natural language to ServiceNow syntax
+- `explain_servicenow_filters(filters, table)` - Human-readable explanations of complex filters
+- `get_servicenow_filter_templates()` - Pre-built filters for common scenarios
+- `get_query_examples()` - Natural language examples that work with intelligent search
 
-- `similar_incidents_for_text(input_text)` - **AI-enhanced** similarity search with confidence scoring
-- `get_short_desc_for_incident(input_incident)` - Retrieve incident descriptions with intelligent validation
-- `similar_incidents_for_incident(input_incident)` - Find related incidents using smart algorithms
-- `get_incident_details(input_incident)` - Complete incident information with optimized field selection
-- `get_incidents_by_filter(filters)` - **Natural language filtering** with automatic parsing
-- `get_priority_incidents(priorities, **additional_filters)` - **AI-enhanced priority queries** with proper ServiceNow OR syntax
+### **🔧 Server & Authentication (5)**
 
-### **🔄 Change Management (Consolidated Interface)**
+- `nowtest()` - Server connectivity verification
+- `now_test_oauth()` - OAuth 2.0 authentication testing
+- `now_auth_info()` - Current authentication method info
+- `nowtestauth()` - ServiceNow API endpoint validation
+- `nowtest_auth_input(table)` - Table description retrieval
 
-- `similar_changes_for_text(input_text)` - Change request similarity search with **compiled regex performance**
-- `get_short_desc_for_change(input_change)` - Change descriptions with intelligent error handling
-- `similar_changes_for_change(input_change)` - Related change requests using **generic algorithms**
-- `get_change_details(input_change)` - Complete change information with **pagination support**
+### **🔥 Priority Incidents (1)**
 
-### **📋 Service Requests (Consolidated Interface)**
+- `get_priority_incidents(priorities, start_date, end_date, additional_filters, include_metadata)` - Priority queries with date range filtering and metadata
 
-- `similar_ur_for_text(input_text)` - User request similarity search with **5x faster processing**
-- `get_short_desc_for_ur(input_ur)` - Request descriptions with **table-specific error messages**
-- `similar_urs_for_ur(input_ur)` - Related service requests using **enhanced generic functions**
-- `get_ur_details(input_ur)` - Complete request details with **optimized field selection**
+### **📚 Knowledge Base (3)**
 
-### **📚 Knowledge Base (AI-Enhanced)**
+- `similar_knowledge_for_text(input_text, kb_base, category)` - Article search with optional category/knowledge base filtering
+- `get_knowledge_by_category(category, kb_base)` - Category-based article retrieval
+- `get_active_knowledge_articles(input_text)` - Published knowledge articles
 
-- `similar_knowledge_for_text(input_text)` - Article similarity search with **AI intelligence**
-- `get_knowledge_details(kb_number)` - Complete article information with **smart validation**
-- `get_knowledge_by_category(category)` - Category-based article retrieval with **natural language support**
-- `get_active_knowledge_articles()` - All active knowledge articles with **pagination and filtering**
+### **📝 Private Task CRUD (2)**
 
-### **📝 Private Task Management (Full CRUD + AI Enhancement)**
+- `create_private_task(task_data)` - Create new private tasks (vtb_task)
+- `update_private_task(task_number, update_data)` - Update existing tasks via PATCH
 
-- `similar_private_tasks_for_text(input_text)` - Task similarity search
-- `get_private_task_details(input_private_task)` - Complete task information
-- `create_private_task(task_data)` - **Create new private tasks**
-- `update_private_task(task_number, update_data)` - **Update existing tasks**
-- `get_private_tasks_by_filter(filters)` - Advanced task filtering
+### **⏱️ SLA Management (10)**
 
-### **🖥️ CMDB Configuration Items (AI-Enhanced Discovery)**
+- `similar_slas_for_text(input_text)` - SLA search by text
+- `get_slas_for_task(task_number)` - All SLAs for a specific task
+- `get_sla_details(sla_sys_id)` - Detailed SLA information
+- `get_breaching_slas(time_threshold_minutes)` - SLAs at risk of breaching
+- `get_breached_slas(filters, days)` - Already breached SLAs
+- `get_slas_by_stage(stage, additional_filters)` - SLAs by stage
+- `get_active_slas(filters)` - Currently active SLAs
+- `get_sla_performance_summary(filters, days)` - SLA performance metrics
+- `get_recent_breached_slas(days)` - Recently breached SLAs
+- `get_critical_sla_status()` - High-priority SLA dashboard
 
-- `find_cis_by_type(ci_type)` - Find all CIs of specific type with **intelligent categorization**
-- `search_cis_by_attributes(name, ip_address, location, status)` - **Natural language CI search** across multiple attributes
-- `get_ci_details(ci_number)` - Comprehensive CI details with **enhanced field selection**
-- `similar_cis_for_ci(ci_number)` - Find similar CIs using **AI-powered algorithms**
-- `get_all_ci_types()` - List all available CI types with **smart organization**
-- `quick_ci_search(search_term)` - **5x faster** CI search by name, IP, or CI number
+### **🖥️ CMDB Configuration Items (6)**
 
-### **🧠 AI Intelligence Examples**
-
-```python
-# Natural language to ServiceNow syntax
-"high priority incidents from last week"
-→ priority=1^ORpriority=2^sys_created_onBETWEEN...
-
-# Confidence scoring and explanations
-{
-  "confidence": 0.92,
-  "explanation": "Found P1 and P2 incidents from August 25-31, 2025",
-  "sql_equivalent": "SELECT * FROM incident WHERE priority IN (1,2)...",
-  "suggestions": ["Consider adding state filter"]
-}
-```
-
-- `find_cis_by_type(ci_type)` - Discover CIs by type (servers, databases, etc.)
+- `find_cis_by_type(ci_type)` - Find CIs by type (100+ types supported)
 - `search_cis_by_attributes(name, ip_address, location, status)` - Multi-attribute CI search
-- `get_ci_details(ci_number)` - Comprehensive CI information
+- `get_ci_details(ci_number)` - Comprehensive CI details
 - `similar_cis_for_ci(ci_number)` - Find similar configuration items
-- `get_all_ci_types()` - List all available CI types (100+ supported)
+- `get_all_ci_types()` - List all available CI types
 - `quick_ci_search(search_term)` - Fast CI search by name, IP, or number
 
 ### **Supported CI Types** (Auto-Discovered)
@@ -372,27 +365,23 @@ python tools.py
 ## 🏗️ Architecture
 
 ```
-MCP Server (FastMCP Framework)
-├── Authentication Layer
-│   ├── OAuth 2.0 Client (oauth_client.py)
-│   ├── Unified API (service_now_api_oauth.py) 
-│   └── Basic Auth Fallback (service_now_api.py)
-├── Table Operations
-│   ├── Generic Tools (generic_table_tools.py)
-│   ├── Incident Tools (incident_tools.py)
-│   ├── Change Tools (change_tools.py)
-│   ├── UR Tools (ur_tools.py)
-│   ├── Knowledge Tools (kb_tools.py)
-│   ├── Private Task Tools (vtb_task_tools.py)
-│   └── CMDB Tools (cmdb_tools.py) 🆕
-├── Intelligence Layer
-│   ├── NLP Processing (utils.py - Lightweight Regex)
-│   ├── Keyword Extraction
-│   └── Similarity Matching
-└── Utility & Testing
-    ├── Server Utilities (utility_tools.py)
-    ├── Comprehensive Test Suite (Testing/)
-    └── Performance Monitoring
+MCP Server (FastMCP — 36 tools)
+├── Tool Layer
+│   ├── Generic Wrappers (generic_tool_wrappers.py — 5 tools for 8 tables)
+│   ├── Consolidated Tools (consolidated_tools.py — priority, knowledge, SLA)
+│   ├── Private Task CRUD (vtb_task_tools.py — create, update via PATCH)
+│   ├── CMDB Tools (cmdb_tools.py — 6 tools, 100+ CI types)
+│   └── Intelligent Query Tools (intelligent_query_tools.py — NLP)
+├── Core Engine
+│   ├── Generic Table Tools (generic_table_tools.py — pagination, sorting, filtering)
+│   └── Query Intelligence (query_intelligence.py — regex NLP)
+├── API Layer
+│   ├── OAuth 2.0 Client (oauth_client.py — token management)
+│   └── HTTP Client (service_now_api_oauth.py — perf params, URL encoding)
+└── Utilities
+    ├── Server Tools (utility_tools.py)
+    ├── Date Utils (date_utils.py)
+    └── Constants & Config (constants.py, config_loader.py)
 ```
 
 ## 🧪 Testing Infrastructure
@@ -486,13 +475,10 @@ Contributions welcome! Please see [Contributing Guidelines](CONTRIBUTING.md).
 
 ## 📊 Project Statistics
 
-- **100+ CMDB CI Types** automatically discovered and supported
-- **50-60% Token Usage Reduction** through optimization
-- **6 Major ServiceNow Tables** fully supported with CRUD operations
+- **36 MCP Tools** covering 8 ServiceNow tables + CMDB (100+ CI types)
+- **537 tests passing** with 80% overall code coverage
 - **OAuth 2.0 Exclusive** - Enhanced security with single authentication method
-- **25+ Available Tools** for comprehensive ServiceNow operations (snake_case compliant)
-- **Full Test Coverage** with 10+ test scenarios
-- **SonarCloud Compliant** - All cognitive complexity violations resolved
+- **SonarCloud Compliant** - All cognitive complexity violations resolved (CC ≤ 15)
 - **PEP 8 Compliant** - 100% snake_case naming convention adherence
 
 ## 📄 License
