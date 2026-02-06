@@ -656,15 +656,36 @@ def _encode_query_string(query_string: str) -> str:
     # Added '@' for JavaScript separators, '!' for NOT EQUALS, '^' for AND/OR operators
     return quote(query_string, safe='=<>&^():@!')
 
+def _inject_sort_order(url: str, sort_directive: str) -> str:
+    """Inject a sort directive into the URL's sysparm_query if no ORDERBY is present.
+
+    Args:
+        url: The full API URL (may or may not contain sysparm_query)
+        sort_directive: e.g. "ORDERBYDESCsys_created_on"
+
+    Returns:
+        URL with the sort directive appended to sysparm_query
+    """
+    if "ORDERBY" in url:
+        return url
+    if "sysparm_query=" in url:
+        return re.sub(r'(sysparm_query=[^&]*)', rf'\1^{sort_directive}', url)
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}sysparm_query={sort_directive}"
+
+
 async def _make_paginated_request(
-    url: str, 
+    url: str,
     max_results: int = 100,  # More reasonable default limit
-    page_size: int = 250
+    page_size: int = 250,
+    default_sort: str = "ORDERBYDESCsys_created_on"
 ) -> List[Dict[str, Any]]:
     """Make paginated requests to get complete result sets."""
+    if default_sort:
+        url = _inject_sort_order(url, default_sort)
     all_results = []
     offset = 0
-    
+
     while len(all_results) < max_results:
         paginated_url = f"{url}&sysparm_offset={offset}&sysparm_limit={page_size}"
         data = await make_nws_request(paginated_url)
