@@ -153,6 +153,11 @@ CC: ~4. `_make_paginated_request()` stays at ~7.
 pytest tests/test_generic_table_tools.py -v --tb=short
 ```
 
+### Summary
+All paginated queries now include a deterministic sort order (`^ORDERBYDESCsys_created_on`) by default, preventing records from being skipped or duplicated across pages. A new `_inject_sort_order(url, sort_directive)` helper (CC ~4) appends the sort directive to the URL's `sysparm_query`, respecting any existing `ORDERBY` clause. `_make_paginated_request()` gains a `default_sort` parameter that callers can override or disable. 10 new tests cover: append to existing query, skip when ORDERBY present, create sysparm_query when missing, complex queries, integration with pagination, custom sort, and opt-out.
+
+**Status**: Done
+
 ---
 
 ## Step 5: Tool Consolidation (Improvement 5)
