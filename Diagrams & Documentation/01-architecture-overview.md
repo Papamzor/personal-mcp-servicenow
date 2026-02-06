@@ -1,154 +1,110 @@
-# 🚀 MCP Server Architecture Overview (Post-Optimization)
+# MCP Server Architecture Overview (v3.0)
 
-This diagram shows the **revolutionary architecture** of the Personal MCP ServiceNow server after the major consolidation and AI enhancement, illustrating the new intelligence-powered components.
+This diagram shows the architecture of the Personal MCP ServiceNow server after the v3.0 consolidation: 5 generic tools replace 24 per-table wrappers, centralized URL encoding, performance parameters, and deterministic pagination.
 
 ```mermaid
 graph TB
     subgraph "MCP Client"
-        A[Claude/Client] --> B[MCP Protocol]
+        A[Claude/Client] --> B[MCP Protocol - stdio]
     end
 
-    subgraph "🚀 Enhanced MCP Server Core"
-        B --> C[tools.py - Optimized FastMCP Server]
-        C --> D[🎯 Streamlined Tool Registration]
+    subgraph "MCP Server Core"
+        B --> C[tools.py - FastMCP Server]
+        C --> D[Tool Registration - 36 tools]
     end
 
-    subgraph "🧠 AI-Powered Tool Categories"
-        D --> E[🔧 Utility Tools - 5 tools]
-        D --> F[🚀 NEW: Intelligent Query Tools - 5 AI tools]
-        D --> G[📋 Consolidated Table Tools - 20+ tools]
-        D --> H[🖥️ CMDB Tools - 6 tools]
+    subgraph "Tool Categories"
+        D --> E[Utility Tools - 5 tools]
+        D --> F[Intelligent Query Tools - 5 tools]
+        D --> G[Generic Tool Wrappers - 5 tools]
+        D --> H[Consolidated Tools - 15 tools]
+        D --> I[CMDB Tools - 6 tools]
     end
 
-    subgraph "🏗️ Revolutionary Core Architecture"
+    subgraph "Tool Implementation Layer"
         E --> L[utility_tools.py]
-        F --> AI[🧠 intelligent_query_tools.py]
-        G --> M[📦 consolidated_tools.py - UNIFIED INTERFACE]
-        H --> CMDB[cmdb_tools.py]
+        F --> AI[intelligent_query_tools.py]
+        G --> GW[generic_tool_wrappers.py]
+        H --> CT[consolidated_tools.py]
+        I --> CMDB[cmdb_tools.py]
 
-        AI --> NLP[🧠 query_intelligence.py - AI Engine]
-        M --> N[⚡ generic_table_tools.py - ENHANCED]
-        N --> NLP
+        AI --> NLP[query_intelligence.py - NLP Engine]
+        GW --> GTT[generic_table_tools.py - Core Engine]
+        CT --> GTT
     end
 
-    subgraph "🛡️ Enhanced ServiceNow Integration"
-        N --> O[service_now_api_oauth.py]
-        L --> O
-        O --> P[oauth_client.py]
-        P --> Q[🔐 ServiceNow Instance - OAuth 2.0 Only]
+    subgraph "ServiceNow Integration"
+        GTT --> PAG[_make_paginated_request<br/>+ _inject_sort_order]
+        PAG --> API[service_now_api_oauth.py<br/>make_nws_request]
+        L --> API
+        API --> PERF[_add_default_params<br/>+ _ensure_query_encoded]
+        PERF --> OAUTH[oauth_client.py]
+        OAUTH --> SN[ServiceNow Instance - OAuth 2.0]
     end
 
-    subgraph "⚡ Optimized Support Modules"
-        N --> R[utils.py - Performance-Focused]
-        R --> S[📊 Compiled Regex Patterns]
-        NLP --> T[🛡️ ReDoS Protection]
-        NLP --> U[📋 Smart Templates]
-
-        subgraph "🚀 NEW: AI Intelligence"
-            V[Natural Language Processing]
-            W[Filter Intelligence & Explanation]
-            X[Predefined Enterprise Templates]
-            Y[SQL Generation & Validation]
-        end
-
-        NLP --> V
-        NLP --> W
-        NLP --> X
-        NLP --> Y
+    subgraph "Support Modules"
+        GTT --> CONST[constants.py<br/>TABLE_CONFIGS, fields, errors]
+        GTT --> UTILS[utils.py - extract_keywords]
+        NLP --> QV[query_validation.py]
+        AI --> QV
+        CT --> DATE[date_utils.py]
     end
 
-    subgraph "🗃️ Enhanced Configuration"
-        Z[📋 constants.py - Comprehensive Config]
-        AA[🔍 query_validation.py - Validation Engine]
-
-        M --> Z
-        N --> Z
-        N --> AA
-        AI --> AA
-    end
-
-    style M fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
-    style N fill:#e1f5fe,stroke:#2196f3,stroke-width:3px
-    style AI fill:#fff3e0,stroke:#ff9800,stroke-width:3px
-    style NLP fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
+    style GW fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
+    style GTT fill:#e1f5fe,stroke:#2196f3,stroke-width:3px
+    style AI fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    style API fill:#fce4ec,stroke:#e91e63,stroke-width:2px
 ```
 
-## 🚀 Revolutionary Architecture Components
+## Architecture Components
 
-### **Core Infrastructure**
-- **MCP Client**: External clients (like Claude) communicating via MCP protocol
-- **Enhanced FastMCP Server**: Optimized tool registration and routing with 70% fewer files
-- **Consolidated Architecture**: 4 deleted files, unified through generic functions
-- **AI-Powered Intelligence**: Natural language query processing and smart filtering
+### Core Infrastructure
+- **MCP Client**: External clients (Claude) communicating via MCP protocol over stdio
+- **FastMCP Server**: Tool registration and routing for 36 tools
+- **Generic Tool Wrappers**: 5 parameterized tools replace 24 per-table wrappers
 
-### **🧠 NEW: AI Intelligence Layer**
-- **query_intelligence.py**: Advanced natural language processing engine
-- **intelligent_query_tools.py**: MCP tool wrappers for AI-powered search
-- **Smart Templates**: Pre-built enterprise filter patterns
-- **Filter Intelligence**: Automatic explanation and SQL generation
-- **ReDoS Protection**: Windows-compatible security against malicious regex
+### Tool Layer
+- **generic_tool_wrappers.py** (v3.0): `search_records`, `get_record`, `get_record_summary`, `find_similar`, `filter_records` — each takes a `table` parameter and validates against `TABLE_CONFIGS`
+- **consolidated_tools.py**: Priority incidents (date logic), knowledge tools (category filtering), 10 SLA tools (specialised query patterns)
+- **intelligent_query_tools.py**: NLP-based query processing with confidence scoring
+- **cmdb_tools.py**: 6 CMDB tools with 100+ CI table types
 
-### **📦 Consolidated Tool Architecture**
-- **consolidated_tools.py**: **UNIFIED INTERFACE** replacing 4+ individual files
-- **20+ Tools**: All table operations through single consolidated interface
-- **Zero Regression**: Complete backward compatibility maintained
-- **Generic Foundation**: All operations powered by 5 core generic functions
+### ServiceNow Integration (v3.0 enhancements)
+- **`make_nws_request()`**: Central HTTP function for all read queries
+  - `_add_default_params()`: Injects `sysparm_display_value=true`, `sysparm_exclude_reference_link=true`, `sysparm_no_count=true`
+  - `_ensure_query_encoded()`: Centralized URL encoding for `sysparm_query` values
+- **`_make_paginated_request()`**: Offset-based pagination with `_inject_sort_order()` appending `^ORDERBYDESCsys_created_on` by default
+- **oauth_client.py**: OAuth 2.0 client credentials flow, auto-refresh on 401
 
-### **⚡ Enhanced Generic Layer**
-- **generic_table_tools.py**: **MASSIVELY EXPANDED** with intelligent parsing
-- **Pagination Support**: Comprehensive result retrieval preventing data loss
-- **Natural Language Parsing**: Automatic conversion of human-readable filters
-- **Security Features**: Input validation and ReDoS protection
-- **Performance Optimization**: Compiled regex patterns and optimized queries
+### Configuration
+- **constants.py**: `TABLE_CONFIGS` (8 tables), `ESSENTIAL_FIELDS`, `DETAIL_FIELDS`, error messages, priority values
+- **query_validation.py**: ServiceNowQueryBuilder for OR filters, date ranges, exclusion filters
 
-### **🛡️ Security & Authentication**
-- **OAuth 2.0 Only**: Exclusive OAuth authentication with automatic token management
-- **Enhanced Security**: ReDoS protection, input validation, attack resistance
-- **Token Caching**: 1-hour expiry with automatic refresh
-- **Secure Communication**: All HTTPS with bearer token authentication
+## v3.0 Changes
 
-### **📊 Performance & Quality Features**
-- **SonarCloud Compliant**: All cognitive complexity violations resolved (≤15 limit)
-- **Code Reduction**: 562 lines removed, 420 lines added (net -142 lines)
-- **Enhanced Performance**: Compiled regex vs SpaCy NLP, faster JSON parsing
-- **Modular Architecture**: Helper functions improve maintainability and testability
-- **Single Responsibility**: All functions follow clean code principles
+### Files Added
+- `Table_Tools/generic_tool_wrappers.py` — 5 generic MCP-facing tools
 
-## 🔥 Major Architectural Changes
+### Files Enhanced
+- `service_now_api_oauth.py` — performance params + URL encoding
+- `generic_table_tools.py` — deterministic sort order for pagination
+- `consolidated_tools.py` — removed 24 wrappers, kept unique logic
+- `vtb_task_tools.py` — PUT to PATCH, removed dead code
 
-### **Files Deleted (Zero Functional Loss)**
-- ❌ `Table_Tools/incident_tools.py`
-- ❌ `Table_Tools/change_tools.py`
-- ❌ `Table_Tools/kb_tools.py`
-- ❌ `Table_Tools/ur_tools.py`
+### Key Metrics
+- 36 tools (down from 55)
+- 537 tests passing, 80% coverage
+- All functions under CC 15
 
-### **Files Enhanced/Added**
-- ✅ **ENHANCED**: `generic_table_tools.py` - 4x larger with AI features
-- ✅ **NEW**: `query_intelligence.py` - Advanced AI processing
-- ✅ **NEW**: `intelligent_query_tools.py` - MCP AI tool wrappers
-- ✅ **ENHANCED**: `constants.py` - Comprehensive configuration
-- ✅ **ENHANCED**: `utils.py` - Performance-focused keyword extraction
+## Tool Inventory (36 tools)
 
-## 🎯 Tool Categories (Post-Consolidation)
-
-### **🔧 Utility Tools (5 tools)**
-- Server connectivity and authentication testing
-- OAuth validation and debugging tools
-
-### **🧠 AI-Powered Intelligent Query Tools (5 NEW tools)**
-- `intelligent_search()` - Natural language query processing
-- `build_smart_servicenow_filter()` - AI filter generation
-- `explain_servicenow_filters()` - Filter intelligence and explanation
-- `get_servicenow_filter_templates()` - Enterprise templates
-- `get_query_examples()` - Natural language examples
-
-### **📋 Consolidated Table Tools (20+ tools)**
-- **Incident Tools**: 6 tools (including AI-enhanced priority queries)
-- **Change Tools**: 4 tools (unified through generic functions)
-- **User Request Tools**: 4 tools (consolidated interface)
-- **Knowledge Base Tools**: 4 tools (category and search filtering)
-- **Private Task Tools**: 5 tools (including CRUD operations)
-
-### **🖥️ CMDB Tools (6 tools)**
-- Configuration item discovery and search
-- Multi-attribute CI queries and analysis
+| # | Tool | Source |
+|---|------|--------|
+| 1-5 | `search_records`, `get_record_summary`, `get_record`, `find_similar`, `filter_records` | generic_tool_wrappers.py |
+| 6 | `get_priority_incidents` | consolidated_tools.py |
+| 7-9 | `similar_knowledge_for_text`, `get_knowledge_by_category`, `get_active_knowledge_articles` | consolidated_tools.py |
+| 10-11 | `create_private_task`, `update_private_task` | vtb_task_tools.py |
+| 12-21 | 10 SLA tools | consolidated_tools.py |
+| 22-27 | 6 CMDB tools | cmdb_tools.py |
+| 28-32 | 5 intelligent query tools | intelligent_query_tools.py |
+| 33-37 | 5 auth/utility tools | utility_tools.py, table_tools.py |
