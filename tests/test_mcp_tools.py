@@ -98,261 +98,6 @@ class TestServerAndAuthTools(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result['table'], 'incident')
 
 
-class TestIncidentTools(unittest.IsolatedAsyncioTestCase):
-    """Test incident management tools."""
-
-    async def asyncSetUp(self):
-        """Set up test fixtures."""
-        try:
-            from Table_Tools.incident_tools import (
-                similar_incidents_for_text, get_short_desc_for_incident,
-                similar_incidents_for_incident, get_incident_details,
-                get_incidents_by_filter, get_priority_incidents
-            )
-            self.incident_tools_available = True
-            self.similar_incidents_for_text = similar_incidents_for_text
-            self.get_short_desc_for_incident = get_short_desc_for_incident
-            self.similar_incidents_for_incident = similar_incidents_for_incident
-            self.get_incident_details = get_incident_details
-            self.get_incidents_by_filter = get_incidents_by_filter
-            self.get_priority_incidents = get_priority_incidents
-        except ImportError as e:
-            self.incident_tools_available = False
-            self.import_error = str(e)
-
-    async def test_similar_incidents_for_text(self):
-        """Test finding similar incidents by text."""
-        if not self.incident_tools_available:
-            self.skipTest(f"Incident tools not available: {self.import_error}")
-        
-        mock_response = {
-            "similar_incidents": [
-                {"number": "INC0010001", "similarity_score": 0.85}
-            ],
-            "count": 1
-        }
-        
-        with patch.object(self, 'similar_incidents_for_text', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.similar_incidents_for_text("server down")
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('similar_incidents', result)
-
-    async def test_get_short_desc_for_incident(self):
-        """Test getting incident description."""
-        if not self.incident_tools_available:
-            self.skipTest(f"Incident tools not available: {self.import_error}")
-        
-        with patch.object(self, 'get_short_desc_for_incident', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = {"description": "Server is not responding"}
-            
-            result = await self.get_short_desc_for_incident("INC0010001")
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('description', result)
-
-    async def test_similar_incidents_for_incident(self):
-        """Test finding similar incidents for specific incident."""
-        if not self.incident_tools_available:
-            self.skipTest(f"Incident tools not available: {self.import_error}")
-        
-        mock_response = {
-            "similar_incidents": [
-                {"number": "INC0010002", "similarity_score": 0.78}
-            ]
-        }
-        
-        with patch.object(self, 'similar_incidents_for_incident', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.similar_incidents_for_incident("INC0010001")
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('similar_incidents', result)
-
-    async def test_get_incident_details(self):
-        """Test getting full incident details."""
-        if not self.incident_tools_available:
-            self.skipTest(f"Incident tools not available: {self.import_error}")
-        
-        mock_response = {
-            "number": "INC0010001",
-            "priority": "1",
-            "state": "New",
-            "short_description": "Server down"
-        }
-        
-        with patch.object(self, 'get_incident_details', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.get_incident_details("INC0010001")
-            
-            self.assertIsInstance(result, dict)
-            self.assertEqual(result['number'], 'INC0010001')
-
-    async def test_get_incidents_by_filter(self):
-        """Test getting incidents with filters."""
-        if not self.incident_tools_available:
-            self.skipTest(f"Incident tools not available: {self.import_error}")
-        
-        filters = {"priority": "1", "state": "New"}
-        mock_response = {"incidents": [], "count": 0}
-        
-        with patch.object(self, 'get_incidents_by_filter', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.get_incidents_by_filter(filters)
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('incidents', result)
-
-    async def test_get_priority_incidents(self):
-        """Test getting priority incidents with proper OR syntax."""
-        if not self.incident_tools_available:
-            self.skipTest(f"Incident tools not available: {self.import_error}")
-        
-        mock_response = {"incidents": [], "count": 5}
-        
-        with patch.object(self, 'get_priority_incidents', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.get_priority_incidents(["1", "2"])
-            
-            self.assertIsInstance(result, dict)
-            mock_func.assert_called_once_with(["1", "2"])
-
-
-class TestChangeTools(unittest.IsolatedAsyncioTestCase):
-    """Test change request tools."""
-
-    async def asyncSetUp(self):
-        """Set up test fixtures."""
-        try:
-            from Table_Tools.consolidated_tools import (
-                similar_changes_for_text, get_short_desc_for_change,
-                similar_changes_for_change, get_change_details
-            )
-            self.change_tools_available = True
-            self.similar_changes_for_text = similar_changes_for_text
-            self.get_short_desc_for_change = get_short_desc_for_change
-            self.similar_changes_for_change = similar_changes_for_change
-            self.get_change_details = get_change_details
-        except ImportError as e:
-            self.change_tools_available = False
-            self.import_error = str(e)
-
-    async def test_similar_changes_for_text(self):
-        """Test finding similar changes by text."""
-        if not self.change_tools_available:
-            self.skipTest(f"Change tools not available: {self.import_error}")
-        
-        mock_response = {
-            "similar_changes": [
-                {"number": "CHG0030001", "similarity_score": 0.82}
-            ]
-        }
-        
-        with patch.object(self, 'similar_changes_for_text', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.similar_changes_for_text("server upgrade")
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('similar_changes', result)
-
-    async def test_get_short_desc_for_change(self):
-        """Test getting change description."""
-        if not self.change_tools_available:
-            self.skipTest(f"Change tools not available: {self.import_error}")
-        
-        with patch.object(self, 'get_short_desc_for_change', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = {"description": "Server OS upgrade"}
-            
-            result = await self.get_short_desc_for_change("CHG0030001")
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('description', result)
-
-    async def test_get_change_details(self):
-        """Test getting full change details."""
-        if not self.change_tools_available:
-            self.skipTest(f"Change tools not available: {self.import_error}")
-        
-        mock_response = {
-            "number": "CHG0030001",
-            "state": "Scheduled",
-            "risk": "Moderate"
-        }
-        
-        with patch.object(self, 'get_change_details', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.get_change_details("CHG0030001")
-            
-            self.assertIsInstance(result, dict)
-            self.assertEqual(result['number'], 'CHG0030001')
-
-
-class TestUserRequestTools(unittest.IsolatedAsyncioTestCase):
-    """Test user request tools."""
-
-    async def asyncSetUp(self):
-        """Set up test fixtures."""
-        try:
-            from Table_Tools.consolidated_tools import (
-                similar_ur_for_text, get_short_desc_for_ur,
-                similar_urs_for_ur, get_ur_details
-            )
-            self.ur_tools_available = True
-            self.similar_ur_for_text = similar_ur_for_text
-            self.get_short_desc_for_ur = get_short_desc_for_ur
-            self.similar_urs_for_ur = similar_urs_for_ur
-            self.get_ur_details = get_ur_details
-        except ImportError as e:
-            self.ur_tools_available = False
-            self.import_error = str(e)
-
-    async def test_similar_ur_for_text(self):
-        """Test finding similar user requests by text."""
-        if not self.ur_tools_available:
-            self.skipTest(f"User request tools not available: {self.import_error}")
-        
-        mock_response = {
-            "similar_requests": [
-                {"number": "REQ0040001", "similarity_score": 0.75}
-            ]
-        }
-        
-        with patch.object(self, 'similar_ur_for_text', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.similar_ur_for_text("new laptop request")
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('similar_requests', result)
-
-    async def test_get_ur_details(self):
-        """Test getting user request details."""
-        if not self.ur_tools_available:
-            self.skipTest(f"User request tools not available: {self.import_error}")
-        
-        mock_response = {
-            "number": "REQ0040001",
-            "state": "Approved",
-            "requested_for": "John Doe"
-        }
-        
-        with patch.object(self, 'get_ur_details', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.get_ur_details("REQ0040001")
-            
-            self.assertIsInstance(result, dict)
-            self.assertEqual(result['number'], 'REQ0040001')
-
-
 class TestKnowledgeBaseTools(unittest.IsolatedAsyncioTestCase):
     """Test knowledge base tools."""
 
@@ -360,12 +105,11 @@ class TestKnowledgeBaseTools(unittest.IsolatedAsyncioTestCase):
         """Set up test fixtures."""
         try:
             from Table_Tools.consolidated_tools import (
-                similar_knowledge_for_text, get_knowledge_details,
+                similar_knowledge_for_text,
                 get_knowledge_by_category, get_active_knowledge_articles
             )
             self.kb_tools_available = True
             self.similar_knowledge_for_text = similar_knowledge_for_text
-            self.get_knowledge_details = get_knowledge_details
             self.get_knowledge_by_category = get_knowledge_by_category
             self.get_active_knowledge_articles = get_active_knowledge_articles
         except ImportError as e:
@@ -390,25 +134,6 @@ class TestKnowledgeBaseTools(unittest.IsolatedAsyncioTestCase):
             
             self.assertIsInstance(result, dict)
             self.assertIn('similar_articles', result)
-
-    async def test_get_knowledge_details(self):
-        """Test getting knowledge article details."""
-        if not self.kb_tools_available:
-            self.skipTest(f"Knowledge base tools not available: {self.import_error}")
-        
-        mock_response = {
-            "number": "KB0007001", 
-            "title": "How to reset password",
-            "text": "Steps for password reset..."
-        }
-        
-        with patch.object(self, 'get_knowledge_details', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.get_knowledge_details("KB0007001")
-            
-            self.assertIsInstance(result, dict)
-            self.assertEqual(result['number'], 'KB0007001')
 
     async def test_get_knowledge_by_category(self):
         """Test getting knowledge articles by category."""
@@ -447,19 +172,12 @@ class TestPrivateTaskTools(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         """Set up test fixtures."""
         try:
-            from Table_Tools.consolidated_tools import (
-                similar_private_tasks_for_text, get_short_desc_for_private_task,
-                similar_private_tasks_for_private_task, get_private_task_details,
-                create_private_task, update_private_task, get_private_tasks_by_filter
+            from Table_Tools.vtb_task_tools import (
+                create_private_task, update_private_task
             )
             self.task_tools_available = True
-            self.similar_private_tasks_for_text = similar_private_tasks_for_text
-            self.get_short_desc_for_private_task = get_short_desc_for_private_task
-            self.similar_private_tasks_for_private_task = similar_private_tasks_for_private_task
-            self.get_private_task_details = get_private_task_details
             self.create_private_task = create_private_task
             self.update_private_task = update_private_task
-            self.get_private_tasks_by_filter = get_private_tasks_by_filter
         except ImportError as e:
             self.task_tools_available = False
             self.import_error = str(e)
