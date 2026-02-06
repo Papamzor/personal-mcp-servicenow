@@ -1,243 +1,159 @@
-# 🚀 Enhanced Similarity Search & AI Intelligence Flow
+# Similarity Search & Intelligent Query Flow (v3.0)
 
-This comprehensive flowchart demonstrates the **revolutionary upgrade** from basic keyword search to AI-powered intelligent similarity matching with performance optimizations and security features.
+This flowchart demonstrates the search flow in v3.0, showing both the generic `search_records` tool (replacing per-table wrappers) and the AI-powered `intelligent_search` tool, including the new performance and encoding enhancements.
 
-## 🧠 AI-Enhanced Search Flow (New Architecture)
+## Search Flow
 
 ```mermaid
 flowchart TD
-    A[User Query: 'Find similar incidents to network outage'] --> B{Search Type Selection}
-    B -->|Traditional| C[📝 similar_incidents_for_text]
-    B -->|AI-Powered| D[🧠 intelligent_search]
+    A["User Query: 'Find incidents about network outage'"] --> B{Search Type}
+    B -->|Generic Search| C["search_records(table='incident', query='network outage')"]
+    B -->|AI-Powered| D["intelligent_search(table='incident', query='...')"]
 
-    C --> E[⚡ Enhanced Keyword Extraction]
-    D --> F[🧠 Natural Language Processing]
+    C --> VAL{Table in TABLE_CONFIGS?}
+    VAL -->|No| VALERR[Return: unsupported table error]
+    VAL -->|Yes| E[query_table_by_text]
 
-    E --> G[📊 Compiled Regex Patterns]
-    F --> H[🎯 Query Intelligence Engine]
+    D --> F[Query Intelligence Engine]
+
+    E --> G[extract_keywords - Compiled Regex]
+    F --> H[Natural Language Processing]
 
     G --> I{Keywords Found?}
-    H --> J[🏗️ Smart Filter Builder]
+    H --> J[Smart Filter Builder]
 
-    I -->|Yes| K[🔄 Iterative Search Loop]
-    I -->|No| L[❌ Return 'No records found']
+    I -->|Yes| K[Iterative Search Loop]
+    I -->|No| L[Return: no records found]
 
-    J --> M[🛡️ Security Validation]
+    J --> M[Security Validation]
     M --> N{Input Safe?}
-    N -->|Yes| O[📋 Template Matching]
-    N -->|No| P[⚠️ Security Alert & Safe Processing]
+    N -->|Yes| O[Template Matching]
+    N -->|No| P[Security Alert + Safe Processing]
 
-    K --> Q[📊 Build Optimized ServiceNow Query]
-    O --> R[🎯 Execute Enhanced Query]
+    K --> Q[Build sysparm_query<br/>short_descriptionCONTAINSkeyword]
+    O --> R[Execute Enhanced Query]
     P --> R
 
-    Q --> S[🔄 Paginated API Request with OAuth]
-    R --> S
+    Q --> CAT[Apply Category Filters<br/>incident/sc_req_item exclusions]
+    CAT --> PAG
 
-    S --> T{Results Found?}
-    T -->|Yes| U[📈 Process & Enhance Results]
-    T -->|No (Traditional)| V[🔄 Try Next Keyword]
-    T -->|No (AI)| W[🧠 Generate Intelligence Report]
+    R --> PAG[_make_paginated_request]
 
-    U --> X[✅ Return Enhanced Results]
+    PAG --> SORT[_inject_sort_order<br/>Append ^ORDERBYDESCsys_created_on]
+    SORT --> API[make_nws_request]
+    API --> ENCODE[_ensure_query_encoded<br/>Percent-encode sysparm_query]
+    ENCODE --> PERF[_add_default_params<br/>+ exclude_reference_link<br/>+ no_count<br/>+ display_value]
+    PERF --> OAUTH[OAuth 2.0 → ServiceNow API]
+
+    OAUTH --> T{Results Found?}
+    T -->|Yes| U[Extract Display Values + Return]
+    T -->|No, Traditional| V[Try Next Keyword]
+    T -->|No, AI| W[Generate Intelligence Report]
+
+    U --> X[Return Results]
     V --> Y{More Keywords?}
-    W --> Z[📊 Return with AI Insights]
+    W --> Z[Return with AI Insights]
 
     Y -->|Yes| K
     Y -->|No| L
 
-    subgraph "🚀 NEW: AI Enhancement Features"
-        AI1[🧠 Confidence Scoring]
-        AI2[💡 Query Explanation]
-        AI3[🔧 SQL Generation]
-        AI4[📋 Improvement Suggestions]
-        AI5[📄 Template Application]
+    subgraph "v3.0: API Enhancements"
+        SORT
+        ENCODE
+        PERF
+    end
+
+    subgraph "AI Intelligence Features"
+        AI1[Confidence Scoring]
+        AI2[Query Explanation]
+        AI3[SQL Generation]
+        AI4[Improvement Suggestions]
 
         H --> AI1
         H --> AI2
         H --> AI3
         H --> AI4
-        O --> AI5
     end
 
-    subgraph "⚡ Performance Optimizations (Enhanced)"
-        PERF1[📊 Essential Fields Only<br/>4 fields vs 50+ available]
-        PERF2[🎯 Compiled Regex Priority<br/>5x faster than SpaCy]
-        PERF3[🏃 Early Exit Strategy<br/>Stop on first match]
-        PERF4[🔐 OAuth 2.0 Token Caching<br/>1-hour expiry]
-        PERF5[📄 Pagination Support<br/>Complete result retrieval]
-
-        Q --> PERF1
-        G --> PERF2
-        T --> PERF3
-        S --> PERF4
-        S --> PERF5
-    end
-
-    subgraph "🛡️ NEW: Security Layer"
-        SEC1[🔍 Input Length Validation]
-        SEC2[🛡️ ReDoS Protection]
-        SEC3[⏱️ Timeout Protection]
-        SEC4[🧼 Input Sanitization]
-
-        M --> SEC1
-        M --> SEC2
-        M --> SEC3
-        M --> SEC4
-    end
-
-    subgraph "📊 Enhanced NLP Processing"
-        NLP1[Input Text] --> NLP2[⚡ Compiled Regex Engine]
-        NLP2 --> NLP3[📊 Pattern Recognition]
-        NLP3 --> NLP4[🎯 Priority Assignment]
-        NLP4 --> NLP5[🧹 Stop Word Filtering]
-        NLP5 --> NLP6[📈 Return Optimized Keywords]
-
-        G --> NLP1
-    end
-
-    style D fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
-    style H fill:#fff3e0,stroke:#ff9800,stroke-width:3px
-    style X fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
-    style Z fill:#e1f5fe,stroke:#2196f3,stroke-width:3px
+    style C fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
+    style D fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    style SORT fill:#e1f5fe,stroke:#2196f3,stroke-width:2px
+    style ENCODE fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    style PERF fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    style X fill:#e8f5e8,stroke:#4caf50
     style L fill:#ffebee,stroke:#f44336
-    style P fill:#fff3e0,stroke:#ff9800
 ```
 
-## 🚀 Revolutionary Search Flow Steps
+## Search Flow Steps
 
-### **Traditional Enhanced Search**
-1. **Input Processing**: User provides natural language query
-2. **Compiled Regex Analysis**: Lightning-fast keyword extraction (5x faster than SpaCy)
-3. **Priority-Based Query Construction**: Build optimized ServiceNow API queries
-4. **Iterative Search**: Try keywords in relevance order
-5. **Early Exit**: Return immediately on first successful match
-6. **Pagination Support**: Comprehensive result retrieval for large datasets
+### Generic Search (search_records)
+1. **Table Validation**: Validate `table` parameter against `TABLE_CONFIGS` (8 supported tables)
+2. **Keyword Extraction**: Compiled regex tokenizes input, filters stop words
+3. **Query Construction**: Build `short_descriptionCONTAINSkeyword` for each keyword
+4. **Category Filtering**: Apply incident/sc_req_item exclusion filters if enabled
+5. **Paginated Request**: Offset-based pagination with deterministic sort order
+6. **URL Encoding**: `_ensure_query_encoded()` percent-encodes special characters
+7. **Performance Params**: `sysparm_exclude_reference_link=true` + `sysparm_no_count=true`
+8. **Early Exit**: Return on first keyword match with results
 
-### **🧠 AI-Powered Intelligent Search**
-1. **Natural Language Understanding**: Advanced AI parsing with context awareness
-2. **Security Validation**: ReDoS protection and input sanitization
-3. **Template Matching**: Enterprise-grade pre-built patterns
+### AI-Powered Search (intelligent_search)
+1. **NLP Processing**: Advanced query parsing with context awareness
+2. **Security Validation**: Input sanitization, ReDoS protection
+3. **Template Matching**: Enterprise-grade pre-built filter patterns
 4. **Smart Filter Generation**: AI-powered ServiceNow syntax creation
-5. **Confidence Scoring**: Intelligence metadata with 0.0-1.0 confidence
+5. **Confidence Scoring**: 0.0-1.0 confidence with intelligence metadata
 6. **Query Explanation**: Human-readable explanations and SQL equivalents
 
-## ⚡ Enhanced Optimization Strategies
+## v3.0 API Enhancement Details
 
-### **Performance Improvements (vs Previous Architecture)**
-- **🚀 5x Faster Keyword Extraction**: Compiled regex vs SpaCy NLP processing
-- **📊 Essential Field Selection**: 4 fields vs 50+ available (60% data reduction)
-- **🎯 Smart Priority Ordering**: Most relevant terms processed first
-- **🏃 Early Exit Strategy**: Stop searching on first successful match
-- **🔐 OAuth Token Caching**: 1-hour token reuse across requests
-- **📄 Pagination Support**: Complete result retrieval preventing data loss
-- **⚡ Async Operations**: Non-blocking I/O for concurrent requests
+### Deterministic Pagination (Step 4)
+- `_inject_sort_order()` appends `^ORDERBYDESCsys_created_on` to all paginated queries
+- Prevents records from being skipped or duplicated across pages
+- Respects any existing `ORDERBY` clause in the query
+- Callers can override or disable via `default_sort` parameter
 
-### **🧠 AI Intelligence Features**
-- **Natural Language Processing**: Context-aware query understanding
-- **Confidence Scoring**: 0.85+ confidence indicates high-quality matches
-- **Query Explanation**: AI-generated explanations of what filters do
-- **SQL Generation**: Automatic SQL equivalents for debugging
-- **Template Recognition**: 90%+ match applies enterprise patterns
-- **Improvement Suggestions**: AI recommendations for better queries
+### URL Encoding (Step 3)
+- `_ensure_query_encoded()` in `make_nws_request()` centralizes encoding
+- Unquotes first to prevent double-encoding, then applies `quote(value, safe='=<>&^():@!')`
+- Fixes: queries with `&`, `=`, `^`, `#`, or spaces no longer cause silent full-table returns
 
-### **🛡️ Security & Validation**
-- **Input Length Validation**: >200 character inputs rejected
-- **ReDoS Protection**: Windows-compatible timeout protection
-- **Pattern Analysis**: Suspicious character combinations detected
-- **Input Sanitization**: Safe processing of potentially malicious input
-- **Attack Resistance**: SQL injection, XSS, path traversal protection
+### Performance Parameters (Step 2)
+- `_add_default_params()` injects on all read requests:
+  - `sysparm_exclude_reference_link=true` — removes unused reference URLs (reduces token usage)
+  - `sysparm_no_count=true` — skips `SELECT COUNT(*)` (reduces latency)
+  - `sysparm_display_value=true` — returns human-readable values
 
-## 🔍 Enhanced Query Evolution Examples
+## Query Evolution Example
 
-### **Example 1: Traditional Enhanced Search**
-**Input**: "Find incidents similar to network outage in datacenter"
+### v3.0 Generic Search
+**Input**: `search_records(table="incident", query="network outage in datacenter")`
 
-**Enhanced Keywords**: ["network", "outage", "datacenter"] (compiled regex extraction)
+**Processing**:
+1. Table validation: `incident` is in `TABLE_CONFIGS`
+2. Keywords extracted: `["network", "outage", "datacenter"]`
+3. First query: `short_descriptionCONTAINSnetwork`
+4. Category filter applied (if enabled)
+5. Sort appended: `^ORDERBYDESCsys_created_on`
+6. URL encoded, performance params added
+7. Paginated results returned
 
-**Optimized API Queries**:
-1. `short_descriptionCONTAINSnetwork` ← Highest relevance score
-2. `short_descriptionCONTAINSoutage` ← If #1 yields <10 results
-3. `short_descriptionCONTAINSdatacenter` ← Fallback option
+**Final API URL**:
+```
+/api/now/table/incident?sysparm_fields=number,short_description,...
+&sysparm_query=short_descriptionCONTAINSnetwork^ORDERBYDESCsys_created_on
+&sysparm_display_value=true&sysparm_exclude_reference_link=true&sysparm_no_count=true
+&sysparm_limit=50&sysparm_offset=0
+```
 
-**Performance**: 2.3s → 0.8s (65% faster)
-
-### **Example 2: AI-Powered Intelligent Search**
-**Input**: "Show me high priority incidents from last week"
+### AI-Powered Search
+**Input**: `intelligent_search(table="incident", query="high priority incidents from last week")`
 
 **AI Processing**:
-- **Time Detection**: "last week" → BETWEEN javascript:gs.beginningOfLastWeek()@javascript:gs.endOfLastWeek()
-- **Priority Intelligence**: "high priority" → priority=1^ORpriority=2
-- **Template Match**: 92% confidence → Apply "High Priority Last Week" template
-- **Security Check**: Input validated ✅
-
-**Generated ServiceNow Query**:
-```
-priority=1^ORpriority=2^sys_created_onBETWEEN
-javascript:gs.beginningOfLastWeek()@javascript:gs.endOfLastWeek()
-```
-
-**Intelligence Response**:
-```json
-{
-  "records": 23,
-  "confidence": 0.92,
-  "explanation": "Found P1 and P2 incidents created between August 25-31, 2025",
-  "sql_equivalent": "SELECT * FROM incident WHERE priority IN (1,2) AND sys_created_on BETWEEN '2025-08-25' AND '2025-08-31'",
-  "template_used": "high_priority_last_week",
-  "suggestions": ["Consider adding state filter to exclude resolved incidents"]
-}
-```
-
-## 📊 Performance Comparison
-
-### **Before Optimization**
-- SpaCy NLP dependency: 47MB
-- Keyword extraction: ~200ms
-- API queries: Basic field selection
-- Error handling: Basic messages
-- Security: Limited validation
-
-### **After Revolutionary Enhancement**
-- Compiled regex patterns: <1MB
-- Keyword extraction: ~40ms (5x faster)
-- API queries: Optimized field selection + pagination
-- Error handling: Intelligent with suggestions
-- Security: Enterprise-grade ReDoS protection
-
-### **AI Intelligence Addition**
-- Natural language understanding: Advanced
-- Confidence scoring: 0.0-1.0 range
-- Query explanation: Human-readable
-- Template system: Enterprise patterns
-- Security validation: Comprehensive
-
-## 🎯 Real-World Usage Scenarios
-
-### **Scenario 1: IT Operations Dashboard**
-**Query**: "Critical database incidents this month"
-**AI Response**:
-- Confidence: 0.88
-- Found: 12 P1 incidents with "database" keywords
-- Template: "critical_issues_timeframe"
-- Suggestion: "Consider filtering by assignment group"
-
-### **Scenario 2: Change Management Review**
-**Query**: "Show approved changes for server maintenance"
-**AI Response**:
-- Confidence: 0.91
-- Found: 18 change requests with approval=approved
-- Template: "approved_maintenance_changes"
-- SQL: "SELECT * FROM change_request WHERE approval='approved' AND short_description LIKE '%server%'"
-
-### **Scenario 3: Knowledge Base Search**
-**Query**: "Articles about VPN troubleshooting"
-**AI Response**:
-- Confidence: 0.76 (custom filter, no template match)
-- Found: 34 knowledge articles
-- Keywords: ["vpn", "troubleshooting"]
-- Suggestion: "Try 'VPN connection issues' for more specific results"
+- Time detection: "last week" → date range filter
+- Priority intelligence: "high priority" → `priorityIN1,2`
+- Confidence: 0.92
+- SQL equivalent: `SELECT * FROM incident WHERE priority IN (1,2) AND sys_created_on BETWEEN ...`
 
 ---
 
-*This enhanced similarity search system combines the speed of compiled regex with the intelligence of AI processing, delivering enterprise-grade performance with human-like query understanding.*
+*The v3.0 search architecture combines generic parameterized tools with centralized API enhancements for reliable, performant queries across all supported tables.*
