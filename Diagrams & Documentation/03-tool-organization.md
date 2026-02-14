@@ -1,257 +1,179 @@
-# 🚀 Tool Organization & Revolutionary Consolidation
+# Tool Organization & Consolidation (v3.0)
 
-This diagram shows the **MAJOR ARCHITECTURAL TRANSFORMATION** from 35+ scattered tools to a unified, AI-powered architecture with consolidated interfaces and intelligent processing.
+This diagram shows the v3.0 architectural transformation: 24 near-duplicate per-table wrappers replaced by 5 generic parameterized tools, reducing from 55 to 36 total tools with zero functional loss.
 
-## 🔥 Before vs After: Revolutionary Change
+## Before vs After: v3.0 Consolidation
 ```mermaid
 graph TB
-    subgraph "❌ BEFORE: Scattered Architecture"
-        OLD1[incident_tools.py - 6 functions]
-        OLD2[change_tools.py - 4 functions]
-        OLD3[kb_tools.py - 4 functions]
-        OLD4[ur_tools.py - 4 functions]
-        OLD5[Duplicate code everywhere]
-        OLD6[SpaCy NLP dependency]
+    subgraph "BEFORE: 24 Per-Table Wrappers"
+        OLD1[similar_incidents_for_text]
+        OLD2[similar_changes_for_text]
+        OLD3[similar_ur_for_text]
+        OLD4[get_incident_details]
+        OLD5[get_change_details]
+        OLD6[get_short_desc_for_incident]
+        OLD7["... 18 more 1-line wrappers"]
     end
 
-    subgraph "✅ AFTER: Consolidated AI Architecture"
-        NEW1[📦 consolidated_tools.py - UNIFIED INTERFACE]
-        NEW2[⚡ generic_table_tools.py - ENHANCED]
-        NEW3[🧠 query_intelligence.py - AI ENGINE]
-        NEW4[🎯 intelligent_query_tools.py - AI TOOLS]
-        NEW5[📊 Compiled regex patterns]
-        NEW6[🛡️ ReDoS protection]
+    subgraph "AFTER: 5 Generic Tools"
+        NEW1["search_records(table, query)"]
+        NEW2["get_record(table, number)"]
+        NEW3["get_record_summary(table, number)"]
+        NEW4["find_similar(table, number)"]
+        NEW5["filter_records(table, filters, fields)"]
     end
 
     OLD1 --> NEW1
     OLD2 --> NEW1
     OLD3 --> NEW1
-    OLD4 --> NEW1
+    OLD4 --> NEW2
     OLD5 --> NEW2
-    OLD6 --> NEW5
+    OLD6 --> NEW3
+    OLD7 --> NEW4
 
-    NEW1 --> NEW2
-    NEW2 --> NEW3
-    NEW3 --> NEW4
+    NEW1 --> GTT[generic_table_tools.py]
+    NEW2 --> GTT
+    NEW3 --> GTT
+    NEW4 --> GTT
+    NEW5 --> GTT
 
     style NEW1 fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
-    style NEW3 fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
-    style OLD5 fill:#ffebee,stroke:#f44336,stroke-width:2px
+    style NEW2 fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    style NEW3 fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    style NEW4 fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    style NEW5 fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    style OLD7 fill:#ffebee,stroke:#f44336,stroke-width:2px
 ```
 
-## 🧠 AI-Enhanced Tool Categories Overview
+## v3.0 Tool Categories Overview
 ```mermaid
 graph LR
-    subgraph "🚀 40+ MCP Tools - Revolutionized Architecture"
-        A[🎫 Incident Tools<br/>6 tools - AI enhanced]
-        B[🔄 Change Tools<br/>4 tools - Consolidated]
-        C[📚 Knowledge Tools<br/>4 tools - Consolidated]
-        D[🖥️ CMDB Tools<br/>6 tools - Independent]
-        E[📋 User Request Tools<br/>4 tools - Consolidated]
-        F[📝 Private Task Tools<br/>5 tools - CRUD enabled]
-        G[⏱️ SLA Tools<br/>10 tools - Token-optimized]
-        H[🔧 Utility Tools<br/>5 tools - Enhanced]
-        I[🧠 AI Intelligence Tools<br/>5 NEW tools]
+    subgraph "36 MCP Tools"
+        A[Generic Table Tools<br/>5 tools - parameterized]
+        B[Incident Tools<br/>1 tool - priority + dates]
+        C[Knowledge Tools<br/>3 tools - category filtering]
+        D[CMDB Tools<br/>6 tools - CI discovery]
+        E[Private Task Tools<br/>2 tools - CRUD]
+        F[SLA Tools<br/>10 tools - specialised queries]
+        G[Utility Tools<br/>5 tools - auth/connectivity]
+        H[Intelligent Query Tools<br/>5 tools - NLP]
     end
 
-    A --> J[📦 Consolidated Interface]
-    B --> J
+    A --> I[generic_tool_wrappers.py]
+    B --> J[consolidated_tools.py]
     C --> J
-    E --> J
     F --> J
-    G --> J
-    D --> K[🖥️ Specialized CMDB Layer]
-    H --> L[🔐 Direct OAuth API]
-    I --> M[🧠 AI Processing Engine]
+    D --> K[cmdb_tools.py]
+    E --> L[vtb_task_tools.py]
+    G --> M[utility_tools.py]
+    H --> N[intelligent_query_tools.py]
 
-    J --> N[⚡ Enhanced Generic Layer]
-    K --> L
-    M --> N
-    N --> L
-    L --> O[🔗 ServiceNow API]
+    I --> O[generic_table_tools.py]
+    J --> O
+    K --> P[service_now_api_oauth.py]
+    L --> Q[_make_authenticated_request]
+    N --> O
+    O --> P
+    P --> R[ServiceNow API]
+    Q --> R
 
-    style J fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
-    style M fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
-    style I fill:#fff3e0,stroke:#ff9800,stroke-width:3px
-    style G fill:#e3f2fd,stroke:#2196f3,stroke-width:3px
+    style I fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
+    style O fill:#e1f5fe,stroke:#2196f3,stroke-width:2px
+    style P fill:#fce4ec,stroke:#e91e63,stroke-width:2px
 ```
 
-## 🚀 Revolutionary Generic Function Architecture
+## Generic Tool Wrapper Pattern (v3.0)
 ```mermaid
 graph TB
-    subgraph "📦 Consolidated Tool Pattern Examples"
-        A1[similar_incidents_for_text] --> G1[query_table_by_text]
-        A2[similar_changes_for_text] --> G1
-        A3[similar_knowledge_for_text] --> G1
-        A4[similar_ur_for_text] --> G1
-
-        B1[get_incident_details] --> G2[get_record_details]
-        B2[get_change_details] --> G2
-        B3[get_knowledge_details] --> G2
-        B4[get_ur_details] --> G2
-
-        C1[intelligent_search] --> AI1[query_table_intelligently]
-        C2[build_smart_servicenow_filter] --> AI2[build_and_validate_smart_filter]
-        C3[explain_servicenow_filters] --> AI3[explain_filter_query]
+    subgraph "MCP Tool Call"
+        CALL["search_records(table='incident', query='server down')"]
     end
 
-    subgraph "⚡ Enhanced Generic Functions"
-        G1[📝 query_table_by_text<br/>Enhanced text search with pagination]
-        G2[📋 get_record_details<br/>Full record information]
-        G3[🔍 get_record_description<br/>Short description only]
-        G4[🔗 find_similar_records<br/>Intelligent similarity matching]
-        G5[🎯 query_table_with_filters<br/>Natural language parsing]
-        G6[⚡ get_records_by_priority<br/>Generic priority queries]
-        G7[📊 query_table_with_generic_filters<br/>Advanced filtering]
+    subgraph "generic_tool_wrappers.py"
+        VAL{table in TABLE_CONFIGS?}
+        CALL --> VAL
+        VAL -->|No| ERR[Return error: unsupported table]
+        VAL -->|Yes| DELEGATE[Call generic function]
     end
 
-    subgraph "🧠 NEW: AI-Powered Functions"
-        AI1[🧠 query_table_intelligently<br/>Natural language queries]
-        AI2[🎯 build_and_validate_smart_filter<br/>AI filter generation]
-        AI3[💡 explain_filter_query<br/>Filter intelligence]
-        AI4[📋 Smart Templates<br/>Enterprise patterns]
-        AI5[🛡️ ReDoS Protection<br/>Security validation]
+    subgraph "generic_table_tools.py"
+        DELEGATE --> QBT[query_table_by_text]
+        QBT --> KW[extract_keywords]
+        KW --> BUILD[Build sysparm_query]
+        BUILD --> FILTER[Apply category filters]
     end
 
-    subgraph "🔗 Enhanced ServiceNow Integration"
-        G1 --> API[_make_paginated_request]
-        G2 --> API
-        G3 --> API
-        G4 --> API
-        G5 --> API
-        G6 --> API
-        G7 --> API
-
-        AI1 --> API
-        AI2 --> VALID[query_validation.py]
-        AI3 --> VALID
-
-        API --> AUTH[OAuth 2.0 Only]
-        API --> FIELDS[Optimized Field Selection from constants.py]
-        API --> NLP[⚡ Compiled Regex Patterns]
-
-        VALID --> PROTECT[🛡️ Input Validation]
-        NLP --> PROTECT
-        AI5 --> PROTECT
+    subgraph "Pagination + API"
+        FILTER --> PAG[_make_paginated_request]
+        PAG --> SORT[_inject_sort_order<br/>^ORDERBYDESCsys_created_on]
+        SORT --> REQ[make_nws_request]
+        REQ --> PARAMS[_add_default_params<br/>+ _ensure_query_encoded]
+        PARAMS --> OAUTH[OAuth 2.0 → ServiceNow]
     end
 
-    subgraph "🗃️ Configuration & Constants"
-        CONST[📋 constants.py<br/>Table configs, field definitions]
-        VALID --> CONST
-        API --> CONST
-        G5 --> CONST
+    subgraph "Supported Tables"
+        T1[incident]
+        T2[change_request]
+        T3[sc_req_item]
+        T4[sc_task]
+        T5[universal_request]
+        T6[kb_knowledge]
+        T7[vtb_task]
+        T8[task_sla]
     end
 
-    style G1 fill:#e1f5fe,stroke:#2196f3,stroke-width:2px
-    style G5 fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
-    style AI1 fill:#fff3e0,stroke:#ff9800,stroke-width:3px
-    style AI2 fill:#f3e5f5,stroke:#9c27b0,stroke-width:3px
-    style PROTECT fill:#ffebee,stroke:#f44336,stroke-width:2px
+    style VAL fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    style SORT fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    style PARAMS fill:#e1f5fe,stroke:#2196f3,stroke-width:2px
 ```
 
-## 🚀 Revolutionary Tool Categories (Post-Consolidation)
+## Tool Categories Detail
 
-### **🧠 AI-Powered Intelligent Query Tools (5 NEW tools)**
-- **intelligent_search()**: Natural language query processing with confidence scoring
-- **build_smart_servicenow_filter()**: AI-powered filter generation and validation
-- **explain_servicenow_filters()**: Filter intelligence with SQL generation
-- **get_servicenow_filter_templates()**: Enterprise-grade pre-built patterns
-- **get_query_examples()**: Natural language query examples and tips
+### Generic Table Tools (5 tools — generic_tool_wrappers.py)
+Each validates `table` against `TABLE_CONFIGS` and delegates to `generic_table_tools.py`:
+- **search_records(table, query)** → `query_table_by_text()` — text-based search
+- **get_record(table, number)** → `get_record_details()` — full record by number
+- **get_record_summary(table, number)** → `get_record_description()` — short description
+- **find_similar(table, number)** → `find_similar_records()` — similarity matching
+- **filter_records(table, filters, fields)** → `query_table_with_filters()` — structured filtering
 
-### **📦 Consolidated Table Tools (30+ tools - Zero Regression)**
-- **Incident Tools**: 6 tools (including AI-enhanced priority queries)
-- **Change Tools**: 4 tools (unified through consolidated interface)
-- **Knowledge Tools**: 4 tools (category filtering and search)
-- **User Request Tools**: 4 tools (service catalog request handling)
-- **Private Task Tools**: 5 tools (full CRUD operations enabled)
-- **⏱️ SLA Tools**: 10 tools (token-optimized for large databases)
+### Consolidated Tools (14 tools — consolidated_tools.py)
+Tools with unique logic that cannot be replaced by generic wrappers:
+- **Priority Incidents** (1): Complex date logic, metadata, convenience helpers
+- **Knowledge** (3): Category/kb_base filtering, active articles
+- **SLA** (10): Each has specialised query patterns (breaching, stage, performance, etc.)
 
-### **⏱️ SLA Tools (10 token-optimized tools) - NEW**
-- **get_critical_sla_status()**: Executive dashboard (P1/P2 tasks >80% completion)
-- **get_recent_breached_slas()**: Configurable recent breach analysis (default 24h)
-- **get_breached_slas()**: Smart breach query (auto-filtered to 7 days)
-- **get_breaching_slas()**: Proactive breach prevention with time thresholds
-- **get_active_slas()**: Currently active SLA monitoring
-- **get_slas_by_stage()**: Stage-based filtering (In Progress, Completed, etc.)
-- **get_slas_for_task()**: All SLAs for specific incidents/tasks
-- **get_sla_details()**: Comprehensive SLA information by sys_id
-- **get_sla_performance_summary()**: Performance metrics (auto-filtered 30 days)
-- **similar_slas_for_text()**: Text-based SLA discovery
+### CMDB Tools (6 tools — cmdb_tools.py)
+Separate architecture with 100+ CI table types:
+- `find_cis_by_type`, `search_cis_by_attributes`, `get_ci_details`
+- `similar_cis_for_ci`, `get_all_ci_types`, `quick_ci_search`
 
-### **🖥️ CMDB Tools (6 specialized tools)**
-- Configuration item discovery and search
-- Multi-attribute CI queries and analysis
-- Relationship mapping and similar CI finding
+### Intelligent Query Tools (5 tools — intelligent_query_tools.py)
+NLP-based query processing:
+- `intelligent_search`, `explain_servicenow_filters`, `build_smart_servicenow_filter`
+- `get_servicenow_filter_templates`, `get_query_examples`
 
-### **🔧 Utility Tools (5 enhanced tools)**
-- Server connectivity and OAuth authentication testing
-- ServiceNow API validation and debugging
+### Utility Tools (5 tools)
+- `nowtest`, `now_test_oauth`, `now_auth_info`, `nowtestauth`, `nowtest_auth_input`
 
-## 🔥 Revolutionary Consolidation Benefits
+### Private Task CRUD (2 tools — vtb_task_tools.py)
+- `create_private_task`, `update_private_task` (uses PATCH for partial updates)
 
-### **🏗️ Architectural Advantages**
-- **Code Reduction**: 562 lines removed, 420 lines added (net -142 lines)
-- **File Elimination**: 4 table-specific files deleted with zero functional loss
-- **Unified Interface**: All table operations through single consolidated interface
-- **Generic Foundation**: 7 enhanced generic functions serve 20+ specific tools
-- **AI Enhancement**: Natural language processing adds powerful new capabilities
+## Consolidation Benefits
 
-### **⚡ Performance Improvements**
-- **Compiled Regex**: Performance-focused keyword extraction vs SpaCy NLP
-- **Pagination Support**: Comprehensive result retrieval preventing data loss
-- **Field Optimization**: Essential vs detail fields for minimal data transfer
-- **Token Caching**: OAuth 2.0 tokens reused across requests (1-hour expiry)
-- **Early Exit Strategy**: Return first successful match for text searches
+### Metrics
+- **Tools**: 55 → 36 (35% reduction, zero functional loss)
+- **Wrappers removed**: 24 one-line functions deleted
+- **Dead code removed**: 5 duplicate functions from vtb_task_tools.py
+- **Tests**: 537 passing, 80% coverage
 
-### **🛡️ Security & Quality Features**
-- **ReDoS Protection**: Windows-compatible protection against malicious regex
-- **Input Validation**: Pre-validation of all text inputs to prevent attacks
-- **OAuth 2.0 Only**: Enhanced security with exclusive OAuth authentication
-- **SonarCloud Compliance**: All cognitive complexity violations resolved (≤15)
-- **Code Quality**: Single responsibility principle and modular design
+### v3.0 API Improvements
+- **Performance params**: `sysparm_exclude_reference_link=true` + `sysparm_no_count=true` on all reads
+- **URL encoding**: Centralized `sysparm_query` encoding in `make_nws_request()`
+- **Deterministic pagination**: `^ORDERBYDESCsys_created_on` appended to all paginated queries
+- **HTTP semantics**: PUT → PATCH for partial updates
 
-### **🧠 AI Intelligence Features**
-- **Natural Language Processing**: Advanced query understanding with confidence scoring
-- **Smart Templates**: Pre-built enterprise filter patterns for common scenarios
-- **Filter Intelligence**: Automatic explanation and SQL equivalent generation
-- **Query Validation**: Built-in ServiceNow syntax validation and correction
-- **Context Awareness**: Intelligent parsing of dates, priorities, and exclusions
-
-## 📊 Measurable Improvements
-
-### **Before Consolidation**
-- 35+ tools across 7+ files
-- Code duplication everywhere
-- SpaCy NLP dependency (47MB)
-- Manual keyword extraction
-- No AI capabilities
-- Basic error handling
-
-### **After Revolutionary Changes**
-- 40+ tools through unified architecture
-- 4 files eliminated, zero regression
-- Compiled regex patterns (lightweight)
-- AI-powered natural language processing
-- Enterprise-grade security features
-- Comprehensive input validation
-- Token-optimized SLA monitoring
-
-## 🎯 Extensibility & Future-Proofing
-
-### **Easy Table Addition**
-1. Add table configuration to `constants.py`
-2. Functions automatically work through generic layer
-3. AI features immediately available
-4. No code duplication required
-
-### **AI Enhancement Ready**
-- Natural language processing framework established
-- Filter intelligence engine operational
-- Template system for rapid deployment
-- Query validation and correction built-in
-
-### **Security-First Architecture**
-- ReDoS protection at input layer
-- OAuth 2.0 exclusive authentication
-- Input validation for all user data
-- Attack resistance testing included
+### Extensibility
+1. Add table config to `constants.py`
+2. All 5 generic tools automatically support the new table
+3. No code duplication required
