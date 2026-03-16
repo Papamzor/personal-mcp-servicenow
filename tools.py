@@ -3,21 +3,14 @@ import sys
 print("Personal ServiceNow MCP Server started.", file=sys.stderr)
 
 from mcp.server.fastmcp import FastMCP
+from Table_Tools.generic_tool_wrappers import (
+    search_records, get_record_summary, get_record, find_similar, filter_records
+)
 from Table_Tools.consolidated_tools import (
-    # Incident tools
-    similar_incidents_for_text, get_short_desc_for_incident, similar_incidents_for_incident, 
-    get_incident_details, get_incidents_by_filter, get_priority_incidents,
-    # Change tools  
-    similar_changes_for_text, get_short_desc_for_change, similar_changes_for_change, get_change_details,
-    # Request Item tools
-    similar_request_items_for_text, get_short_desc_for_request_item, similar_request_items_for_request_item, get_request_item_details,
-    # Universal Request tools
-    similar_universal_requests_for_text, get_short_desc_for_universal_request, similar_universal_requests_for_universal_request, get_universal_request_details,
-    # Knowledge tools
-    similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles,
-    # Private Task tools (basic operations)
-    similar_private_tasks_for_text, get_short_desc_for_private_task, similar_private_tasks_for_private_task, get_private_task_details,
-    get_private_tasks_by_filter,
+    # Priority incidents (unique date logic)
+    get_priority_incidents,
+    # Knowledge-specific tools
+    similar_knowledge_for_text, get_knowledge_by_category, get_active_knowledge_articles,
     # SLA tools
     similar_slas_for_text, get_slas_for_task, get_sla_details, get_breaching_slas, get_breached_slas,
     get_slas_by_stage, get_active_slas, get_sla_performance_summary, get_recent_breached_slas, get_critical_sla_status
@@ -35,36 +28,28 @@ from Table_Tools.intelligent_query_tools import (
 
 mcp = FastMCP("personalmcpservicenow")
 
-# Register optimized tools - consolidated from 25+ individual table tools to generic approach
+# Register tools — consolidated from 55 to ~36
 tools = [
     # Server & Authentication tools
     nowtest, now_test_oauth, now_auth_info, nowtestauth, nowtest_auth_input,
-    
-    # Incident tools (using generic functions)
-    similar_incidents_for_text, get_short_desc_for_incident, similar_incidents_for_incident, 
-    get_incident_details, get_incidents_by_filter, get_priority_incidents,
-    
-    # Change tools (using generic functions)
-    similar_changes_for_text, get_short_desc_for_change, similar_changes_for_change, get_change_details,
-    
-    # Request Item tools (using generic functions)
-    similar_request_items_for_text, get_short_desc_for_request_item, similar_request_items_for_request_item, get_request_item_details,
-    
-    # Universal Request tools (using generic functions)
-    similar_universal_requests_for_text, get_short_desc_for_universal_request, similar_universal_requests_for_universal_request, get_universal_request_details,
-    
-    # Knowledge Base tools (using generic functions)
-    similar_knowledge_for_text, get_knowledge_details, get_knowledge_by_category, get_active_knowledge_articles,
-    
-    # Private Task tools (using generic functions + CRUD operations)
-    similar_private_tasks_for_text, get_short_desc_for_private_task, similar_private_tasks_for_private_task,
-    get_private_task_details, get_private_tasks_by_filter, create_private_task, update_private_task,
 
-    # SLA tools (using generic functions)
+    # Generic table tools (replace 24 table-specific wrappers)
+    search_records, get_record_summary, get_record, find_similar, filter_records,
+
+    # Priority incidents (unique date logic)
+    get_priority_incidents,
+
+    # Knowledge-specific tools (unique params)
+    similar_knowledge_for_text, get_knowledge_by_category, get_active_knowledge_articles,
+
+    # Private Task CRUD
+    create_private_task, update_private_task,
+
+    # SLA tools (specialised query patterns)
     similar_slas_for_text, get_slas_for_task, get_sla_details, get_breaching_slas, get_breached_slas,
     get_slas_by_stage, get_active_slas, get_sla_performance_summary, get_recent_breached_slas, get_critical_sla_status,
 
-    # CMDB tools (specialized, kept separate due to unique requirements)
+    # CMDB tools
     find_cis_by_type, search_cis_by_attributes, get_ci_details, similar_cis_for_ci, get_all_ci_types, quick_ci_search,
 
     # Intelligent query tools

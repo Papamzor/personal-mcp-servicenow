@@ -1,19 +1,10 @@
 from service_now_api_oauth import make_nws_request, NWS_API_BASE
-from typing import Any, Dict, Optional, List
-from utils import extract_keywords
+from typing import Any, Dict, Optional
 import httpx
 from constants import (
-    JSON_HEADERS,
-    COMMON_VTB_TASK_FIELDS,
-    DETAILED_VTB_TASK_FIELDS,
-    NO_RECORDS_FOUND,
-    RECORD_NOT_FOUND,
-    CONNECTION_ERROR,
-    NO_DESCRIPTION_FOUND,
     ERROR_SHORT_DESC_REQUIRED,
     ERROR_NO_UPDATE_DATA,
     PRIVATE_TASK_NOT_FOUND_UPDATE,
-    UNABLE_TO_FETCH_PRIVATE_TASK_DETAILS,
     ERROR_PRIVATE_TASK_REQUEST_FAILED,
     ERROR_PRIVATE_TASK_AUTH_FAILED,
     ERROR_PRIVATE_TASK_ACCESS_DENIED,
@@ -97,54 +88,6 @@ async def _get_task_sys_id(task_number: str) -> str | None:
     
     return sys_id_data['result'][0]['sys_id']
 
-async def similar_private_tasks_for_text(input_text: str) -> dict[str, Any] | str:
-    """Get private task records based on input text."""
-    keywords = extract_keywords(input_text)
-    for keyword in keywords:
-        url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields={','.join(COMMON_VTB_TASK_FIELDS)}&sysparm_query=short_descriptionCONTAINS{keyword}"
-        data = await make_nws_request(url)
-        if data and data.get('result') and len(data['result']) > 0:
-            return data
-    return NO_RECORDS_FOUND
-
-async def get_short_desc_for_private_task(input_private_task: str) -> dict[str, Any] | str:
-    """Get short_description for a given private task based on input private task number."""
-    url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields=short_description&sysparm_query=number={input_private_task}"
-    data = await make_nws_request(url)
-    return data if data else RECORD_NOT_FOUND
-
-async def similar_private_tasks_for_private_task(input_private_task: str) -> dict[str, Any] | str:
-    """Get similar private task records based on given private task."""
-    try:
-        desc_data = await get_short_desc_for_private_task(input_private_task)
-        if isinstance(desc_data, dict) and desc_data.get('result'):
-            if len(desc_data['result']) > 0:
-                desc_text = desc_data['result'][0].get('short_description', '')
-                if desc_text:
-                    return await similar_private_tasks_for_text(desc_text)
-        return NO_DESCRIPTION_FOUND
-    except Exception:
-        return CONNECTION_ERROR
-
-async def get_private_task_details(input_private_task: str) -> dict[str, Any] | str:
-    """Get detailed information for a given private task based on input private task number.
-    
-    Args:
-        input_private_task: The private task number.
-    
-    Returns:
-        A dictionary containing private task details or an error message if the request fails.
-    """
-    url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields={','.join(DETAILED_VTB_TASK_FIELDS)}&sysparm_query=number={input_private_task}"
-    data = await make_nws_request(url)
-    if data and data.get('result'):
-        results = data['result']
-        if isinstance(results, list) and results:
-            return results[0]
-        elif isinstance(results, dict):
-            return results
-    return UNABLE_TO_FETCH_PRIVATE_TASK_DETAILS
-
 async def create_private_task(task_data: Dict[str, Any]) -> dict[str, Any] | str:
     """Create a new private task record in ServiceNow.
     
@@ -182,37 +125,4 @@ async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> 
         return PRIVATE_TASK_NOT_FOUND_UPDATE
     
     url = f"{NWS_API_BASE}/api/now/table/vtb_task/{sys_id}"
-    return await _make_authenticated_request("PUT", url, update_data, "update")
-
-async def get_private_tasks_by_filter(filters: Dict[str, str], fields: Optional[List[str]] = None) -> dict[str, Any] | str:
-    """Get private task records with custom filters.
-    
-    Args:
-        filters: Dictionary of field-value pairs for filtering.
-        fields: Optional list of fields to return.
-    
-    Returns:
-        A dictionary containing filtered private task records or an error message.
-    """
-    query_fields = fields or COMMON_VTB_TASK_FIELDS
-    query_parts = []
-    
-    if filters:
-        for field, value in filters.items():
-            if field.endswith('_gte'):
-                base_field = field[:-4]
-                query_parts.append(f"{base_field}>={value}")
-            elif field.endswith('_lte'):
-                base_field = field[:-4]
-                query_parts.append(f"{base_field}<={value}")
-            else:
-                query_parts.append(f"{field}={value}")
-    
-    sysparm_query = "^".join(query_parts) if query_parts else ""
-    url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields={','.join(query_fields)}"
-    
-    if sysparm_query:
-        url += f"&sysparm_query={sysparm_query}"
-    
-    data = await make_nws_request(url)
-    return data if data else NO_RECORDS_FOUND
+    return await _make_authenticated_request("PATCH", url, update_data, "update")

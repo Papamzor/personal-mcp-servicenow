@@ -1,4 +1,4 @@
-image: alpine
+image: python:3.11-slim
 
 clone:
   depth: full # SonarQube Cloud scanner needs the full history to assign issues properly
@@ -9,9 +9,20 @@ definitions:
       memory: 2048
   caches:
     sonar: ~/.sonar/cache
+    pip: ~/.cache/pip
 
 pipelines:
   default:
+    - step:
+        name: Test & Coverage
+        caches:
+          - pip
+        script:
+          - pip install -r requirements.txt pytest-asyncio
+          - pytest tests/ --cov=. --cov-report=xml:coverage.xml --junitxml=test-results.xml
+        artifacts:
+          - coverage.xml
+          - test-results.xml
     - step:
         name: Security & Quality Scan
         caches:

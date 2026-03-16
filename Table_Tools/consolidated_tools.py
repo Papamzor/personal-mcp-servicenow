@@ -1,15 +1,18 @@
 """
-Consolidated tools interface using generic table functions.
-All table-specific operations are now unified through generic functions with cognitive complexity < 15.
+Consolidated tools with unique logic that cannot be replaced by generic wrappers.
+
+Kept:
+- Priority incidents (complex date logic, metadata, convenience helpers)
+- Knowledge-specific tools (category/kb_base filtering, active articles)
+- SLA tools (each has specialised query patterns)
+- Helper functions used by the above
 """
 
 import logging
 from datetime import datetime, timezone
 from .generic_table_tools import (
     query_table_by_text,
-    get_record_description,
     get_record_details,
-    find_similar_records,
     query_table_with_filters,
     get_records_by_priority,
     query_table_with_generic_filters,
@@ -37,27 +40,9 @@ def _get_error_message(table_name: str, default: str = "Record not found.") -> s
     return TABLE_ERROR_MESSAGES.get(table_name, default)
 
 
-# INCIDENT TOOLS - Using generic functions
-async def similar_incidents_for_text(input_text: str) -> Dict[str, Any]:
-    """Find incidents based on input text."""
-    return await query_table_by_text("incident", input_text)
-
-async def get_short_desc_for_incident(input_incident: str) -> Dict[str, Any]:
-    """Get short_description for incident."""
-    return await get_record_description("incident", input_incident)
-
-async def similar_incidents_for_incident(input_incident: str) -> Dict[str, Any]:
-    """Find similar incidents based on given incident."""
-    return await find_similar_records("incident", input_incident)
-
-async def get_incident_details(input_incident: str) -> Dict[str, Any]:
-    """Get detailed incident information."""
-    return await get_record_details("incident", input_incident)
-
-async def get_incidents_by_filter(filters: Dict[str, str], fields: Optional[List[str]] = None) -> Dict[str, Any]:
-    """Get incidents with custom filters."""
-    params = TableFilterParams(filters=filters, fields=fields)
-    return await query_table_with_filters("incident", params)
+# ---------------------------------------------------------------------------
+# Priority Incidents (unique date logic + metadata)
+# ---------------------------------------------------------------------------
 
 def _validate_date_param(date_string: Optional[str], param_name: str) -> Optional[Dict[str, Any]]:
     """Validate a date parameter and return an error dict if invalid, or None if valid."""
@@ -225,27 +210,11 @@ async def get_priority_incidents_current_month(
     additional_filters: Optional[Dict[str, Any]] = None,
     include_metadata: bool = False
 ) -> Dict[str, Any]:
-    """
-    Get priority incidents for the current calendar month.
-
-    Args:
-        priorities: List of priority values (e.g., ["1", "2"])
-        additional_filters: Optional additional field filters
-        include_metadata: If True, return enhanced response with metadata
-
-    Returns:
-        Dict with incident results
-
-    Example:
-        >>> await get_priority_incidents_current_month(["1", "2"])
-    """
+    """Get priority incidents for the current calendar month."""
     start_date, end_date = get_current_month_range()
     return await get_priority_incidents(
-        priorities,
-        start_date=start_date,
-        end_date=end_date,
-        additional_filters=additional_filters,
-        include_metadata=include_metadata
+        priorities, start_date=start_date, end_date=end_date,
+        additional_filters=additional_filters, include_metadata=include_metadata
     )
 
 
@@ -255,28 +224,11 @@ async def get_priority_incidents_last_n_days(
     additional_filters: Optional[Dict[str, Any]] = None,
     include_metadata: bool = False
 ) -> Dict[str, Any]:
-    """
-    Get priority incidents from the last N days (including today).
-
-    Args:
-        priorities: List of priority values
-        days: Number of days to look back (default: 7)
-        additional_filters: Optional additional field filters
-        include_metadata: If True, return enhanced response with metadata
-
-    Returns:
-        Dict with incident results
-
-    Example:
-        >>> await get_priority_incidents_last_n_days(["1", "2"], days=14)
-    """
+    """Get priority incidents from the last N days (including today)."""
     start_date, end_date = get_last_n_days_range(days)
     return await get_priority_incidents(
-        priorities,
-        start_date=start_date,
-        end_date=end_date,
-        additional_filters=additional_filters,
-        include_metadata=include_metadata
+        priorities, start_date=start_date, end_date=end_date,
+        additional_filters=additional_filters, include_metadata=include_metadata
     )
 
 
@@ -285,27 +237,11 @@ async def get_priority_incidents_this_week(
     additional_filters: Optional[Dict[str, Any]] = None,
     include_metadata: bool = False
 ) -> Dict[str, Any]:
-    """
-    Get priority incidents for the current week (Monday to Sunday).
-
-    Args:
-        priorities: List of priority values
-        additional_filters: Optional additional field filters
-        include_metadata: If True, return enhanced response with metadata
-
-    Returns:
-        Dict with incident results
-
-    Example:
-        >>> await get_priority_incidents_this_week(["1", "2"])
-    """
+    """Get priority incidents for the current week (Monday to Sunday)."""
     start_date, end_date = get_this_week_range()
     return await get_priority_incidents(
-        priorities,
-        start_date=start_date,
-        end_date=end_date,
-        additional_filters=additional_filters,
-        include_metadata=include_metadata
+        priorities, start_date=start_date, end_date=end_date,
+        additional_filters=additional_filters, include_metadata=include_metadata
     )
 
 
@@ -314,27 +250,11 @@ async def get_priority_incidents_yesterday(
     additional_filters: Optional[Dict[str, Any]] = None,
     include_metadata: bool = False
 ) -> Dict[str, Any]:
-    """
-    Get priority incidents from yesterday only.
-
-    Args:
-        priorities: List of priority values
-        additional_filters: Optional additional field filters
-        include_metadata: If True, return enhanced response with metadata
-
-    Returns:
-        Dict with incident results
-
-    Example:
-        >>> await get_priority_incidents_yesterday(["1", "2"])
-    """
+    """Get priority incidents from yesterday only."""
     start_date, end_date = get_yesterday_range()
     return await get_priority_incidents(
-        priorities,
-        start_date=start_date,
-        end_date=end_date,
-        additional_filters=additional_filters,
-        include_metadata=include_metadata
+        priorities, start_date=start_date, end_date=end_date,
+        additional_filters=additional_filters, include_metadata=include_metadata
     )
 
 
@@ -343,100 +263,29 @@ async def get_priority_incidents_today(
     additional_filters: Optional[Dict[str, Any]] = None,
     include_metadata: bool = False
 ) -> Dict[str, Any]:
-    """
-    Get priority incidents from today.
-
-    Args:
-        priorities: List of priority values
-        additional_filters: Optional additional field filters
-        include_metadata: If True, return enhanced response with metadata
-
-    Returns:
-        Dict with incident results
-
-    Example:
-        >>> await get_priority_incidents_today(["1"])
-    """
+    """Get priority incidents from today."""
     start_date, end_date = get_today_range()
     return await get_priority_incidents(
-        priorities,
-        start_date=start_date,
-        end_date=end_date,
-        additional_filters=additional_filters,
-        include_metadata=include_metadata
+        priorities, start_date=start_date, end_date=end_date,
+        additional_filters=additional_filters, include_metadata=include_metadata
     )
 
 
-# CHANGE TOOLS - Using generic functions
-async def similar_changes_for_text(input_text: str) -> Dict[str, Any]:
-    """Find changes based on input text."""
-    return await query_table_by_text("change_request", input_text)
-
-async def get_short_desc_for_change(input_change: str) -> Dict[str, Any]:
-    """Get short_description for change."""
-    return await get_record_description("change_request", input_change)
-
-async def similar_changes_for_change(input_change: str) -> Dict[str, Any]:
-    """Find similar changes based on given change."""
-    return await find_similar_records("change_request", input_change)
-
-async def get_change_details(input_change: str) -> Dict[str, Any]:
-    """Get detailed change information."""
-    return await get_record_details("change_request", input_change)
-
-
-# REQUEST ITEM TOOLS - Using generic functions
-async def similar_request_items_for_text(input_text: str) -> Dict[str, Any]:
-    """Find service catalog request items based on input text."""
-    return await query_table_by_text("sc_req_item", input_text)
-
-async def get_short_desc_for_request_item(input_request_item: str) -> Dict[str, Any]:
-    """Get short_description for request item."""
-    return await get_record_description("sc_req_item", input_request_item)
-
-async def similar_request_items_for_request_item(input_request_item: str) -> Dict[str, Any]:
-    """Find similar request items based on given request item."""
-    return await find_similar_records("sc_req_item", input_request_item)
-
-async def get_request_item_details(input_request_item: str) -> Dict[str, Any]:
-    """Get detailed request item information."""
-    return await get_record_details("sc_req_item", input_request_item)
-
-
-# UNIVERSAL REQUEST TOOLS - Using generic functions
-async def similar_universal_requests_for_text(input_text: str) -> Dict[str, Any]:
-    """Find universal requests based on input text."""
-    return await query_table_by_text("universal_request", input_text)
-
-async def get_short_desc_for_universal_request(input_universal_request: str) -> Dict[str, Any]:
-    """Get short_description for universal request."""
-    return await get_record_description("universal_request", input_universal_request)
-
-async def similar_universal_requests_for_universal_request(input_universal_request: str) -> Dict[str, Any]:
-    """Find similar universal requests based on given universal request."""
-    return await find_similar_records("universal_request", input_universal_request)
-
-async def get_universal_request_details(input_universal_request: str) -> Dict[str, Any]:
-    """Get detailed universal request information."""
-    return await get_record_details("universal_request", input_universal_request)
-
+# ---------------------------------------------------------------------------
+# Knowledge-specific tools (unique params / logic)
+# ---------------------------------------------------------------------------
 
 async def similar_knowledge_for_text(input_text: str, kb_base: Optional[str] = None, category: Optional[str] = None) -> Dict[str, Any]:
     """Find knowledge articles based on input text."""
     if category or kb_base:
-        # Build filters for category or kb_base
         filters = {}
         if category:
             filters["kb_category"] = category
         if kb_base:
             filters["kb_knowledge_base"] = kb_base
         return await query_table_with_generic_filters("kb_knowledge", filters)
-    
-    return await query_table_by_text("kb_knowledge", input_text)
 
-async def get_knowledge_details(input_kb: str) -> Dict[str, Any]:
-    """Get detailed knowledge article information."""
-    return await get_record_details("kb_knowledge", input_kb)
+    return await query_table_by_text("kb_knowledge", input_text)
 
 async def get_knowledge_by_category(category: str, kb_base: Optional[str] = None) -> Dict[str, Any]:
     """Get knowledge articles by category."""
@@ -445,50 +294,22 @@ async def get_knowledge_by_category(category: str, kb_base: Optional[str] = None
         filters["kb_knowledge_base"] = kb_base
     return await query_table_with_generic_filters("kb_knowledge", filters)
 
-async def get_active_knowledge_articles(input_text: str) -> Dict[str, Any]:
+async def get_active_knowledge_articles(input_text: str) -> Dict[str, Any]:  # noqa: ARG001
     """Get active knowledge articles matching text."""
     filters = {"state": "published"}
-    result = await query_table_with_generic_filters("kb_knowledge", filters)
-    
-    # If we got results and have input text, filter by text similarity
-    if isinstance(result, dict) and result.get("result") and input_text.strip():
-        # This is a simplified approach - in a full implementation, you might want to 
-        # do text matching on the results
-        pass
-    
-    return result
+    return await query_table_with_generic_filters("kb_knowledge", filters)
 
 
-# PRIVATE TASK TOOLS - Using generic functions (keeping VTB separate as it has CRUD operations)
-async def similar_private_tasks_for_text(input_text: str) -> Dict[str, Any]:
-    """Find private tasks based on input text."""
-    return await query_table_by_text("vtb_task", input_text)
+# ---------------------------------------------------------------------------
+# SLA tools (each has specialised query patterns)
+# ---------------------------------------------------------------------------
 
-async def get_short_desc_for_private_task(input_private_task: str) -> Dict[str, Any]:
-    """Get short_description for private task."""
-    return await get_record_description("vtb_task", input_private_task)
-
-async def similar_private_tasks_for_private_task(input_private_task: str) -> Dict[str, Any]:
-    """Find similar private tasks based on given task."""
-    return await find_similar_records("vtb_task", input_private_task)
-
-async def get_private_task_details(input_private_task: str) -> Dict[str, Any]:
-    """Get detailed private task information."""
-    return await get_record_details("vtb_task", input_private_task)
-
-async def get_private_tasks_by_filter(filters: Dict[str, str]) -> Dict[str, Any]:
-    """Get private tasks with custom filters."""
-    return await query_table_with_generic_filters("vtb_task", filters)
-
-
-# SLA TOOLS - Using generic functions
 async def similar_slas_for_text(input_text: str) -> Dict[str, Any]:
     """Find SLAs based on input text (searches related task descriptions)."""
     return await query_table_by_text("task_sla", input_text)
 
 async def get_slas_for_task(task_number: str) -> Dict[str, Any]:
     """Get all SLA records for a specific task."""
-    # Create filter to find SLAs by task reference
     filters = {TASK_NUMBER_FIELD: task_number}
     params = TableFilterParams(filters=filters)
     return await query_table_with_filters("task_sla", params)
@@ -501,26 +322,14 @@ async def get_breaching_slas(time_threshold_minutes: Optional[int] = 60) -> Dict
     """Get SLAs at risk of breaching within specified time threshold."""
     filters = {
         "active": "true",
-        "business_time_left": f"<{time_threshold_minutes * 60}",  # Convert to seconds
+        "business_time_left": f"<{time_threshold_minutes * 60}",
         "has_breached": "false"
     }
     params = TableFilterParams(filters=filters, fields=None)
     return await query_table_with_filters("task_sla", params)
 
 async def get_breached_slas(filters: Optional[Dict[str, str]] = None, days: int = 7) -> Dict[str, Any]:
-    """
-    Get SLAs that have already breached.
-
-    Defaults to recent breaches (last 7 days) to avoid token overload.
-    Uses simple >= operator instead of JavaScript date functions.
-
-    Args:
-        filters: Optional additional filters to apply
-        days: Number of days to look back (default: 7)
-
-    Returns:
-        Dict with breached SLA records
-    """
+    """Get SLAs that have already breached (defaults to last 7 days)."""
     base_filters = {
         "has_breached": "true",
         "sys_created_on": build_last_n_days_filter(days)
@@ -547,27 +356,13 @@ async def get_active_slas(filters: Optional[Dict[str, str]] = None) -> Dict[str,
     return await query_table_with_filters("task_sla", params)
 
 async def get_sla_performance_summary(filters: Optional[Dict[str, str]] = None, days: int = 30) -> Dict[str, Any]:
-    """
-    Get SLA performance metrics with detailed information.
-
-    Defaults to recent data (last 30 days) for efficiency.
-    Uses simple >= operator instead of JavaScript date functions.
-
-    Args:
-        filters: Optional additional filters to apply
-        days: Number of days to look back (default: 30)
-
-    Returns:
-        Dict with SLA performance records
-    """
-    # Default to recent data to avoid token overload
+    """Get SLA performance metrics (defaults to last 30 days)."""
     default_filters = {
         "sys_created_on": build_last_n_days_filter(days)
     }
     if filters:
         default_filters.update(filters)
 
-    # Include key performance fields for analysis
     fields = [
         TASK_NUMBER_FIELD, "task.short_description", "sla.name", "stage",
         "business_percentage", "active", "has_breached", "breach_time",
@@ -577,18 +372,7 @@ async def get_sla_performance_summary(filters: Optional[Dict[str, str]] = None, 
     return await query_table_with_filters("task_sla", params)
 
 async def get_recent_breached_slas(days: int = 1) -> Dict[str, Any]:
-    """
-    Get recently breached SLAs for immediate attention.
-
-    Default to last 24 hours.
-    Uses simple >= operator instead of JavaScript date functions.
-
-    Args:
-        days: Number of days to look back (default: 1)
-
-    Returns:
-        Dict with recently breached SLA records
-    """
+    """Get recently breached SLAs (default last 24 hours)."""
     filters = {
         "has_breached": "true",
         "sys_created_on": build_last_n_days_filter(days)
@@ -600,8 +384,8 @@ async def get_critical_sla_status() -> Dict[str, Any]:
     """Get high-priority SLA status summary for dashboard/monitoring."""
     filters = {
         "active": "true",
-        "task.priority": "IN1,2",  # P1 and P2 tasks only (uses ServiceNow IN operator)
-        "business_percentage": ">80"  # Close to or over SLA target
+        "task.priority": "IN1,2",
+        "business_percentage": ">80"
     }
     fields = [
         TASK_NUMBER_FIELD, "task.priority", "sla.name", "stage",

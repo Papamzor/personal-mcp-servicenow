@@ -1,5 +1,6 @@
 import orjson
 from typing import Any
+from urllib.parse import quote, unquote
 from dotenv import load_dotenv
 import os
 from oauth_client import get_oauth_client, make_oauth_request
@@ -32,14 +33,44 @@ def _extract_display_values(data: dict[str, Any]) -> dict[str, Any]:
                       for item in data['result']]
     return data
 
+def _ensure_query_encoded(url: str) -> str:
+    """Ensure sysparm_query value in URL is properly percent-encoded for ServiceNow.
+
+    Idempotent: already-encoded URLs are unquoted first to prevent double-encoding.
+    Preserves ServiceNow operators: = < > & ^ ( ) : @ !
+    """
+    if "sysparm_query=" not in url:
+        return url
+    prefix, rest = url.split("sysparm_query=", 1)
+    if "&" in rest:
+        query_value, suffix = rest.split("&", 1)
+        suffix = "&" + suffix
+    else:
+        query_value = rest
+        suffix = ""
+    decoded_value = unquote(query_value)
+    encoded_value = quote(decoded_value, safe='=<>&^():@!')
+    return f"{prefix}sysparm_query={encoded_value}{suffix}"
+
+def _add_default_params(url: str, display_value: bool = True) -> str:
+    """Add default performance and display parameters to a ServiceNow API URL."""
+    params = []
+    if display_value and "sysparm_display_value" not in url:
+        params.append("sysparm_display_value=true")
+    if "sysparm_exclude_reference_link" not in url:
+        params.append("sysparm_exclude_reference_link=true")
+    if "sysparm_no_count" not in url:
+        params.append("sysparm_no_count=true")
+    if not params:
+        return url
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}{'&'.join(params)}"
+
 async def make_nws_request(url: str, display_value: bool = True) -> dict[str, Any] | None:
     """Make a request to the ServiceNow API using OAuth 2.0 authentication."""
-    
-    # Add display value parameter if requested
-    if display_value and "sysparm_display_value" not in url:
-        separator = "&" if "?" in url else "?"
-        url = f"{url}{separator}sysparm_display_value=true"
-    
+    url = _ensure_query_encoded(url)
+    url = _add_default_params(url, display_value)
+
     try:
         result = await make_oauth_request(url)
         return _extract_display_values(result) if result and display_value else result

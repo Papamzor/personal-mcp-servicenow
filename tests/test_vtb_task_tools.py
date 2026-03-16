@@ -11,13 +11,8 @@ import httpx
 from Table_Tools.vtb_task_tools import (
     _get_authenticated_headers,
     _make_authenticated_request,
-    similar_private_tasks_for_text,
-    get_short_desc_for_private_task,
-    similar_private_tasks_for_private_task,
-    get_private_task_details,
     create_private_task,
     update_private_task,
-    get_private_tasks_by_filter,
     _get_task_sys_id,
     _prepare_task_create_data,
     _handle_http_error
@@ -467,7 +462,7 @@ class TestUpdatePrivateTask:
             mock_sys_id.assert_called_once_with("VTB0001234")
             mock_request.assert_called_once()
             args = mock_request.call_args
-            assert args[0][0] == "PUT"
+            assert args[0][0] == "PATCH"
 
     @pytest.mark.asyncio
     async def test_update_private_task_no_update_data(self):
@@ -488,65 +483,3 @@ class TestUpdatePrivateTask:
             assert "not found" in result
 
 
-class TestQueryFunctions:
-    """Test private task query functions."""
-
-    @pytest.mark.asyncio
-    async def test_similar_private_tasks_for_text(self):
-        """Test finding similar private tasks by text."""
-        with patch('Table_Tools.vtb_task_tools.extract_keywords') as mock_keywords, \
-             patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
-
-            mock_keywords.return_value = ["audit", "postmortem"]
-            mock_request.return_value = {
-                "result": [{"number": "VTB0001234", "short_description": "Audit task"}]
-            }
-
-            result = await similar_private_tasks_for_text("audit postmortem")
-
-            assert result["result"][0]["number"] == "VTB0001234"
-            mock_keywords.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_get_short_desc_for_private_task(self):
-        """Test getting private task short description."""
-        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
-            mock_request.return_value = {
-                "result": [{"short_description": "Test task"}]
-            }
-
-            result = await get_short_desc_for_private_task("VTB0001234")
-
-            assert result["result"][0]["short_description"] == "Test task"
-
-    @pytest.mark.asyncio
-    async def test_get_private_task_details(self):
-        """Test getting detailed private task information."""
-        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
-            mock_request.return_value = {
-                "result": [{
-                    "number": "VTB0001234",
-                    "short_description": "Test task",
-                    "priority": "2",
-                    "state": "1"
-                }]
-            }
-
-            result = await get_private_task_details("VTB0001234")
-
-            assert result["number"] == "VTB0001234"
-            assert result["priority"] == "2"
-
-    @pytest.mark.asyncio
-    async def test_get_private_tasks_by_filter(self):
-        """Test getting private tasks with filters."""
-        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
-            mock_request.return_value = {
-                "result": [{"number": "VTB0001234", "state": "1"}]
-            }
-
-            filters = {"state": "1", "priority": "2"}
-            result = await get_private_tasks_by_filter(filters)
-
-            assert result["result"][0]["number"] == "VTB0001234"
-            mock_request.assert_called_once()

@@ -29,6 +29,8 @@ from Table_Tools.generic_table_tools import (
     _build_query_string,
     _encode_query_string,
     _build_priority_filter,
+    _inject_sort_order,
+    _make_paginated_request,
     query_table_by_text,
     get_record_description,
     get_record_details,
@@ -801,3 +803,97 @@ class TestEdgeCases:
             result = await query_table_with_generic_filters("incident", {"priority": "1"})
 
             assert "error" in result
+
+
+class TestInjectSortOrder:
+    """Test _inject_sort_order() helper."""
+
+    def test_appends_sort_to_existing_query(self):
+        """Test sort directive is appended to existing sysparm_query."""
+        url = "https://instance.service-now.com/api/now/table/incident?sysparm_fields=number&sysparm_query=priority=1"
+        result = _inject_sort_order(url, "ORDERBYDESCsys_created_on")
+        assert result.endswith("priority=1^ORDERBYDESCsys_created_on")
+
+    def test_skips_when_orderby_present(self):
+        """Test URL is returned unchanged when ORDERBY already exists."""
+        url = "https://instance.service-now.com/api/now/table/incident?sysparm_query=priority=1^ORDERBYsys_created_on"
+        result = _inject_sort_order(url, "ORDERBYDESCsys_created_on")
+        assert result == url
+
+    def test_adds_query_param_when_missing(self):
+        """Test sysparm_query is created when URL has no query param."""
+        url = "https://instance.service-now.com/api/now/table/incident?sysparm_fields=number"
+        result = _inject_sort_order(url, "ORDERBYDESCsys_created_on")
+        assert "sysparm_query=ORDERBYDESCsys_created_on" in result
+        assert "&sysparm_query=" in result
+
+    def test_adds_query_param_when_no_params(self):
+        """Test sysparm_query is created when URL has no params at all."""
+        url = "https://instance.service-now.com/api/now/table/incident"
+        result = _inject_sort_order(url, "ORDERBYDESCsys_created_on")
+        assert "?sysparm_query=ORDERBYDESCsys_created_on" in result
+
+    def test_preserves_complex_query(self):
+        """Test sort is appended correctly to a multi-condition query."""
+        url = "https://instance.service-now.com/api/now/table/incident?sysparm_query=priority=1^state=2"
+        result = _inject_sort_order(url, "ORDERBYDESCsys_created_on")
+        assert "priority=1^state=2^ORDERBYDESCsys_created_on" in result
+
+    def test_skips_orderbydesc_present(self):
+        """Test URL is returned unchanged when ORDERBYDESC already present."""
+        url = "https://instance.service-now.com/api/now/table/incident?sysparm_query=priority=1^ORDERBYDESCsys_updated_on"
+        result = _inject_sort_order(url, "ORDERBYDESCsys_created_on")
+        assert result == url
+
+
+class TestPaginationSortIntegration:
+    """Test that _make_paginated_request injects sort order."""
+
+    @pytest.mark.asyncio
+    async def test_default_sort_injected(self):
+        """Test that default sort order is injected into paginated requests."""
+        with patch("Table_Tools.generic_table_tools.make_nws_request") as mock_request:
+            mock_request.return_value = {"result": [{"number": "INC001"}]}
+
+            url = "https://instance.service-now.com/api/now/table/incident?sysparm_query=priority=1"
+            await _make_paginated_request(url, max_results=10)
+
+            called_url = mock_request.call_args[0][0]
+            assert "ORDERBYDESCsys_created_on" in called_url
+
+    @pytest.mark.asyncio
+    async def test_custom_sort_injected(self):
+        """Test that a custom sort directive is respected."""
+        with patch("Table_Tools.generic_table_tools.make_nws_request") as mock_request:
+            mock_request.return_value = {"result": [{"number": "INC001"}]}
+
+            url = "https://instance.service-now.com/api/now/table/incident?sysparm_query=priority=1"
+            await _make_paginated_request(url, max_results=10, default_sort="ORDERBYDESCsys_updated_on")
+
+            called_url = mock_request.call_args[0][0]
+            assert "ORDERBYDESCsys_updated_on" in called_url
+
+    @pytest.mark.asyncio
+    async def test_no_sort_when_disabled(self):
+        """Test that sort is not injected when default_sort is empty."""
+        with patch("Table_Tools.generic_table_tools.make_nws_request") as mock_request:
+            mock_request.return_value = {"result": [{"number": "INC001"}]}
+
+            url = "https://instance.service-now.com/api/now/table/incident?sysparm_query=priority=1"
+            await _make_paginated_request(url, max_results=10, default_sort="")
+
+            called_url = mock_request.call_args[0][0]
+            assert "ORDERBY" not in called_url
+
+    @pytest.mark.asyncio
+    async def test_existing_orderby_not_overwritten(self):
+        """Test that an existing ORDERBY in the URL is not replaced."""
+        with patch("Table_Tools.generic_table_tools.make_nws_request") as mock_request:
+            mock_request.return_value = {"result": [{"number": "INC001"}]}
+
+            url = "https://instance.service-now.com/api/now/table/incident?sysparm_query=priority=1^ORDERBYnumber"
+            await _make_paginated_request(url, max_results=10)
+
+            called_url = mock_request.call_args[0][0]
+            assert "ORDERBYnumber" in called_url
+            assert "ORDERBYDESCsys_created_on" not in called_url
