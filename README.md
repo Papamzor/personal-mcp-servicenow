@@ -78,6 +78,28 @@ pip install -r requirements.txt
 python personal_mcp_servicenow_main.py
 ```
 
+### Option 3: Docker (Cloud / Network Agents)
+
+For hosting the MCP server so that **any network-capable agent** (N8N, LangChain, custom agents, etc.) can connect to it — not just Claude Code locally.
+
+```bash
+# Build the image
+docker build -t mcp-servicenow .
+
+# Run, injecting your ServiceNow credentials at runtime
+docker run -d \
+  -p 8000:8000 \
+  -e SERVICENOW_INSTANCE=https://your-instance.service-now.com \
+  -e SERVICENOW_CLIENT_ID=your_oauth_client_id \
+  -e SERVICENOW_CLIENT_SECRET=your_oauth_client_secret \
+  --name mcp-servicenow \
+  mcp-servicenow
+```
+
+Agents connect via SSE at: `http://<your-host>:8000/sse`
+
+See [Cloud Hosting](#7-cloud-hosting--network-agents-docker) for the full setup guide.
+
 ---
 
 ## 🆕 What's New in v3.0
@@ -362,6 +384,86 @@ To run the MCP server independently:
 python tools.py
 ```
 
+### 7. **Cloud Hosting & Network Agents (Docker)**
+
+By default the server uses **stdio transport**, which means it runs as a local subprocess controlled by an MCP client like Claude Code. To make it accessible over the network to any agent, the server must be switched to **SSE (Server-Sent Events) transport**. The Docker image handles this automatically via the `MCP_TRANSPORT` environment variable.
+
+#### Transport modes
+
+| `MCP_TRANSPORT` | How it runs | Use case |
+|---|---|---|
+| `stdio` (default) | Subprocess, communicates via stdin/stdout | Local Claude Code |
+| `sse` | HTTP server, agents connect via SSE | Docker, cloud, N8N, any network agent |
+
+#### Build and run
+
+```bash
+docker build -t mcp-servicenow .
+
+docker run -d \
+  -p 8000:8000 \
+  -e SERVICENOW_INSTANCE=https://your-instance.service-now.com \
+  -e SERVICENOW_CLIENT_ID=your_oauth_client_id \
+  -e SERVICENOW_CLIENT_SECRET=your_oauth_client_secret \
+  --name mcp-servicenow \
+  mcp-servicenow
+```
+
+The image sets `MCP_TRANSPORT=sse` by default, so no extra flags are needed. Credentials are **never baked into the image** — always pass them at runtime via `-e` flags, your cloud provider's secret manager (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault), or Kubernetes secrets.
+
+You can also override the host and port:
+
+```bash
+docker run -d \
+  -p 9000:9000 \
+  -e MCP_TRANSPORT=sse \
+  -e MCP_HOST=0.0.0.0 \
+  -e MCP_PORT=9000 \
+  ... \
+  mcp-servicenow
+```
+
+#### Connecting agents
+
+Once running, agents connect to the SSE endpoint:
+
+```
+http://<your-host>:8000/sse
+```
+
+**N8N**: Use the MCP Client node and point it at the SSE URL above.
+
+**LangChain / custom agents**: Use any MCP-compatible SSE client library pointed at the same URL.
+
+**Claude Code (remote)**: Add to your MCP config:
+
+```json
+{
+  "mcpServers": {
+    "servicenow": {
+      "type": "sse",
+      "url": "http://<your-host>:8000/sse"
+    }
+  }
+}
+```
+
+#### Development dependency separation
+
+When developing locally, install the full dev toolchain:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+For production builds (including Docker), only production dependencies are installed:
+
+```bash
+pip install -r requirements.txt
+```
+
+`requirements-dev.txt` includes everything in `requirements.txt` plus `pytest`, `pytest-cov`, and `coverage`. These are never installed in the Docker image.
+
 ## 🏗️ Architecture
 
 ```
@@ -463,6 +565,7 @@ Contributions welcome! Please see [Contributing Guidelines](CONTRIBUTING.md).
 - [**ServiceNow Query Guide**](SERVICENOW_QUERY_GUIDE.md) - Proper ServiceNow syntax and best practices
 - [**Test Documentation**](Testing/TEST_PROMPTS.md) - Testing procedures and scenarios
 - [**Optimization Guide**](OPTIMIZATION_SUMMARY.md) - Performance improvements and token usage
+- [**Cloud Hosting**](#7-cloud-hosting--network-agents-docker) - Docker setup and network agent integration
 
 ## 🔐 Security
 
