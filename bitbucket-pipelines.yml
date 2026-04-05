@@ -18,7 +18,7 @@ pipelines:
         caches:
           - pip
         script:
-          - pip install -r requirements.txt pytest-asyncio
+          - pip install -r requirements-dev.txt pytest-asyncio
           - pytest tests/ --cov=. --cov-report=xml:coverage.xml --junitxml=test-results.xml
         artifacts:
           - coverage.xml
