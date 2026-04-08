@@ -86,15 +86,15 @@ For hosting the MCP server so that **any network-capable agent** (N8N, LangChain
 # Build the image
 docker build -t mcp-servicenow .
 
-# Run, injecting your ServiceNow credentials at runtime
+# Local testing only — load credentials from a gitignored .env file
 docker run -d \
   -p 8000:8000 \
-  -e SERVICENOW_INSTANCE=https://your-instance.service-now.com \
-  -e SERVICENOW_CLIENT_ID=your_oauth_client_id \
-  -e SERVICENOW_CLIENT_SECRET=your_oauth_client_secret \
+  --env-file .env.local \
   --name mcp-servicenow \
   mcp-servicenow
 ```
+
+> ⚠️ **Do not pass secrets with `-e KEY=value` on the command line.** They land in shell history and are visible via `ps` / `docker inspect`. For production, see [Production: Azure Container Apps + Key Vault](#production-azure-container-apps--key-vault).
 
 Agents connect via SSE at: `http://<your-host>:8000/sse`
 
