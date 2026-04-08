@@ -395,21 +395,29 @@ By default the server uses **stdio transport**, which means it runs as a local s
 | `stdio` (default) | Subprocess, communicates via stdin/stdout | Local Claude Code |
 | `sse` | HTTP server, agents connect via SSE | Docker, cloud, N8N, any network agent |
 
-#### Build and run
+#### Build and run (local testing)
 
 ```bash
 docker build -t mcp-servicenow .
 
 docker run -d \
   -p 8000:8000 \
-  -e SERVICENOW_INSTANCE=https://your-instance.service-now.com \
-  -e SERVICENOW_CLIENT_ID=your_oauth_client_id \
-  -e SERVICENOW_CLIENT_SECRET=your_oauth_client_secret \
+  --env-file .env.local \
   --name mcp-servicenow \
   mcp-servicenow
 ```
 
-The image sets `MCP_TRANSPORT=sse` by default, so no extra flags are needed. Credentials are **never baked into the image** — always pass them at runtime via `-e` flags, your cloud provider's secret manager (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault), or Kubernetes secrets.
+Where `.env.local` contains:
+
+```env
+SERVICENOW_INSTANCE=https://your-instance.service-now.com
+SERVICENOW_CLIENT_ID=your_oauth_client_id
+SERVICENOW_CLIENT_SECRET=your_oauth_client_secret
+```
+
+> ⚠️ **Add `.env.local` to `.gitignore`.** Never commit it. The `--env-file` form keeps credentials out of shell history and `ps` output, but the file is still plaintext on disk — only use this for local testing.
+
+The image sets `MCP_TRANSPORT=sse` by default, so no extra flags are needed. Credentials are **never baked into the image**.
 
 You can also override the host and port:
 
@@ -419,9 +427,98 @@ docker run -d \
   -e MCP_TRANSPORT=sse \
   -e MCP_HOST=0.0.0.0 \
   -e MCP_PORT=9000 \
-  ... \
+  --env-file .env.local \
   mcp-servicenow
 ```
+
+#### Production: Azure Container Apps + Key Vault
+
+For production, store the ServiceNow credentials in **Azure Key Vault** and let **Azure Container Apps** fetch them at runtime using the Container App's **system-assigned managed identity**. No secrets ever appear in env vars on your machine, in source control, in shell history, or in `docker inspect` output on the host.
+
+The flow:
+
+```
+Key Vault (secrets)
+   ↑ reads via RBAC
+Container App (managed identity)
+   ↓ injects as env vars via secretRef
+mcp-servicenow container
+```
+
+**1. Push the image to Azure Container Registry**
+
+```bash
+az acr create -g <rg> -n <acrName> --sku Basic
+az acr login -n <acrName>
+docker tag mcp-servicenow <acrName>.azurecr.io/mcp-servicenow:latest
+docker push <acrName>.azurecr.io/mcp-servicenow:latest
+```
+
+**2. Create a Key Vault and store the three secrets**
+
+```bash
+az keyvault create -g <rg> -n <kvName> --enable-rbac-authorization true
+
+az keyvault secret set --vault-name <kvName> --name servicenow-instance      --value "https://your-instance.service-now.com"
+az keyvault secret set --vault-name <kvName> --name servicenow-client-id     --value "your_oauth_client_id"
+az keyvault secret set --vault-name <kvName> --name servicenow-client-secret --value "your_oauth_client_secret"
+```
+
+**3. Create the Container App with a system-assigned managed identity**
+
+```bash
+az containerapp env create -g <rg> -n <envName> --location westeurope
+
+az containerapp create \
+  -g <rg> -n mcp-servicenow \
+  --environment <envName> \
+  --image <acrName>.azurecr.io/mcp-servicenow:latest \
+  --target-port 8000 --ingress external \
+  --system-assigned \
+  --registry-server <acrName>.azurecr.io
+```
+
+**4. Grant the Container App's identity read access to the vault**
+
+```bash
+PRINCIPAL_ID=$(az containerapp show -g <rg> -n mcp-servicenow --query identity.principalId -o tsv)
+KV_ID=$(az keyvault show -g <rg> -n <kvName> --query id -o tsv)
+
+az role assignment create \
+  --assignee "$PRINCIPAL_ID" \
+  --role "Key Vault Secrets User" \
+  --scope "$KV_ID"
+```
+
+**5. Wire Key Vault references into Container App secrets and env vars**
+
+```bash
+az containerapp secret set \
+  -g <rg> -n mcp-servicenow \
+  --secrets \
+    "servicenow-instance=keyvaultref:https://<kvName>.vault.azure.net/secrets/servicenow-instance,identityref:system" \
+    "servicenow-client-id=keyvaultref:https://<kvName>.vault.azure.net/secrets/servicenow-client-id,identityref:system" \
+    "servicenow-client-secret=keyvaultref:https://<kvName>.vault.azure.net/secrets/servicenow-client-secret,identityref:system"
+
+az containerapp update \
+  -g <rg> -n mcp-servicenow \
+  --set-env-vars \
+    "SERVICENOW_INSTANCE=secretref:servicenow-instance" \
+    "SERVICENOW_CLIENT_ID=secretref:servicenow-client-id" \
+    "SERVICENOW_CLIENT_SECRET=secretref:servicenow-client-secret"
+```
+
+**Why this is safer than `-e` flags**
+
+| Risk with `docker run -e ...` | How this approach mitigates it |
+|---|---|
+| Secrets in shell history | Never typed on the command line |
+| Visible via `ps auxe` / `docker inspect` | Stored encrypted in Key Vault, resolved by the platform |
+| Leak into CI logs / screen-shares | Never appear in plaintext anywhere outside the vault |
+| Rotation requires rebuild/redeploy | Update the secret in Key Vault; the Container App picks up the new value on next revision |
+| Anyone with repo access sees them | Access gated by Azure RBAC + managed identity, not file permissions |
+
+To rotate a credential, update the Key Vault secret and create a new Container App revision (`az containerapp update --revision-suffix vN`).
 
 #### Connecting agents
 
