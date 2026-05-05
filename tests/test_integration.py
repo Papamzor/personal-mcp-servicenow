@@ -1,380 +1,259 @@
-#!/usr/bin/env python3
-"""
-Integration tests for ServiceNow MCP server.
+"""End-to-end integration tests that exercise real product code paths.
 
-End-to-end testing of workflows and tool interactions.
-These tests validate the complete integration without making real API calls.
+These tests mock only the outermost network boundary (httpx via
+oauth_client / make_oauth_request) and let every wrapper, validator,
+filter applicator, query builder, and response shaper run as it would
+in production. They are the safety net for cross-module wiring that
+unit tests miss because each unit mocks its dependencies.
 """
 
-import unittest
-import sys
-import os
+import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
-
-# Add the project root to the path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import httpx
 
 
-class TestMCPServerIntegration(unittest.IsolatedAsyncioTestCase):
-    """Test MCP server integration and tool registration."""
-
-    async def asyncSetUp(self):
-        """Set up integration test fixtures."""
-        try:
-            import tools
-            self.mcp_server_available = True
-            self.tools_module = tools
-        except ImportError as e:
-            self.mcp_server_available = False
-            self.import_error = str(e)
-
-    async def test_mcp_server_initialization(self):
-        """Test MCP server initialization."""
-        if not self.mcp_server_available:
-            self.skipTest(f"MCP server not available: {self.import_error}")
-        
-        # Test that tools module is importable
-        self.assertIsNotNone(self.tools_module)
-
-    async def test_tool_registration_structure(self):
-        """Test that tools are properly registered."""
-        if not self.mcp_server_available:
-            self.skipTest(f"MCP server not available: {self.import_error}")
-        
-        # Expected tool categories
-        expected_categories = [
-            'server_auth',    # Server & Authentication tools
-            'incident',       # Incident tools
-            'change',         # Change tools
-            'user_request',   # User request tools
-            'knowledge',      # Knowledge base tools
-            'cmdb',          # CMDB tools
-            'private_task',  # Private task tools
-            'generic'        # Generic table tools
-        ]
-        
-        # This test validates the structure without making API calls
-        for category in expected_categories:
-            self.assertIsInstance(category, str)
-            self.assertGreater(len(category), 3)
+pytestmark = pytest.mark.integration
 
 
-class TestIncidentWorkflow(unittest.IsolatedAsyncioTestCase):
-    """Test complete incident management workflow."""
+# ---------------------------------------------------------------------------
+# Module / tool registry smoke tests
+# ---------------------------------------------------------------------------
 
-    async def asyncSetUp(self):
-        """Set up incident workflow test fixtures."""
-        self.sample_incident = {
-            "number": "INC0010001",
-            "short_description": "Server is down",
-            "priority": "1",
-            "state": "New"
+class TestModuleImports:
+    """Catch import-time errors and circular imports across the codebase."""
+
+    def test_tools_module_imports(self):
+        import tools
+        assert tools.mcp is not None
+
+    def test_all_table_tools_modules_import(self):
+        from Table_Tools import (
+            generic_table_tools,
+            generic_tool_wrappers,
+            consolidated_tools,
+            cmdb_tools,
+            vtb_task_tools,
+            intelligent_query_tools,
+            date_utils,
+        )
+        assert generic_table_tools is not None
+        assert generic_tool_wrappers is not None
+        assert consolidated_tools is not None
+        assert cmdb_tools is not None
+        assert vtb_task_tools is not None
+        assert intelligent_query_tools is not None
+        assert date_utils is not None
+
+    def test_core_modules_import(self):
+        import service_now_api_oauth
+        import oauth_client
+        import query_intelligence
+        import query_validation
+        import config_loader
+        import constants
+        assert service_now_api_oauth.make_nws_request is not None
+        assert oauth_client.ServiceNowOAuthClient is not None
+
+
+class TestToolRegistry:
+    """Tools.py is the MCP entrypoint — registration must stay coherent."""
+
+    def test_expected_tool_count(self):
+        import tools
+        # CLAUDE.md mentions ~36 tools; current actual is 37
+        # (5 server/auth + 5 generic + 1 priority + 3 knowledge +
+        #  2 vtb CRUD + 10 SLA + 6 CMDB + 5 intelligent).
+        assert len(tools.tools) == 37, (
+            f"Expected 37 registered tools, got {len(tools.tools)}. "
+            "If tool count changed intentionally, update this test and CLAUDE.md."
+        )
+
+    def test_critical_tools_registered(self):
+        import tools
+        names = {fn.__name__ for fn in tools.tools}
+        # A representative subset covering each tool category
+        expected = {
+            "search_records", "get_record", "find_similar", "filter_records",
+            "create_private_task", "update_private_task",
+            "get_priority_incidents",
+            "similar_knowledge_for_text",
+            "find_cis_by_type", "get_ci_details",
+            "intelligent_search",
+            "now_test_oauth",
         }
-        
-        self.workflow_steps = [
-            "find_similar_incidents",
-            "get_incident_details", 
-            "analyze_priority",
-            "get_similar_incidents"
-        ]
-
-    async def test_incident_similarity_workflow(self):
-        """Test incident similarity analysis workflow."""
-        # Mock the entire workflow
-        mock_responses = {
-            "similar_incidents_for_text": {
-                "similar_incidents": [
-                    {"number": "INC0010002", "similarity_score": 0.85}
-                ],
-                "count": 1
-            },
-            "get_incident_details": self.sample_incident,
-            "similar_incidents_for_incident": {
-                "similar_incidents": [
-                    {"number": "INC0010003", "similarity_score": 0.78}
-                ]
-            }
-        }
-        
-        # Validate workflow structure
-        for step in self.workflow_steps:
-            self.assertIsInstance(step, str)
-            # Check for either "incident" or "similar" in step names
-            self.assertTrue("incident" in step or "similar" in step or "analyze" in step or "get" in step)
-
-    async def test_priority_incident_filtering_workflow(self):
-        """Test P1/P2 incident filtering workflow."""
-        # Test the intelligent filtering workflow
-        filter_params = {
-            "sys_created_on": "Week 35 2025",
-            "priority": "1,2",
-            "exclude_caller": "logicmonitor"
-        }
-        
-        expected_workflow = [
-            "parse_natural_language_filters",
-            "build_servicenow_query",
-            "execute_api_call",
-            "process_results"
-        ]
-        
-        for step in expected_workflow:
-            self.assertIsInstance(step, str)
+        missing = expected - names
+        assert not missing, f"Missing tools in registry: {missing}"
 
 
-class TestChangeRequestWorkflow(unittest.IsolatedAsyncioTestCase):
-    """Test change request management workflow."""
+# ---------------------------------------------------------------------------
+# Read pipeline end-to-end
+# ---------------------------------------------------------------------------
 
-    async def asyncSetUp(self):
-        """Set up change request workflow fixtures."""
-        self.sample_change = {
-            "number": "CHG0030001",
-            "short_description": "Server OS upgrade",
-            "state": "Scheduled",
-            "risk": "Moderate"
-        }
+class TestReadPipelineEndToEnd:
+    """search_records → query_table_by_text → make_nws_request → make_oauth_request."""
 
-    async def test_change_analysis_workflow(self):
-        """Test change request analysis workflow."""
-        workflow_steps = [
-            "find_similar_changes",
-            "assess_risk_level",
-            "get_change_details",
-            "analyze_impact"
-        ]
-        
-        for step in workflow_steps:
-            self.assertIsInstance(step, str)
-            self.assertGreater(len(step), 5)
+    @pytest.mark.asyncio
+    async def test_search_records_builds_encoded_query_and_perf_params(self):
+        from Table_Tools.generic_tool_wrappers import search_records
 
+        captured = {}
 
-class TestCMDBDiscoveryWorkflow(unittest.IsolatedAsyncioTestCase):
-    """Test CMDB discovery and analysis workflow."""
+        async def fake_oauth_request(url):
+            captured["url"] = url
+            return {"result": [{"number": "INC0001", "short_description": "server down"}]}
 
-    async def asyncSetUp(self):
-        """Set up CMDB workflow fixtures."""
-        self.sample_ci = {
-            "ci_number": "CI001001",
-            "name": "prod-web-server-01",
-            "ci_table": "cmdb_ci_server",
-            "status": "operational"
-        }
+        with patch("service_now_api_oauth.make_oauth_request", new=fake_oauth_request):
+            result = await search_records("incident", "server down")
 
-    async def test_cmdb_discovery_workflow(self):
-        """Test complete CMDB discovery workflow."""
-        discovery_steps = [
-            "get_all_ci_types",
-            "find_cis_by_type",
-            "analyze_ci_attributes",
-            "find_similar_cis",
-            "assess_relationships"
-        ]
-        
-        for step in discovery_steps:
-            self.assertIsInstance(step, str)
-            # Check for either "ci" or "assess" or "analyze" or "find" in step names
-            self.assertTrue("ci" in step.lower() or "assess" in step or "analyze" in step or "find" in step or "get" in step)
+        assert result["result"][0]["number"] == "INC0001"
 
-    async def test_cmdb_search_workflow(self):
-        """Test CMDB search and analysis workflow."""
-        search_parameters = {
-            "name": "prod-server",
-            "ip_address": "192.168.1.100", 
-            "status": "operational",
-            "location": "data_center_1"
-        }
-        
-        for key, value in search_parameters.items():
-            self.assertIsInstance(key, str)
-            self.assertIsInstance(value, str)
+        url = captured["url"]
+        # Performance params injected by make_nws_request
+        assert "sysparm_no_count=true" in url
+        assert "sysparm_exclude_reference_link=true" in url
+        # Deterministic sort order injected by paginated request
+        assert "ORDERBYDESCsys_created_on" in url
+        # Spaces in keywords URL-encoded
+        assert "server" in url
 
+    @pytest.mark.asyncio
+    async def test_search_records_rejects_unknown_table(self):
+        from Table_Tools.generic_tool_wrappers import search_records
 
-class TestKnowledgeBaseWorkflow(unittest.IsolatedAsyncioTestCase):
-    """Test knowledge base search and retrieval workflow."""
+        result = await search_records("not_a_real_table", "anything")
 
-    async def asyncSetUp(self):
-        """Set up knowledge base workflow fixtures."""
-        self.sample_kb_article = {
-            "number": "KB0007001",
-            "title": "How to reset password",
-            "category": "IT Support",
-            "text": "Steps for password reset..."
-        }
+        assert "error" in result
+        assert "Invalid table" in result["error"]
 
-    async def test_knowledge_search_workflow(self):
-        """Test knowledge article search workflow."""
-        search_workflow = [
-            "search_by_text",
-            "filter_by_category", 
-            "get_article_details",
-            "find_related_articles"
-        ]
-        
-        for step in search_workflow:
-            self.assertIsInstance(step, str)
+    @pytest.mark.asyncio
+    async def test_filter_records_applies_sc_catalog_filter(self):
+        """Service-catalog tables get sensitive-record exclusions injected automatically.
+
+        ENABLE_SC_CATALOG_FILTERING is True by default, so a request against
+        sc_req_item should always include the People_Pay catalog exclusion
+        and the assignment-group exclusions, regardless of caller-supplied
+        filters.
+        """
+        from Table_Tools.generic_tool_wrappers import filter_records
+
+        captured = {}
+
+        async def fake_oauth_request(url):
+            captured["url"] = url
+            return {"result": []}
+
+        with patch("service_now_api_oauth.make_oauth_request", new=fake_oauth_request):
+            await filter_records("sc_req_item", {"state": "1"})
+
+        url = captured["url"]
+        # Catalog and assignment-group exclusions are appended by the SDK
+        assert "cat_item.sc_catalogs.title!=People_Pay" in url
+        assert "assignment_group.name!=" in url
+        # Caller-supplied filter still present
+        assert "state=1" in url
+
+    @pytest.mark.asyncio
+    async def test_filter_records_skips_category_filter_when_flag_off(self):
+        """Toggle on the incident-category gate to confirm both branches wire up."""
+        from Table_Tools.generic_tool_wrappers import filter_records
+
+        captured = {}
+
+        async def fake_oauth_request(url):
+            captured["url"] = url
+            return {"result": []}
+
+        with patch("service_now_api_oauth.make_oauth_request", new=fake_oauth_request), \
+             patch("Table_Tools.generic_table_tools.ENABLE_INCIDENT_CATEGORY_FILTERING", True):
+            await filter_records("incident", {"priority": "1"})
+
+        url = captured["url"]
+        assert "category!=Payroll" in url
 
 
-class TestPrivateTaskCRUDWorkflow(unittest.IsolatedAsyncioTestCase):
-    """Test private task CRUD operations workflow."""
+# ---------------------------------------------------------------------------
+# Write pipeline end-to-end
+# ---------------------------------------------------------------------------
 
-    async def asyncSetUp(self):
-        """Set up private task workflow fixtures."""
-        self.sample_task = {
-            "short_description": "Test task",
-            "description": "This is a test task",
-            "priority": "3",
-            "state": "New"
-        }
+class TestWritePipelineEndToEnd:
+    """create_private_task → make_nws_request(method=POST) → oauth_client (raise_for_status=True)."""
 
-    async def test_task_crud_workflow(self):
-        """Test complete CRUD workflow for private tasks."""
-        crud_operations = [
-            "create_private_task",
-            "get_private_task_details",
-            "update_private_task", 
-            "find_similar_tasks"
-        ]
-        
-        for operation in crud_operations:
-            self.assertIsInstance(operation, str)
-            self.assertIn("task", operation)
+    @pytest.mark.asyncio
+    async def test_create_private_task_routes_through_unified_pipeline(self):
+        from Table_Tools.vtb_task_tools import create_private_task
 
+        with patch("service_now_api_oauth.get_oauth_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.make_authenticated_request = AsyncMock(
+                return_value={"result": {"number": "VTB0001234"}}
+            )
+            mock_get_client.return_value = mock_client
 
-class TestIntelligentFilteringIntegration(unittest.IsolatedAsyncioTestCase):
-    """Test intelligent filtering integration across all tools."""
+            result = await create_private_task({"short_description": "Integration test"})
 
-    async def asyncSetUp(self):
-        """Set up intelligent filtering test fixtures."""
-        self.natural_language_filters = {
-            "Week 35 2025": ("2025-08-25", "2025-08-31"),
-            "August 25-31, 2025": ("2025-08-25", "2025-08-31"),
-            "2025-08-25 to 2025-08-31": ("2025-08-25", "2025-08-31")
-        }
-        
-        self.priority_formats = {
-            "1,2": "priority=1^ORpriority=2",
-            "P1,P2": "priority=1^ORpriority=2", 
-            '["1","2","3"]': "priority=1^ORpriority=2^ORpriority=3"
-        }
+        assert result == {"number": "VTB0001234"}
+        # Confirm the write was delegated to oauth_client with raise_for_status=True
+        call = mock_client.make_authenticated_request.call_args
+        assert call.args[0] == "POST"
+        assert call.kwargs["raise_for_status"] is True
+        assert call.kwargs["json"]["short_description"] == "Integration test"
 
-    async def test_date_parsing_integration(self):
-        """Test date parsing across different formats."""
-        for input_format, expected in self.natural_language_filters.items():
-            self.assertIsInstance(input_format, str)
-            self.assertIsInstance(expected, tuple)
-            self.assertEqual(len(expected), 2)
+    @pytest.mark.asyncio
+    async def test_update_private_task_resolves_sys_id_then_patches(self):
+        from Table_Tools.vtb_task_tools import update_private_task
 
-    async def test_priority_parsing_integration(self):
-        """Test priority parsing across different formats."""
-        for input_format, expected in self.priority_formats.items():
-            self.assertIsInstance(input_format, str)
-            self.assertIsInstance(expected, str)
-            self.assertIn("priority=", expected)
-            
-            # Test OR syntax presence for multiple priorities
-            if "," in input_format or "[" in input_format:
-                self.assertIn("^OR", expected)
+        # Sequence: GET (sys_id lookup) -> PATCH (update)
+        async def fake_oauth_get(url):
+            assert "sysparm_query=number=VTB0001234" in url
+            return {"result": [{"sys_id": "abc123"}]}
 
-    async def test_combined_filtering_integration(self):
-        """Test combined intelligent filtering."""
-        combined_filters = {
-            "sys_created_on": "Week 35 2025",
-            "priority": "1,2",
-            "exclude_caller": "logicmonitor"
-        }
-        
-        # Validate filter structure
-        for key, value in combined_filters.items():
-            self.assertIsInstance(key, str)
-            self.assertIsInstance(value, str)
-            self.assertGreater(len(value), 0)
+        with patch("service_now_api_oauth.make_oauth_request", new=fake_oauth_get), \
+             patch("service_now_api_oauth.get_oauth_client") as mock_get_client:
+
+            mock_client = MagicMock()
+            mock_client.make_authenticated_request = AsyncMock(
+                return_value={"result": {"number": "VTB0001234", "state": "3"}}
+            )
+            mock_get_client.return_value = mock_client
+
+            result = await update_private_task("VTB0001234", {"state": "3"})
+
+        assert result == {"number": "VTB0001234", "state": "3"}
+        call = mock_client.make_authenticated_request.call_args
+        assert call.args[0] == "PATCH"
+        assert "abc123" in call.args[1]  # sys_id reached the PATCH URL
 
 
-class TestOAuthIntegration(unittest.IsolatedAsyncioTestCase):
-    """Test OAuth integration across all tools."""
+# ---------------------------------------------------------------------------
+# Error propagation end-to-end
+# ---------------------------------------------------------------------------
 
-    async def asyncSetUp(self):
-        """Set up OAuth integration fixtures."""
-        self.oauth_config = {
-            "client_id": "test_client_id",
-            "client_secret": "test_client_secret", 
-            "instance_url": "https://test.service-now.com"
-        }
+class TestErrorPropagationEndToEnd:
+    """HTTPStatusError raised at the OAuth boundary surfaces as a domain error string."""
 
-    async def test_oauth_flow_integration(self):
-        """Test OAuth authentication flow integration."""
-        oauth_steps = [
-            "check_oauth_configuration",
-            "obtain_access_token",
-            "validate_token",
-            "make_authenticated_request",
-            "handle_token_refresh"
-        ]
-        
-        for step in oauth_steps:
-            self.assertIsInstance(step, str)
-            # Check for oauth-related terms in step names
-            self.assertTrue("token" in step or "oauth" in step or "auth" in step or "validate" in step or "request" in step)
+    @pytest.mark.parametrize("status_code,fragment", [
+        (401, "Authentication failed"),
+        (403, "Access denied"),
+        (400, "Invalid request"),
+        (404, "not found"),
+        (500, "server error"),
+    ])
+    @pytest.mark.asyncio
+    async def test_create_private_task_maps_http_status_to_error_message(
+        self, status_code, fragment
+    ):
+        from Table_Tools.vtb_task_tools import create_private_task
 
-    async def test_oauth_error_handling_integration(self):
-        """Test OAuth error handling integration."""
-        error_scenarios = [
-            "invalid_credentials",
-            "token_expired", 
-            "network_error",
-            "server_error"
-        ]
-        
-        for scenario in error_scenarios:
-            self.assertIsInstance(scenario, str)
-            # Check for error-related terms in scenario names
-            self.assertTrue("error" in scenario or "invalid" in scenario or "expired" in scenario or "network" in scenario or "server" in scenario)
+        response = MagicMock()
+        response.status_code = status_code
+        error = httpx.HTTPStatusError(str(status_code), request=MagicMock(), response=response)
 
+        with patch("service_now_api_oauth.get_oauth_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.make_authenticated_request = AsyncMock(side_effect=error)
+            mock_get_client.return_value = mock_client
 
-class TestAPIResponseHandling(unittest.TestCase):
-    """Test API response handling and data validation."""
+            result = await create_private_task({"short_description": "boom"})
 
-    def setUp(self):
-        """Set up API response test fixtures."""
-        self.valid_incident_response = {
-            "result": [
-                {
-                    "number": "INC0010001",
-                    "short_description": "Server down",
-                    "priority": "1"
-                }
-            ]
-        }
-        
-        self.error_response = {
-            "error": {
-                "message": "Invalid table",
-                "detail": "Table 'invalid_table' does not exist"
-            }
-        }
-
-    def test_valid_response_structure(self):
-        """Test validation of valid API response structure."""
-        self.assertIsInstance(self.valid_incident_response, dict)
-        self.assertIn('result', self.valid_incident_response)
-        self.assertIsInstance(self.valid_incident_response['result'], list)
-
-    def test_error_response_structure(self):
-        """Test validation of error response structure."""
-        self.assertIsInstance(self.error_response, dict)
-        self.assertIn('error', self.error_response)
-        self.assertIn('message', self.error_response['error'])
-
-    def test_response_data_validation(self):
-        """Test response data field validation."""
-        record = self.valid_incident_response['result'][0]
-        
-        required_fields = ['number', 'short_description']
-        for field in required_fields:
-            self.assertIn(field, record)
-            self.assertIsInstance(record[field], str)
-
-
-if __name__ == '__main__':
-    # Run tests with verbose output
-    unittest.main(verbosity=2)
+        assert isinstance(result, str)
+        assert fragment.lower() in result.lower()

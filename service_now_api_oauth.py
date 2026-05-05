@@ -1,5 +1,5 @@
 import orjson
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import quote, unquote
 from dotenv import load_dotenv
 import os
@@ -66,17 +66,36 @@ def _add_default_params(url: str, display_value: bool = True) -> str:
     separator = "&" if "?" in url else "?"
     return f"{url}{separator}{'&'.join(params)}"
 
-async def make_nws_request(url: str, display_value: bool = True) -> dict[str, Any] | None:
-    """Make a request to the ServiceNow API using OAuth 2.0 authentication."""
-    url = _ensure_query_encoded(url)
-    url = _add_default_params(url, display_value)
+async def make_nws_request(
+    url: str,
+    display_value: bool = True,
+    method: str = "GET",
+    json_data: Optional[dict[str, Any]] = None,
+) -> dict[str, Any] | None:
+    """Make a request to the ServiceNow API using OAuth 2.0 authentication.
 
-    try:
-        result = await make_oauth_request(url)
-        return _extract_display_values(result) if result and display_value else result
-    except Exception as e:
-        print(f"OAuth request failed: {str(e)}")
-        return None
+    For GET requests, applies query encoding, default performance params
+    (sysparm_no_count, sysparm_exclude_reference_link), and display-value
+    extraction.
+
+    For non-GET requests (POST, PATCH, DELETE), bypasses read-only param
+    injection and propagates httpx.HTTPStatusError so callers can map
+    status codes to domain-specific error messages.
+    """
+    if method == "GET":
+        url = _ensure_query_encoded(url)
+        url = _add_default_params(url, display_value)
+        try:
+            result = await make_oauth_request(url)
+            return _extract_display_values(result) if result and display_value else result
+        except Exception as e:
+            print(f"OAuth request failed: {str(e)}")
+            return None
+
+    client = get_oauth_client()
+    return await client.make_authenticated_request(
+        method, url, raise_for_status=True, json=json_data
+    )
 
 async def test_oauth_connection() -> dict[str, Any]:
     """Test OAuth connection and return status."""

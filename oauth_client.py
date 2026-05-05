@@ -126,6 +126,7 @@ class ServiceNowOAuthClient:
         client: httpx.AsyncClient,
         method: str,
         url: str,
+        raise_for_status: bool = False,
         **kwargs
     ) -> Dict[str, Any] | None:
         """Retry request with fresh token after 401. Complexity: 4"""
@@ -139,7 +140,11 @@ class ServiceNowOAuthClient:
             response = await client.request(method, url, timeout=30.0, **kwargs)
             response.raise_for_status()
             return response.json()
-        except (httpx.HTTPStatusError, httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
+        except httpx.HTTPStatusError:
+            if raise_for_status:
+                raise
+            return None
+        except (httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
             return None
 
     def _process_response(self, response: httpx.Response) -> Dict[str, Any]:
@@ -150,9 +155,15 @@ class ServiceNowOAuthClient:
         self,
         method: str,
         url: str,
+        raise_for_status: bool = False,
         **kwargs
     ) -> Dict[str, Any] | None:
         """Make an authenticated request to ServiceNow API.
+
+        When raise_for_status=True, propagates httpx.HTTPStatusError so the
+        caller can map status codes to domain-specific error messages
+        (used by write operations like vtb_task CRUD). Read operations keep
+        the default permissive behaviour and return None on failure.
 
         Complexity: 8 (reduced from ~18-22)
         """
@@ -171,7 +182,11 @@ class ServiceNowOAuthClient:
             except httpx.HTTPStatusError as e:
                 # Handle potential token expiration with retry
                 if e.response.status_code == 401:
-                    return await self._retry_with_fresh_token(client, method, url, **kwargs)
+                    return await self._retry_with_fresh_token(
+                        client, method, url, raise_for_status=raise_for_status, **kwargs
+                    )
+                if raise_for_status:
+                    raise
                 return None
             except (httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
                 return None
