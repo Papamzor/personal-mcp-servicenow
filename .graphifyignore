@@ -1,0 +1,11 @@
+# .graphifyignore
+node_modules/
+dist/
+*.generated.py
+__pycache__/
+.venv/
+venv/
+.pytest_cache/
+graphify-out/
+htmlcov/
+*.egg-info/

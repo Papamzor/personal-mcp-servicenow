@@ -41,3 +41,7 @@ v3.0/
 
 # Settings files
 settings.json
+
+# graphify knowledge graph artifacts
+graphify-out/
+.graphify_*
