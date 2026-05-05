@@ -9,8 +9,8 @@ import httpx
 
 # Import functions to test
 from Table_Tools.vtb_task_tools import (
-    _get_authenticated_headers,
-    _make_authenticated_request,
+    _write_private_task,
+    _unwrap_write_response,
     create_private_task,
     update_private_task,
     _get_task_sys_id,
@@ -19,268 +19,190 @@ from Table_Tools.vtb_task_tools import (
 )
 
 
-class TestAuthenticationHelpers:
-    """Test OAuth-only authentication helper functions."""
+def _make_http_status_error(status_code: int) -> httpx.HTTPStatusError:
+    response = MagicMock()
+    response.status_code = status_code
+    return httpx.HTTPStatusError(str(status_code), request=MagicMock(), response=response)
+
+
+class TestWritePrivateTask:
+    """Test the unified write helper that wraps make_nws_request."""
 
     @pytest.mark.asyncio
-    async def test_get_authenticated_headers_success(self):
-        """Test getting OAuth authentication headers successfully."""
-        with patch('oauth_client.get_oauth_client') as mock_get_client:
-            mock_client = MagicMock()
-            mock_client.get_auth_headers = AsyncMock(return_value={
-                "Authorization": "Bearer test_token_123",
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            })
-            mock_get_client.return_value = mock_client
-
-            headers = await _get_authenticated_headers()
-
-            assert headers["Authorization"] == "Bearer test_token_123"
-            assert headers["Content-Type"] == "application/json"
-            mock_get_client.assert_called_once()
-            mock_client.get_auth_headers.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_make_authenticated_request_success(self):
-        """Test successful OAuth authenticated request."""
-        with patch('Table_Tools.vtb_task_tools._get_authenticated_headers') as mock_headers, \
-             patch('Table_Tools.vtb_task_tools.httpx.AsyncClient') as mock_client_class:
-
-            mock_headers.return_value = {"Authorization": "Bearer test_token"}
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {
+    async def test_write_success_returns_inner_result(self):
+        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {
                 "result": {"number": "VTB0001234", "short_description": "Test task"}
             }
 
-            mock_client = MagicMock()
-            mock_client.request = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
-
-            result = await _make_authenticated_request(
+            result = await _write_private_task(
                 "POST",
                 "https://test.service-now.com/api/now/table/vtb_task",
                 {"short_description": "Test task"},
-                "creation"
+                "creation",
             )
 
             assert result == {"number": "VTB0001234", "short_description": "Test task"}
-            mock_headers.assert_called_once()
-            mock_client.request.assert_called_once()
+            mock_request.assert_called_once_with(
+                "https://test.service-now.com/api/now/table/vtb_task",
+                method="POST",
+                json_data={"short_description": "Test task"},
+            )
 
     @pytest.mark.asyncio
-    async def test_make_authenticated_request_no_result(self):
-        """Test authenticated request with no result data."""
-        with patch('Table_Tools.vtb_task_tools._get_authenticated_headers') as mock_headers, \
-             patch('Table_Tools.vtb_task_tools.httpx.AsyncClient') as mock_client_class:
+    async def test_write_no_result_returns_fallback_string(self):
+        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {}
 
-            mock_headers.return_value = {"Authorization": "Bearer test_token"}
-
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {}
-
-            mock_client = MagicMock()
-            mock_client.request = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
-
-            result = await _make_authenticated_request(
+            result = await _write_private_task(
                 "POST",
                 "https://test.service-now.com/api/now/table/vtb_task",
                 {"short_description": "Test"},
-                "creation"
+                "creation",
             )
 
             assert "successful but no data returned" in result
 
     @pytest.mark.asyncio
-    async def test_make_authenticated_request_401_error(self):
-        """Test authenticated request with 401 authentication error."""
-        with patch('Table_Tools.vtb_task_tools._get_authenticated_headers') as mock_headers, \
-             patch('Table_Tools.vtb_task_tools.httpx.AsyncClient') as mock_client_class:
+    async def test_write_none_result_returns_fallback_string(self):
+        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
+            mock_request.return_value = None
 
-            mock_headers.return_value = {"Authorization": "Bearer test_token"}
-
-            mock_response = MagicMock()
-            mock_response.status_code = 401
-            mock_error = httpx.HTTPStatusError("401", request=MagicMock(), response=mock_response)
-
-            mock_client = MagicMock()
-            mock_client.request = AsyncMock(side_effect=mock_error)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
-
-            result = await _make_authenticated_request(
+            result = await _write_private_task(
                 "POST",
                 "https://test.service-now.com/api/now/table/vtb_task",
                 {"short_description": "Test"},
-                "creation"
+                "creation",
+            )
+
+            assert "successful but no data returned" in result
+
+    @pytest.mark.asyncio
+    async def test_write_401_returns_auth_failed(self):
+        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
+            mock_request.side_effect = _make_http_status_error(401)
+
+            result = await _write_private_task(
+                "POST",
+                "https://test.service-now.com/api/now/table/vtb_task",
+                {"short_description": "Test"},
+                "creation",
             )
 
             assert "Authentication failed" in result
 
     @pytest.mark.asyncio
-    async def test_make_authenticated_request_403_error(self):
-        """Test authenticated request with 403 access denied error."""
-        with patch('Table_Tools.vtb_task_tools._get_authenticated_headers') as mock_headers, \
-             patch('Table_Tools.vtb_task_tools.httpx.AsyncClient') as mock_client_class:
+    async def test_write_403_returns_access_denied(self):
+        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
+            mock_request.side_effect = _make_http_status_error(403)
 
-            mock_headers.return_value = {"Authorization": "Bearer test_token"}
-
-            mock_response = MagicMock()
-            mock_response.status_code = 403
-            mock_error = httpx.HTTPStatusError("403", request=MagicMock(), response=mock_response)
-
-            mock_client = MagicMock()
-            mock_client.request = AsyncMock(side_effect=mock_error)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
-
-            result = await _make_authenticated_request(
-                "POST",
-                "https://test.service-now.com/api/now/table/vtb_task",
-                {"short_description": "Test"},
-                "update"
+            result = await _write_private_task(
+                "PATCH",
+                "https://test.service-now.com/api/now/table/vtb_task/abc",
+                {"state": "3"},
+                "update",
             )
 
             assert "Access denied" in result
 
     @pytest.mark.asyncio
-    async def test_make_authenticated_request_404_error(self):
-        """Test authenticated request with 404 not found error."""
-        with patch('Table_Tools.vtb_task_tools._get_authenticated_headers') as mock_headers, \
-             patch('Table_Tools.vtb_task_tools.httpx.AsyncClient') as mock_client_class:
+    async def test_write_400_returns_invalid_request(self):
+        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
+            mock_request.side_effect = _make_http_status_error(400)
 
-            mock_headers.return_value = {"Authorization": "Bearer test_token"}
+            result = await _write_private_task(
+                "POST",
+                "https://test.service-now.com/api/now/table/vtb_task",
+                {"short_description": "Test"},
+                "creation",
+            )
 
-            mock_response = MagicMock()
-            mock_response.status_code = 404
-            mock_error = httpx.HTTPStatusError("404", request=MagicMock(), response=mock_response)
+            assert "Invalid request" in result
 
-            mock_client = MagicMock()
-            mock_client.request = AsyncMock(side_effect=mock_error)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
+    @pytest.mark.asyncio
+    async def test_write_404_returns_not_found(self):
+        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
+            mock_request.side_effect = _make_http_status_error(404)
 
-            result = await _make_authenticated_request(
-                "GET",
-                "https://test.service-now.com/api/now/table/vtb_task/invalid",
-                operation="retrieval"
+            result = await _write_private_task(
+                "PATCH",
+                "https://test.service-now.com/api/now/table/vtb_task/missing",
+                {"state": "3"},
+                "update",
             )
 
             assert "not found" in result
 
     @pytest.mark.asyncio
-    async def test_make_authenticated_request_500_error(self):
-        """Test authenticated request with 500 server error."""
-        with patch('Table_Tools.vtb_task_tools._get_authenticated_headers') as mock_headers, \
-             patch('Table_Tools.vtb_task_tools.httpx.AsyncClient') as mock_client_class:
+    async def test_write_500_returns_server_error(self):
+        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
+            mock_request.side_effect = _make_http_status_error(500)
 
-            mock_headers.return_value = {"Authorization": "Bearer test_token"}
-
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_error = httpx.HTTPStatusError("500", request=MagicMock(), response=mock_response)
-
-            mock_client = MagicMock()
-            mock_client.request = AsyncMock(side_effect=mock_error)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
-
-            result = await _make_authenticated_request(
+            result = await _write_private_task(
                 "POST",
                 "https://test.service-now.com/api/now/table/vtb_task",
                 {"short_description": "Test"},
-                "creation"
+                "creation",
             )
 
             assert "server error" in result.lower()
 
     @pytest.mark.asyncio
-    async def test_make_authenticated_request_generic_exception(self):
-        """Test authenticated request with generic exception."""
-        with patch('Table_Tools.vtb_task_tools._get_authenticated_headers') as mock_headers, \
-             patch('Table_Tools.vtb_task_tools.httpx.AsyncClient') as mock_client_class:
+    async def test_write_generic_exception_returns_request_failed(self):
+        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
+            mock_request.side_effect = Exception("Network error")
 
-            mock_headers.return_value = {"Authorization": "Bearer test_token"}
-
-            mock_client = MagicMock()
-            mock_client.request = AsyncMock(side_effect=Exception("Network error"))
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
-
-            result = await _make_authenticated_request(
+            result = await _write_private_task(
                 "POST",
                 "https://test.service-now.com/api/now/table/vtb_task",
                 {"short_description": "Test"},
-                "deletion"
+                "deletion",
             )
 
             assert "request failed" in result.lower()
+
+
+class TestUnwrapWriteResponse:
+    """Test the response unwrapper helper."""
+
+    def test_unwrap_with_inner_result(self):
+        result = _unwrap_write_response({"result": {"number": "VTB0001"}}, "creation")
+        assert result == {"number": "VTB0001"}
+
+    def test_unwrap_empty_dict_returns_fallback(self):
+        result = _unwrap_write_response({}, "creation")
+        assert "successful but no data returned" in result
+
+    def test_unwrap_none(self):
+        result = _unwrap_write_response(None, "update")
+        assert "successful but no data returned" in result
+
+    def test_unwrap_dict_without_result_key(self):
+        result = _unwrap_write_response({"some": "value"}, "creation")
+        assert result == {"some": "value"}
 
 
 class TestHttpErrorHandler:
     """Test HTTP error handling function."""
 
     def test_handle_http_error_401(self):
-        """Test handling 401 authentication error."""
-        mock_response = MagicMock()
-        mock_response.status_code = 401
-        error = httpx.HTTPStatusError("401", request=MagicMock(), response=mock_response)
-
-        result = _handle_http_error(error, "creation")
-
+        result = _handle_http_error(_make_http_status_error(401), "creation")
         assert "Authentication failed" in result
 
     def test_handle_http_error_403(self):
-        """Test handling 403 access denied error."""
-        mock_response = MagicMock()
-        mock_response.status_code = 403
-        error = httpx.HTTPStatusError("403", request=MagicMock(), response=mock_response)
-
-        result = _handle_http_error(error, "update")
-
+        result = _handle_http_error(_make_http_status_error(403), "update")
         assert "Access denied" in result
 
     def test_handle_http_error_400(self):
-        """Test handling 400 bad request error."""
-        mock_response = MagicMock()
-        mock_response.status_code = 400
-        error = httpx.HTTPStatusError("400", request=MagicMock(), response=mock_response)
-
-        result = _handle_http_error(error, "creation")
-
+        result = _handle_http_error(_make_http_status_error(400), "creation")
         assert "Invalid request" in result
 
     def test_handle_http_error_404(self):
-        """Test handling 404 not found error."""
-        mock_response = MagicMock()
-        mock_response.status_code = 404
-        error = httpx.HTTPStatusError("404", request=MagicMock(), response=mock_response)
-
-        result = _handle_http_error(error, "retrieval")
-
+        result = _handle_http_error(_make_http_status_error(404), "retrieval")
         assert "not found" in result
 
     def test_handle_http_error_unknown(self):
-        """Test handling unknown HTTP error code."""
-        mock_response = MagicMock()
-        mock_response.status_code = 503
-        error = httpx.HTTPStatusError("503", request=MagicMock(), response=mock_response)
-
-        result = _handle_http_error(error, "update")
-
+        result = _handle_http_error(_make_http_status_error(503), "update")
         assert "server error" in result.lower()
 
 
@@ -393,11 +315,13 @@ class TestCreatePrivateTask:
     @pytest.mark.asyncio
     async def test_create_private_task_success(self):
         """Test successful private task creation."""
-        with patch('Table_Tools.vtb_task_tools._make_authenticated_request') as mock_request:
+        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
             mock_request.return_value = {
-                "number": "VTB0001234",
-                "short_description": "Test task",
-                "state": "1"
+                "result": {
+                    "number": "VTB0001234",
+                    "short_description": "Test task",
+                    "state": "1",
+                }
             }
 
             task_data = {"short_description": "Test task"}
@@ -405,8 +329,8 @@ class TestCreatePrivateTask:
 
             assert result["number"] == "VTB0001234"
             mock_request.assert_called_once()
-            args = mock_request.call_args
-            assert args[0][0] == "POST"
+            kwargs = mock_request.call_args.kwargs
+            assert kwargs["method"] == "POST"
 
     @pytest.mark.asyncio
     async def test_create_private_task_missing_short_description(self):
@@ -420,8 +344,8 @@ class TestCreatePrivateTask:
     @pytest.mark.asyncio
     async def test_create_private_task_with_all_fields(self):
         """Test task creation with all optional fields."""
-        with patch('Table_Tools.vtb_task_tools._make_authenticated_request') as mock_request:
-            mock_request.return_value = {"number": "VTB0001234"}
+        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": {"number": "VTB0001234"}}
 
             task_data = {
                 "short_description": "Complete task",
@@ -446,12 +370,11 @@ class TestUpdatePrivateTask:
     async def test_update_private_task_success(self):
         """Test successful private task update."""
         with patch('Table_Tools.vtb_task_tools._get_task_sys_id') as mock_sys_id, \
-             patch('Table_Tools.vtb_task_tools._make_authenticated_request') as mock_request:
+             patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
 
             mock_sys_id.return_value = "abc123def456"
             mock_request.return_value = {
-                "number": "VTB0001234",
-                "state": "3"
+                "result": {"number": "VTB0001234", "state": "3"}
             }
 
             update_data = {"state": "3"}
@@ -461,8 +384,8 @@ class TestUpdatePrivateTask:
             assert result["state"] == "3"
             mock_sys_id.assert_called_once_with("VTB0001234")
             mock_request.assert_called_once()
-            args = mock_request.call_args
-            assert args[0][0] == "PATCH"
+            kwargs = mock_request.call_args.kwargs
+            assert kwargs["method"] == "PATCH"
 
     @pytest.mark.asyncio
     async def test_update_private_task_no_update_data(self):
@@ -481,5 +404,3 @@ class TestUpdatePrivateTask:
             result = await update_private_task("VTB9999999", update_data)
 
             assert "not found" in result
-
-
