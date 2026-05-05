@@ -13,7 +13,7 @@ class TestGetConfigDir:
     def test_macos_config_dir(self, mock_system):
         from config_loader import get_config_dir
         result = get_config_dir()
-        assert '.config/mcp-servicenow' in result
+        assert os.path.join('.config', 'mcp-servicenow') in result
 
     @patch('platform.system', return_value='Windows')
     @patch.dict(os.environ, {'APPDATA': 'C:\\Users\\Test\\AppData\\Roaming'})
