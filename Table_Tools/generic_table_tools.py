@@ -58,86 +58,43 @@ def _validate_regex_input(text: str) -> bool:
     return True
 
 
+def _append_to_query(existing_query: str, addition: str) -> str:
+    """Append an exclusion filter to an existing query with the ServiceNow AND operator."""
+    return f"{existing_query}^{addition}" if existing_query else addition
+
+
 def _apply_incident_category_filter(table_name: str, existing_query: str = "") -> str:
+    """Block sensitive incident categories (Payroll/People Support/Workplace) from results.
+
+    Only applies to the 'incident' table; gated by ENABLE_INCIDENT_CATEGORY_FILTERING.
+    Other tables get the query back unchanged.
     """
-    Apply category-based filtering for incidents to block sensitive categories.
-
-    This function automatically adds category exclusions when querying the incident table,
-    ensuring that incidents with sensitive categories (Payroll, People Support, Workplace)
-    are automatically filtered out from all API responses.
-
-    Args:
-        table_name: The ServiceNow table being queried
-        existing_query: The existing query string to append category filters to
-
-    Returns:
-        The query string with category filters applied (for incidents only)
-
-    Note:
-        - Only applies to 'incident' table
-        - Can be disabled via ENABLE_INCIDENT_CATEGORY_FILTERING constant
-        - Non-breaking for other table types
-    """
-    # Only apply filtering to incident table when enabled
     if table_name != "incident" or not ENABLE_INCIDENT_CATEGORY_FILTERING:
         return existing_query
 
-    # Build category exclusion filter using ServiceNow syntax
-    # Format: category!=Payroll^category!=People Support^category!=Workplace
     category_filters = [f"category!={category}" for category in EXCLUDED_INCIDENT_CATEGORIES]
-    category_query = "^".join(category_filters)
-
-    # Combine with existing query if present
-    if existing_query:
-        return f"{existing_query}^{category_query}"
-    return category_query
+    return _append_to_query(existing_query, "^".join(category_filters))
 
 
 def _apply_sc_catalog_filter(table_name: str, existing_query: str = "") -> str:
+    """Block sensitive service-catalog records (People_Pay, Payroll groups, ...) from results.
+
+    Applies to SC_CATALOG_TABLES (sc_request, sc_req_item, sc_task); gated by
+    ENABLE_SC_CATALOG_FILTERING. Other tables get the query back unchanged.
     """
-    Apply exclusion-based filtering for service catalog tables to block sensitive records.
-
-    This function automatically adds exclusion filters when querying service catalog
-    tables (sc_request, sc_req_item, sc_task), ensuring that records with sensitive
-    catalog categories (e.g., People_Pay) or assignment groups (e.g., Payroll, HR teams)
-    are blocked from API responses.
-
-    Args:
-        table_name: The ServiceNow table being queried
-        existing_query: The existing query string to append exclusion filters to
-
-    Returns:
-        The query string with exclusion filters applied (for service catalog tables only)
-
-    Note:
-        - Only applies to tables in SC_CATALOG_TABLES (sc_request, sc_req_item, sc_task)
-        - Can be disabled via ENABLE_SC_CATALOG_FILTERING constant
-        - Uses exclusion (!=) to block sensitive categories and assignment groups
-        - Non-breaking for other table types
-    """
-    # Only apply filtering to service catalog tables when enabled
     if table_name not in SC_CATALOG_TABLES or not ENABLE_SC_CATALOG_FILTERING:
         return existing_query
 
-    exclusion_filters = []
+    exclusion_filters = [
+        f"cat_item.sc_catalogs.title!={category}"
+        for category in EXCLUDED_SC_CATALOG_CATEGORIES
+    ]
+    exclusion_filters.extend(
+        f"assignment_group.name!={group}"
+        for group in EXCLUDED_SC_ASSIGNMENT_GROUPS
+    )
 
-    # Build catalog exclusion filters
-    # Format: cat_item.sc_catalogs.title!=People_Pay
-    for category in EXCLUDED_SC_CATALOG_CATEGORIES:
-        exclusion_filters.append(f"cat_item.sc_catalogs.title!={category}")
-
-    # Build assignment group exclusion filters
-    # Format: assignment_group.name!=Payroll Specialists
-    for group in EXCLUDED_SC_ASSIGNMENT_GROUPS:
-        exclusion_filters.append(f"assignment_group.name!={group}")
-
-    # Join all exclusions with AND (^)
-    exclusion_query = "^".join(exclusion_filters)
-
-    # Combine with existing query if present
-    if existing_query:
-        return f"{existing_query}^{exclusion_query}"
-    return exclusion_query
+    return _append_to_query(existing_query, "^".join(exclusion_filters))
 
 
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any]:
@@ -250,9 +207,32 @@ def _is_complete_servicenow_filter(value: str) -> bool:
         return '=' in before_or
     return False
 
+def _month_name_to_num(name: str) -> Optional[int]:
+    """Resolve an English month name (full or 3+ letter abbrev) to its 1-12 number."""
+    return MONTH_NAME_TO_NUMBER.get(name.lower())
+
+
+def _iso_range_from_month_names(
+    start_month_name: str, start_day: int, start_year: int,
+    end_month_name: str, end_day: int, end_year: int,
+) -> Optional[tuple]:
+    """Build an (ISO start, ISO end) date tuple from month-name components.
+
+    Returns None when either month name is unknown — caller treats that as
+    a non-match so the next parser in the registry gets a chance.
+    """
+    start_month = _month_name_to_num(start_month_name)
+    end_month = _month_name_to_num(end_month_name)
+    if not (start_month and end_month):
+        return None
+
+    start_date = f"{start_year}-{start_month:02d}-{start_day:02d}"
+    end_date = f"{end_year}-{end_month:02d}-{end_day:02d}"
+    return (start_date, end_date)
+
+
 def _parse_week_format(text: str) -> Optional[tuple]:
     """Parse 'Week X YYYY' format. Complexity: 3"""
-    import re
     from datetime import datetime, timedelta
 
     week_match = re.search(r'week (\d{1,2}) (?:of )?(\d{4})', text)
@@ -270,30 +250,23 @@ def _parse_week_format(text: str) -> Optional[tuple]:
     return (week_start.strftime('%Y-%m-%d'), week_end.strftime('%Y-%m-%d'))
 
 def _parse_month_range_format(text: str) -> Optional[tuple]:
-    """Parse 'Month DD-DD, YYYY' format. Complexity: 4"""
-    import re
-
-    month_range_match = re.search(r'(\w{3,9}) (\d{1,2})-(\d{1,2}), ?(\d{4})', text)
-    if not month_range_match:
+    """Parse 'Month DD-DD, YYYY' format. Complexity: 3"""
+    match = re.search(r'(\w{3,9}) (\d{1,2})-(\d{1,2}), ?(\d{4})', text)
+    if not match:
         return None
 
-    month_name = month_range_match.group(1)
-    start_day = int(month_range_match.group(2))
-    end_day = int(month_range_match.group(3))
-    year = int(month_range_match.group(4))
+    month_name = match.group(1)
+    start_day = int(match.group(2))
+    end_day = int(match.group(3))
+    year = int(match.group(4))
 
-    month_num = MONTH_NAME_TO_NUMBER.get(month_name.lower())
-    if not month_num:
-        return None
-
-    start_date = f"{year}-{month_num:02d}-{start_day:02d}"
-    end_date = f"{year}-{month_num:02d}-{end_day:02d}"
-    return (start_date, end_date)
+    return _iso_range_from_month_names(
+        month_name, start_day, year,
+        month_name, end_day, year,
+    )
 
 def _parse_iso_date_range(text: str) -> Optional[tuple]:
     """Parse 'YYYY-MM-DD to YYYY-MM-DD' format. Complexity: 2"""
-    import re
-
     date_range_match = re.search(r'(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})', text)
     if not date_range_match:
         return None
@@ -301,87 +274,47 @@ def _parse_iso_date_range(text: str) -> Optional[tuple]:
     return (date_range_match.group(1), date_range_match.group(2))
 
 def _parse_cross_month_range(text: str) -> Optional[tuple]:
-    """Parse 'Month DD YYYY to Month DD YYYY' format. Complexity: 5"""
-    import re
-
-    cross_month_match = re.search(
+    """Parse 'Month DD YYYY to Month DD YYYY' format. Complexity: 3"""
+    match = re.search(
         r'(?:from )?(\w{3,9}) (\d{1,2}),? (\d{4}) to (\w{3,9}) (\d{1,2}),? (\d{4})',
-        text
+        text,
     )
-    if not cross_month_match:
+    if not match:
         return None
 
-    start_month_name = cross_month_match.group(1)
-    start_day = int(cross_month_match.group(2))
-    start_year = int(cross_month_match.group(3))
-    end_month_name = cross_month_match.group(4)
-    end_day = int(cross_month_match.group(5))
-    end_year = int(cross_month_match.group(6))
-
-    start_month_num = MONTH_NAME_TO_NUMBER.get(start_month_name.lower())
-    end_month_num = MONTH_NAME_TO_NUMBER.get(end_month_name.lower())
-
-    if not (start_month_num and end_month_num):
-        return None
-
-    start_date = f"{start_year}-{start_month_num:02d}-{start_day:02d}"
-    end_date = f"{end_year}-{end_month_num:02d}-{end_day:02d}"
-    return (start_date, end_date)
+    return _iso_range_from_month_names(
+        match.group(1), int(match.group(2)), int(match.group(3)),
+        match.group(4), int(match.group(5)), int(match.group(6)),
+    )
 
 def _parse_between_format(text: str) -> Optional[tuple]:
-    """Parse 'between Month DD, YYYY and Month DD, YYYY' format. Complexity: 5"""
-    import re
-
-    between_match = re.search(
+    """Parse 'between Month DD, YYYY and Month DD, YYYY' format. Complexity: 3"""
+    match = re.search(
         r'between (\w{3,9}) (\d{1,2}),? (\d{4}) and (\w{3,9}) (\d{1,2}),? (\d{4})',
-        text
+        text,
     )
-    if not between_match:
+    if not match:
         return None
 
-    start_month_name = between_match.group(1)
-    start_day = int(between_match.group(2))
-    start_year = int(between_match.group(3))
-    end_month_name = between_match.group(4)
-    end_day = int(between_match.group(5))
-    end_year = int(between_match.group(6))
-
-    start_month_num = MONTH_NAME_TO_NUMBER.get(start_month_name.lower())
-    end_month_num = MONTH_NAME_TO_NUMBER.get(end_month_name.lower())
-
-    if not (start_month_num and end_month_num):
-        return None
-
-    start_date = f"{start_year}-{start_month_num:02d}-{start_day:02d}"
-    end_date = f"{end_year}-{end_month_num:02d}-{end_day:02d}"
-    return (start_date, end_date)
+    return _iso_range_from_month_names(
+        match.group(1), int(match.group(2)), int(match.group(3)),
+        match.group(4), int(match.group(5)), int(match.group(6)),
+    )
 
 def _parse_year_at_end_format(text: str) -> Optional[tuple]:
-    """Parse 'Month DD to Month DD YYYY' format (year at end). Complexity: 5"""
-    import re
-
-    year_at_end_match = re.search(
+    """Parse 'Month DD to Month DD YYYY' format (year at end). Complexity: 3"""
+    match = re.search(
         r'(?:from )?(\w{3,9}) (\d{1,2}) to (\w{3,9}) (\d{1,2}),? (\d{4})',
-        text
+        text,
     )
-    if not year_at_end_match:
+    if not match:
         return None
 
-    start_month_name = year_at_end_match.group(1)
-    start_day = int(year_at_end_match.group(2))
-    end_month_name = year_at_end_match.group(3)
-    end_day = int(year_at_end_match.group(4))
-    year = int(year_at_end_match.group(5))
-
-    start_month_num = MONTH_NAME_TO_NUMBER.get(start_month_name.lower())
-    end_month_num = MONTH_NAME_TO_NUMBER.get(end_month_name.lower())
-
-    if not (start_month_num and end_month_num):
-        return None
-
-    start_date = f"{year}-{start_month_num:02d}-{start_day:02d}"
-    end_date = f"{year}-{end_month_num:02d}-{end_day:02d}"
-    return (start_date, end_date)
+    year = int(match.group(5))
+    return _iso_range_from_month_names(
+        match.group(1), int(match.group(2)), year,
+        match.group(3), int(match.group(4)), year,
+    )
 
 def _parse_date_range_from_text(text: str) -> Optional[tuple]:
     """Parse date range from natural language text with ReDoS protection.
@@ -586,21 +519,23 @@ def _handle_operator_condition(field: str, value: str) -> Optional[str]:
     return None
 
 
+# Suffix-to-operator mapping. Order matters: longer suffixes ('_gte', '_lte') must be
+# checked before shorter ones ('_gt', '_lt') so 'priority_gte' is not parsed as 'priority_g'.
+_SUFFIX_OPERATORS = (
+    ('_gte', '>='),
+    ('_lte', '<='),
+    ('_gt', '>'),
+    ('_lt', '<'),
+)
+
+
 def _handle_suffix_operator_condition(field: str, value: str) -> Optional[str]:
-    """Handle suffix-based operators."""
-    if field.endswith('_gte'):
-        base_field = field[:-4]
-        return f"{base_field}>={value}"
-    elif field.endswith('_lte'):
-        base_field = field[:-4]
-        return f"{base_field}<={value}"
-    elif field.endswith('_gt'):
-        base_field = field[:-3]
-        return f"{base_field}>{value}"
-    elif field.endswith('_lt'):
-        base_field = field[:-3]
-        return f"{base_field}<{value}"
-    elif 'CONTAINS' in field.upper():
+    """Handle suffix-based operators (foo_gte=5 -> foo>=5) and CONTAINS shorthand."""
+    for suffix, operator in _SUFFIX_OPERATORS:
+        if field.endswith(suffix):
+            return f"{field[:-len(suffix)]}{operator}{value}"
+
+    if 'CONTAINS' in field.upper():
         return f"{field}"
     return None
 

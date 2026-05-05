@@ -721,6 +721,72 @@ class TestRetryWithFreshToken:
 
                 assert result is None
 
+    @patch.dict("os.environ", {
+        "SERVICENOW_INSTANCE": "https://test.service-now.com",
+        "SERVICENOW_CLIENT_ID": "test_id",
+        "SERVICENOW_CLIENT_SECRET": "test_secret"
+    })
+    @pytest.mark.asyncio
+    async def test_retry_with_fresh_token_raise_propagates(self):
+        """retry_with_fresh_token re-raises HTTPStatusError when raise_for_status=True."""
+        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 500
+            mock_error = httpx.HTTPStatusError("500", request=MagicMock(), response=mock_response)
+
+            mock_client = MagicMock()
+            mock_client.request = AsyncMock(side_effect=mock_error)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            client = ServiceNowOAuthClient()
+
+            with patch.object(client, "get_auth_headers") as mock_headers:
+                mock_headers.return_value = {"Authorization": "Bearer new_token"}
+
+                with pytest.raises(httpx.HTTPStatusError):
+                    await client._retry_with_fresh_token(
+                        mock_client,
+                        "POST",
+                        "https://test.service-now.com/api/test",
+                        raise_for_status=True,
+                    )
+
+
+class TestRaiseForStatusPropagation:
+    """raise_for_status=True surfaces HTTPStatusError from write operations."""
+
+    @patch.dict("os.environ", {
+        "SERVICENOW_INSTANCE": "https://test.service-now.com",
+        "SERVICENOW_CLIENT_ID": "test_id",
+        "SERVICENOW_CLIENT_SECRET": "test_secret"
+    })
+    @pytest.mark.asyncio
+    async def test_make_authenticated_request_raises_on_non_401(self):
+        """raise_for_status=True propagates 4xx/5xx errors instead of returning None."""
+        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+            mock_response = MagicMock()
+            mock_response.status_code = 404
+            mock_error = httpx.HTTPStatusError("404", request=MagicMock(), response=mock_response)
+
+            mock_client = MagicMock()
+            mock_client.request = AsyncMock(side_effect=mock_error)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            client = ServiceNowOAuthClient()
+            with patch.object(client, "get_auth_headers") as mock_headers:
+                mock_headers.return_value = {"Authorization": "Bearer test_token"}
+
+                with pytest.raises(httpx.HTTPStatusError):
+                    await client.make_authenticated_request(
+                        "POST",
+                        "https://test.service-now.com/api/test",
+                        raise_for_status=True,
+                    )
+
 
 class TestProcessResponse:
     """Test response processing."""

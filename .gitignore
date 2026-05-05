@@ -2,6 +2,8 @@ __pycache__/
 **/__pycache__/
 *.py[cod]
 /.env
+.env.*
+!.env.example
 /.venv
 /venv
 /Table_Tools/__pycache__/
@@ -39,3 +41,7 @@ v3.0/
 
 # Settings files
 settings.json
+
+# graphify knowledge graph artifacts
+graphify-out/
+.graphify_*

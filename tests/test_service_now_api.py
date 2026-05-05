@@ -9,7 +9,7 @@ to avoid live API calls and achieve comprehensive coverage.
 import unittest
 import sys
 import os
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
 
 # Add the project root to the path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -304,6 +304,49 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         result = await self.make_nws_request(url)
 
         self.assertIsNone(result)
+
+    @patch('service_now_api_oauth.get_oauth_client')
+    async def test_make_nws_request_write_delegates_to_oauth_client(self, mock_get_client):
+        """POST/PATCH route through oauth_client with raise_for_status=True."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        from unittest.mock import AsyncMock as _AsyncMock
+        mock_client = MagicMock()
+        mock_client.make_authenticated_request = _AsyncMock(
+            return_value={"result": {"number": "VTB0001234"}}
+        )
+        mock_get_client.return_value = mock_client
+
+        url = "https://test.service-now.com/api/now/table/vtb_task"
+        payload = {"short_description": "Test"}
+        result = await self.make_nws_request(url, method="POST", json_data=payload)
+
+        self.assertEqual(result, {"result": {"number": "VTB0001234"}})
+        mock_client.make_authenticated_request.assert_called_once_with(
+            "POST", url, raise_for_status=True, json=payload
+        )
+
+    @patch('service_now_api_oauth.get_oauth_client')
+    async def test_make_nws_request_patch_propagates_status_error(self, mock_get_client):
+        """PATCH bubbling HTTPStatusError reaches the caller intact."""
+        if not self.api_available:
+            self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        import httpx
+        from unittest.mock import AsyncMock as _AsyncMock
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        error = httpx.HTTPStatusError("404", request=MagicMock(), response=mock_response)
+
+        mock_client = MagicMock()
+        mock_client.make_authenticated_request = _AsyncMock(side_effect=error)
+        mock_get_client.return_value = mock_client
+
+        url = "https://test.service-now.com/api/now/table/vtb_task/missing"
+        with self.assertRaises(httpx.HTTPStatusError):
+            await self.make_nws_request(url, method="PATCH", json_data={"state": "3"})
 
 
 if __name__ == '__main__':
