@@ -21,17 +21,16 @@ from Table_Tools.consolidated_tools import (
     similar_knowledge_for_text,
     get_knowledge_by_category,
     get_active_knowledge_articles,
-    # SLA tools
+    # SLA tools (v4.0: 10 -> 5 consolidated)
     similar_slas_for_text,
-    get_slas_for_task,
     get_sla_details,
-    get_breaching_slas,
-    get_breached_slas,
-    get_slas_by_stage,
-    get_active_slas,
-    get_sla_performance_summary,
-    get_recent_breached_slas,
-    get_critical_sla_status,
+    query_slas_by_task,
+    query_slas_by_status,
+    query_slas_custom,
+    _build_sla_status_filter,
+    SLA_STATUS_VALUES,
+    _SLA_CRITICAL_FIELDS,
+    _SLA_PERFORMANCE_FIELDS,
 )
 
 
@@ -267,125 +266,162 @@ class TestSLATools:
             mock_query.assert_called_once_with("task_sla", "incident")
 
     @pytest.mark.asyncio
-    async def test_get_slas_for_task(self):
+    async def test_query_slas_by_task(self):
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query, \
-             patch('Table_Tools.consolidated_tools.TASK_NUMBER_FIELD', 'task_number'):
+             patch('Table_Tools.consolidated_tools.TASK_NUMBER_FIELD', 'task.number'):
             mock_query.return_value = {"result": []}
-            await get_slas_for_task("INC001")
+            await query_slas_by_task("INC001")
             assert mock_query.call_args[0][0] == "task_sla"
+            params = mock_query.call_args[0][1]
+            assert params.filters["task.number"] == "INC001"
 
     @pytest.mark.asyncio
-    async def test_get_sla_details(self):
-        with patch('Table_Tools.consolidated_tools.get_record_details') as mock:
-            mock.return_value = {"result": []}
-            await get_sla_details("abc123")
-            mock.assert_called_once_with("task_sla", "abc123")
-
-    @pytest.mark.asyncio
-    async def test_get_breaching_slas_default(self):
+    async def test_get_sla_details_uses_sys_id_filter(self):
+        """v4.0 fix: routes via sys_id={sys_id}, not the broken number={sys_id}."""
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {"result": []}
-            await get_breaching_slas()
+            await get_sla_details("abc123")
+            assert mock_query.call_args[0][0] == "task_sla"
+            params = mock_query.call_args[0][1]
+            assert params.filters == {"sys_id": "abc123"}
+
+    @pytest.mark.asyncio
+    async def test_query_slas_by_status_breaching_default(self):
+        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
+            mock_query.return_value = {"result": []}
+            await query_slas_by_status("breaching")
             params = mock_query.call_args[0][1]
             assert params.filters["business_time_left"] == "<3600"
+            assert params.filters["active"] == "true"
+            assert params.filters["has_breached"] == "false"
 
     @pytest.mark.asyncio
-    async def test_get_breaching_slas_custom(self):
+    async def test_query_slas_by_status_breaching_custom_threshold(self):
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {"result": []}
-            await get_breaching_slas(time_threshold_minutes=30)
+            await query_slas_by_status("breaching", threshold_minutes=30)
             params = mock_query.call_args[0][1]
             assert params.filters["business_time_left"] == "<1800"
 
     @pytest.mark.asyncio
-    async def test_get_breached_slas(self):
+    async def test_query_slas_by_status_breached_default_7_days(self):
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {"result": []}
-            await get_breached_slas()
+            await query_slas_by_status("breached")
             params = mock_query.call_args[0][1]
             assert params.filters["has_breached"] == "true"
+            assert "sys_created_on>=" in params.filters["sys_created_on"]
 
     @pytest.mark.asyncio
-    async def test_get_breached_slas_with_filters(self):
+    async def test_query_slas_by_status_breached_custom_days(self):
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {"result": []}
-            await get_breached_slas(filters={"task.priority": "1"})
+            await query_slas_by_status("breached", days=1)
+            params = mock_query.call_args[0][1]
+            assert "sys_created_on>=" in params.filters["sys_created_on"]
+
+    @pytest.mark.asyncio
+    async def test_query_slas_by_status_breached_with_extra_filters(self):
+        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
+            mock_query.return_value = {"result": []}
+            await query_slas_by_status("breached", extra_filters={"task.priority": "1"})
             params = mock_query.call_args[0][1]
             assert params.filters["task.priority"] == "1"
 
     @pytest.mark.asyncio
-    async def test_get_slas_by_stage(self):
+    async def test_query_slas_by_status_by_stage(self):
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {"result": []}
-            await get_slas_by_stage("In progress")
+            await query_slas_by_status("by_stage", stage="In progress")
             params = mock_query.call_args[0][1]
             assert params.filters["stage"] == "In progress"
 
     @pytest.mark.asyncio
-    async def test_get_slas_by_stage_with_filters(self):
+    async def test_query_slas_by_status_by_stage_requires_stage(self):
+        with pytest.raises(ValueError, match="requires the 'stage' argument"):
+            await query_slas_by_status("by_stage")
+
+    @pytest.mark.asyncio
+    async def test_query_slas_by_status_active(self):
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {"result": []}
-            await get_slas_by_stage("In progress", additional_filters={"active": "true"})
+            await query_slas_by_status("active")
             params = mock_query.call_args[0][1]
             assert params.filters["active"] == "true"
 
     @pytest.mark.asyncio
-    async def test_get_active_slas(self):
+    async def test_query_slas_by_status_active_with_extra_filters(self):
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {"result": []}
-            await get_active_slas()
-            params = mock_query.call_args[0][1]
-            assert params.filters["active"] == "true"
-
-    @pytest.mark.asyncio
-    async def test_get_active_slas_with_filters(self):
-        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
-            mock_query.return_value = {"result": []}
-            await get_active_slas(filters={"stage": "In progress"})
+            await query_slas_by_status("active", extra_filters={"stage": "In progress"})
             params = mock_query.call_args[0][1]
             assert params.filters["stage"] == "In progress"
 
     @pytest.mark.asyncio
-    async def test_get_sla_performance_summary(self):
+    async def test_query_slas_by_status_performance_default_30_days(self):
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {"result": []}
-            await get_sla_performance_summary()
+            await query_slas_by_status("performance")
             params = mock_query.call_args[0][1]
             assert "sys_created_on" in params.filters
-            assert params.fields is not None
+            assert params.fields == _SLA_PERFORMANCE_FIELDS
 
     @pytest.mark.asyncio
-    async def test_get_sla_performance_with_filters(self):
+    async def test_query_slas_by_status_performance_with_extra_filters(self):
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {"result": []}
-            await get_sla_performance_summary(filters={"active": "true"})
+            await query_slas_by_status("performance", extra_filters={"active": "true"})
             params = mock_query.call_args[0][1]
             assert params.filters["active"] == "true"
 
     @pytest.mark.asyncio
-    async def test_get_recent_breached_slas(self):
+    async def test_query_slas_by_status_critical_uses_curated_field_list(self):
+        """Token-budget invariant: 'critical' returns 7-field curated view, not full row."""
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {"result": []}
-            await get_recent_breached_slas()
-            params = mock_query.call_args[0][1]
-            assert params.filters["has_breached"] == "true"
-            assert "sys_created_on>=" in params.filters["sys_created_on"]
-
-    @pytest.mark.asyncio
-    async def test_get_recent_breached_slas_custom_days(self):
-        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
-            mock_query.return_value = {"result": []}
-            await get_recent_breached_slas(days=7)
-            params = mock_query.call_args[0][1]
-            assert "sys_created_on>=" in params.filters["sys_created_on"]
-
-    @pytest.mark.asyncio
-    async def test_get_critical_sla_status(self):
-        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
-            mock_query.return_value = {"result": []}
-            await get_critical_sla_status()
+            await query_slas_by_status("critical")
             params = mock_query.call_args[0][1]
             assert params.filters["active"] == "true"
             assert params.filters["task.priority"] == "IN1,2"
             assert params.filters["business_percentage"] == ">80"
-            assert params.fields is not None
+            assert params.fields == _SLA_CRITICAL_FIELDS
+            assert len(params.fields) == 7
+
+    @pytest.mark.asyncio
+    async def test_query_slas_by_status_unknown_preset(self):
+        with pytest.raises(ValueError, match="Unknown SLA status preset"):
+            await query_slas_by_status("nonexistent")
+
+    @pytest.mark.asyncio
+    async def test_query_slas_custom_basic(self):
+        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
+            mock_query.return_value = {"result": []}
+            await query_slas_custom({"active": "true", "has_breached": "false"})
+            params = mock_query.call_args[0][1]
+            assert params.filters == {"active": "true", "has_breached": "false"}
+            assert params.fields is None  # falls back to ESSENTIAL_FIELDS
+
+    @pytest.mark.asyncio
+    async def test_query_slas_custom_with_days(self):
+        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
+            mock_query.return_value = {"result": []}
+            await query_slas_custom({"active": "true"}, days=14)
+            params = mock_query.call_args[0][1]
+            assert "sys_created_on>=" in params.filters["sys_created_on"]
+
+    @pytest.mark.asyncio
+    async def test_query_slas_custom_with_fields_override(self):
+        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
+            mock_query.return_value = {"result": []}
+            await query_slas_custom({"active": "true"}, fields=["sla.name", "stage"])
+            params = mock_query.call_args[0][1]
+            assert params.fields == ["sla.name", "stage"]
+
+    def test_sla_status_values_covers_all_presets(self):
+        """Every preset listed in SLA_STATUS_VALUES must be dispatchable."""
+        for status in SLA_STATUS_VALUES:
+            if status == "by_stage":
+                filters, _ = _build_sla_status_filter(status, stage="x")
+            else:
+                filters, _ = _build_sla_status_filter(status)
+            assert isinstance(filters, dict) and filters
