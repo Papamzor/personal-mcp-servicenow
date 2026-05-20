@@ -1,217 +1,47 @@
-import httpx
-import base64
-from typing import Any, Optional, Dict
-from datetime import datetime, timedelta
-import json
-import asyncio
-from dotenv import load_dotenv
-import os
-from constants import APPLICATION_JSON, JSON_HEADERS
+"""Backwards-compat shim — v4.0 split OAuth client into the ``oauth/`` package.
 
-# Load environment variables
-load_dotenv()
+The ``ServiceNowOAuthClient`` class and exception hierarchy now live in
+``oauth/``. This module remains as the canonical home of the module-level
+singleton (``_oauth_client``, ``get_oauth_client``, ``make_oauth_request``)
+and of the ``httpx`` re-export so test patches like
+``patch("oauth_client.httpx.AsyncClient")`` and
+``oauth_client._oauth_client = None`` keep working without rewriting
+every fixture.
 
-# Custom exceptions for OAuth operations
-class ServiceNowOAuthError(Exception):
-    """Base exception for ServiceNow OAuth operations."""
-    pass
+Delete the re-exports in v4.1; tests should be migrated to
+``patch("oauth.client.httpx.AsyncClient")`` or the equivalent on the
+relocated subsystem at that point.
+"""
+from __future__ import annotations
 
-class ServiceNowAuthenticationError(ServiceNowOAuthError):
-    """Exception raised when authentication fails."""
-    pass
+from typing import Any, Optional
 
-class ServiceNowConnectionError(ServiceNowOAuthError):
-    """Exception raised when connection to ServiceNow fails."""
-    pass
+import httpx  # re-exported for tests that patch ``oauth_client.httpx.AsyncClient``
 
-class ServiceNowAuthorizationError(ServiceNowOAuthError):
-    """Exception raised when authorization is denied."""
-    pass
+from oauth.client import ServiceNowOAuthClient
+from oauth.exceptions import (
+    ServiceNowAuthenticationError,
+    ServiceNowAuthorizationError,
+    ServiceNowConnectionError,
+    ServiceNowOAuthError,
+)
 
-class ServiceNowOAuthClient:
-    """OAuth 2.0 Client Credentials implementation for ServiceNow."""
-    
-    def __init__(self):
-        self.instance_url = os.getenv("SERVICENOW_INSTANCE")
-        self.client_id = os.getenv("SERVICENOW_CLIENT_ID")
-        self.client_secret = os.getenv("SERVICENOW_CLIENT_SECRET")
-        
-        # Token management
-        self._access_token: Optional[str] = None
-        self._token_expires_at: Optional[datetime] = None
-        self._token_lock = asyncio.Lock()
-        
-        # Validate configuration
-        if not all([self.instance_url, self.client_id, self.client_secret]):
-            raise ValueError(
-                "Missing OAuth configuration. Ensure SERVICENOW_INSTANCE, "
-                "SERVICENOW_CLIENT_ID, and SERVICENOW_CLIENT_SECRET are set."
-            )
-        
-        self.token_endpoint = f"{self.instance_url}/oauth_token.do"
-    
-    def _get_basic_auth_header(self) -> str:
-        """Generate Basic Auth header for client credentials."""
-        credentials = f"{self.client_id}:{self.client_secret}"
-        encoded_credentials = base64.b64encode(credentials.encode()).decode()
-        return f"Basic {encoded_credentials}"
-    
-    async def _request_access_token(self) -> Dict[str, Any]:
-        """Request a new access token from ServiceNow."""
-        headers = {
-            "Authorization": self._get_basic_auth_header(),
-            "Accept": APPLICATION_JSON,
-            "Content-Type": "application/x-www-form-urlencoded"
-        }
-        
-        data = "grant_type=client_credentials"
-        
-        async with httpx.AsyncClient(verify=True) as client:
-            try:
-                response = await client.post(
-                    self.token_endpoint,
-                    headers=headers,
-                    data=data,
-                    timeout=30.0
-                )
-                response.raise_for_status()
-                return response.json()
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 401:
-                    raise ServiceNowAuthenticationError("OAuth token request failed: Invalid client credentials")
-                elif e.response.status_code == 403:
-                    raise ServiceNowAuthorizationError("OAuth token request failed: Access denied")
-                else:
-                    raise ServiceNowOAuthError(f"OAuth token request failed: Server error (status {e.response.status_code})")
-            except (httpx.RequestError, httpx.TimeoutException) as e:
-                raise ServiceNowConnectionError(f"OAuth token request error: Connection failed - {str(e)}")
-            except json.JSONDecodeError as e:
-                raise ServiceNowOAuthError(f"OAuth token response parsing failed: {str(e)}")
-    
-    async def _get_valid_token(self) -> str:
-        """Get a valid access token, refreshing if necessary."""
-        async with self._token_lock:
-            # Check if current token is still valid (with 5-minute buffer)
-            now = datetime.now()
-            if (self._access_token and 
-                self._token_expires_at and 
-                now < (self._token_expires_at - timedelta(minutes=5))):
-                return self._access_token
-            
-            # Request new token
-            token_data = await self._request_access_token()
-            
-            self._access_token = token_data["access_token"]
-            expires_in = token_data.get("expires_in", 1800)  # Default 30 minutes
-            self._token_expires_at = now + timedelta(seconds=expires_in)
-            
-            return self._access_token
-    
-    async def get_auth_headers(self) -> Dict[str, str]:
-        """Get headers with valid Bearer token for API requests."""
-        token = await self._get_valid_token()
-        return {
-            "Authorization": f"Bearer {token}",
-            **JSON_HEADERS
-        }
-    
-    async def _clear_token_cache(self) -> None:
-        """Clear cached token for retry. Complexity: 2"""
-        async with self._token_lock:
-            self._access_token = None
-            self._token_expires_at = None
+__all__ = [
+    "ServiceNowOAuthClient",
+    "ServiceNowOAuthError",
+    "ServiceNowAuthenticationError",
+    "ServiceNowConnectionError",
+    "ServiceNowAuthorizationError",
+    "get_oauth_client",
+    "make_oauth_request",
+    "httpx",
+]
 
-    async def _retry_with_fresh_token(
-        self,
-        client: httpx.AsyncClient,
-        method: str,
-        url: str,
-        raise_for_status: bool = False,
-        **kwargs
-    ) -> Dict[str, Any] | None:
-        """Retry request with fresh token after 401. Complexity: 4"""
-        await self._clear_token_cache()
+# Module-level singleton kept here (not in oauth/) so existing tests that
+# do ``oauth_client._oauth_client = None`` to reset state continue to
+# work. Moving the binding would silently break those resets.
+_oauth_client: Optional[ServiceNowOAuthClient] = None
 
-        # Get fresh token and update headers
-        headers = await self.get_auth_headers()
-        kwargs["headers"] = headers
-
-        try:
-            response = await client.request(method, url, timeout=30.0, **kwargs)
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPStatusError:
-            if raise_for_status:
-                raise
-            return None
-        except (httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
-            return None
-
-    def _process_response(self, response: httpx.Response) -> Dict[str, Any]:
-        """Process successful response. Complexity: 2"""
-        return response.json()
-
-    async def make_authenticated_request(
-        self,
-        method: str,
-        url: str,
-        raise_for_status: bool = False,
-        **kwargs
-    ) -> Dict[str, Any] | None:
-        """Make an authenticated request to ServiceNow API.
-
-        When raise_for_status=True, propagates httpx.HTTPStatusError so the
-        caller can map status codes to domain-specific error messages
-        (used by write operations like vtb_task CRUD). Read operations keep
-        the default permissive behaviour and return None on failure.
-
-        Complexity: 8 (reduced from ~18-22)
-        """
-        headers = await self.get_auth_headers()
-
-        # Merge with any additional headers
-        if "headers" in kwargs:
-            headers.update(kwargs["headers"])
-        kwargs["headers"] = headers
-
-        async with httpx.AsyncClient(verify=True) as client:
-            try:
-                response = await client.request(method, url, timeout=30.0, **kwargs)
-                response.raise_for_status()
-                return self._process_response(response)
-            except httpx.HTTPStatusError as e:
-                # Handle potential token expiration with retry
-                if e.response.status_code == 401:
-                    return await self._retry_with_fresh_token(
-                        client, method, url, raise_for_status=raise_for_status, **kwargs
-                    )
-                if raise_for_status:
-                    raise
-                return None
-            except (httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
-                return None
-    
-    async def test_connection(self) -> Dict[str, Any]:
-        """Test the OAuth connection by making a simple API call."""
-        test_url = f"{self.instance_url}/api/now/table/sys_user?sysparm_limit=1"
-        result = await self.make_authenticated_request("GET", test_url)
-        
-        if result:
-            return {
-                "status": "success",
-                "message": "OAuth authentication successful",
-                "token_valid": True,
-                "expires_at": self._token_expires_at.isoformat() if self._token_expires_at else None
-            }
-        else:
-            return {
-                "status": "error", 
-                "message": "OAuth authentication failed",
-                "token_valid": False
-            }
-
-# Global OAuth client instance
-_oauth_client = None
 
 def get_oauth_client() -> ServiceNowOAuthClient:
     """Get or create the global OAuth client instance."""
@@ -220,7 +50,8 @@ def get_oauth_client() -> ServiceNowOAuthClient:
         _oauth_client = ServiceNowOAuthClient()
     return _oauth_client
 
-async def make_oauth_request(url: str) -> dict[str, Any] | None:
-    """Convenience function for making OAuth-authenticated requests."""
+
+async def make_oauth_request(url: str) -> Optional[dict[str, Any]]:
+    """Convenience function for making OAuth-authenticated GET requests."""
     client = get_oauth_client()
     return await client.make_authenticated_request("GET", url)
