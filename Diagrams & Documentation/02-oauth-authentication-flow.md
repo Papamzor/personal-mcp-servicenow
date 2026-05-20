@@ -2,11 +2,14 @@
 
 This sequence diagram illustrates how the MCP server handles OAuth 2.0 Client Credentials authentication with ServiceNow, including automatic token management and refresh.
 
+> **v4.0 update**: the v3 `oauth_client.py` class was split into `oauth/token_store.py` + `oauth/request_executor.py` composed by a façade at `oauth/client.py`. The `oauth_client.py` shim retains the module-level singleton (`get_oauth_client`, `make_oauth_request`) for backwards compat. Sequence below collapses the subsystems under the façade for readability — see `01-architecture-overview.md` for the layered view.
+
 ```mermaid
 sequenceDiagram
     participant Client as MCP Client
     participant Server as MCP Server
-    participant OAuth as oauth_client.py
+    participant OAuth as oauth/client.py (façade)
+    participant Store as oauth/token_store.py
     participant SN as ServiceNow API
     
     Client->>Server: Tool Request

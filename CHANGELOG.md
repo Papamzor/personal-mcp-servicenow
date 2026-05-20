@@ -5,6 +5,94 @@ All notable changes to the Personal MCP ServiceNow project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-05-20
+
+### BREAKING CHANGES
+
+Architectural refactor surfaced by a graphify analysis of god-node clusters in the v3 codebase. Three sprints, each independently mergeable. Full migration guide in `MIGRATION_v3_to_v4.md`.
+
+#### SLA tool consolidation (Sprint 2)
+
+8 SLA tools collapsed into 3 new tools. Total tool count: **37 -> 32**.
+
+**Removed (8 tools):**
+- `get_slas_for_task`
+- `get_breaching_slas`
+- `get_breached_slas`
+- `get_slas_by_stage`
+- `get_active_slas`
+- `get_sla_performance_summary`
+- `get_recent_breached_slas`
+- `get_critical_sla_status`
+
+**Added (3 tools):**
+- `query_slas_by_task(task_number)` — replaces `get_slas_for_task`
+- `query_slas_by_status(status, days?, threshold_minutes?, stage?, extra_filters?)` — preset dispatcher for the 6 status-based tools. Status enum: `"active"`, `"breached"`, `"breaching"`, `"critical"`, `"by_stage"`, `"performance"`.
+- `query_slas_custom(filters, fields?, days?)` — escape hatch. Defaults to `ESSENTIAL_FIELDS["task_sla"]` so it never returns all columns by default.
+
+**Unchanged:**
+- `similar_slas_for_text(text)`
+- `get_sla_details(sys_id)` — **bug fix** included (see below)
+
+#### get_sla_details v3 bug fix (Sprint 2)
+
+v3 `get_sla_details(sys_id)` delegated to `get_record_details("task_sla", sys_id)` which built a `number={sys_id}` filter. The `task_sla` table has no `number` field, so the filter was silently ignored and the call returned the full default page — **10,000 rows / ~1.2 million tokens** — instead of the single record. v4 routes via `sys_id={sys_id}` directly, returning the single record (~69 tokens). **99.99% token reduction** for that tool.
+
+### Added
+
+#### Filter pipeline package (Sprint 1)
+
+New `filter/` package consolidates filter construction, validation, NL parsing, and explanation:
+- `filter/builder.py` — `ServiceNowQueryBuilder`
+- `filter/validator.py` — `validate_query_filters`, `validate_and_correct_filters` (new), helpers
+- `filter/intelligence.py` — `QueryIntelligence` (NL → filter, no backref to builder)
+- `filter/explainer.py` — `QueryExplainer`, `explain_existing_filter`
+- `filter/models.py` — `TableFilterParams`, `SmartQueryParams`, `QueryValidationResult`
+
+#### HTTP layer package (Sprint 3)
+
+New `http_layer/` package splits the v3 monolithic `make_nws_request`:
+- `http_layer/url_builder.py` — `ensure_query_encoded`, `add_default_params` (GET-only)
+- `http_layer/response_parser.py` — display-value flattening (GET-only)
+- `http_layer/request_dispatcher.py` — `make_nws_request` orchestrator (~30 lines)
+
+#### OAuth package (Sprint 3)
+
+New `oauth/` package splits the v3 `ServiceNowOAuthClient`:
+- `oauth/token_store.py` — token cache + refresh + injectable fetcher
+- `oauth/request_executor.py` — authenticated HTTP + 401 retry
+- `oauth/client.py` — `ServiceNowOAuthClient` façade
+- `oauth/exceptions.py` — `ServiceNowOAuthError` + 3 subclasses
+
+#### Token-optimization infrastructure
+
+- `scripts/capture_sla_token_baseline.py` + `scripts/compare_sla_token_baseline.py` — live ServiceNow baseline and diff runners for SLA tools.
+- `scripts/capture_read_path_baseline.py` — read-path baseline across all 7 tables. Validates four token-optimization URL invariants (`sysparm_exclude_reference_link`, `sysparm_no_count`, `sysparm_display_value`, sort order).
+- `tests/test_token_footprint.py` — offline budget regression suite (`tiktoken` cl100k_base) for SLA tools.
+- `tests/test_http_layer.py` — 13 tests locking the GET vs write divergence. **Three critical negative tests** prove POST/PATCH bypass the read-path mutations.
+
+### Deprecated (deleted in v4.1)
+
+Backwards-compat shims retain the v3 import paths and test-patch targets:
+- `query_validation.py` — re-exports from `filter/`
+- `query_intelligence.py` — re-exports from `filter/`
+- `service_now_api_oauth.py` — re-exports from `http_layer/` + keeps `make_oauth_request` / `get_oauth_client` patch targets
+- `oauth_client.py` — canonical home of the module-level singleton (`_oauth_client`, `get_oauth_client`, `make_oauth_request`) + `httpx` re-export
+
+### Architecture
+
+`filter/intelligence.py` no longer imports from `filter/builder.py`. Auto-correction logic that needs `ServiceNowQueryBuilder` lives in `filter/validator.validate_and_correct_filters` — the only module allowed to bridge NL parsing → query construction.
+
+### Metrics
+
+- Tool count: 32 (down from 37)
+- Tests: 575 passing (up from 537)
+- Overall coverage: ~83%
+- `filter/` coverage: 98.16%
+- `oauth/` + `http_layer/` coverage: 92.98%
+
+---
+
 ## [2.0.0] - 2025-01-14
 
 ### 🚨 BREAKING CHANGES
