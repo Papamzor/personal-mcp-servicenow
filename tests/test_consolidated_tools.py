@@ -252,7 +252,7 @@ class TestKnowledgeTools:
         with patch('Table_Tools.consolidated_tools.query_table_with_generic_filters') as mock_query:
             mock_query.return_value = {"result": [{"number": "KB001"}]}
             result = await get_active_knowledge_articles("test")
-            mock_query.assert_called_once_with("kb_knowledge", {"state": "published"})
+            mock_query.assert_called_once_with("kb_knowledge", {"workflow_state": "published"})
 
 
 class TestSLATools:

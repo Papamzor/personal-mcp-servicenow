@@ -50,6 +50,16 @@ ERROR_PRIVATE_TASK_INVALID_REQUEST = "Error during private task {operation}: Inv
 ERROR_PRIVATE_TASK_NOT_FOUND = "Error during private task {operation}: Task not found"
 ERROR_PRIVATE_TASK_SERVER_ERROR = "Error during private task {operation}: Server error"
 
+# KB Article-specific error messages
+ERROR_KB_NO_UPDATE_DATA = "Error: No update data provided."
+ERROR_KB_ARTICLE_NOT_FOUND_OP = "Knowledge article {number} not found."
+ERROR_KB_ARTICLE_REQUEST_FAILED = "Error during knowledge article {operation}: Request failed"
+ERROR_KB_ARTICLE_AUTH_FAILED = "Error during knowledge article {operation}: Authentication failed"
+ERROR_KB_ARTICLE_ACCESS_DENIED = "Error during knowledge article {operation}: Access denied"
+ERROR_KB_ARTICLE_INVALID_REQUEST = "Error during knowledge article {operation}: Invalid request data"
+ERROR_KB_ARTICLE_NOT_FOUND = "Error during knowledge article {operation}: Article not found"
+ERROR_KB_ARTICLE_SERVER_ERROR = "Error during knowledge article {operation}: Server error"
+
 # Table-specific error messages
 TABLE_ERROR_MESSAGES = {
     "incident": "Incident not found.",
@@ -67,7 +77,7 @@ ESSENTIAL_FIELDS = {
     "incident": ["number", "short_description", "priority", "state", "category", "sys_created_on"],
     "change_request": ["number", "short_description", "priority", "state", "sys_created_on"],
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on"],
-    "kb_knowledge": ["number", "short_description", "kb_category", "state", "sys_created_on"],
+    "kb_knowledge": ["number", "short_description", "kb_category", "workflow_state", "sys_created_on"],
     "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on"],
     "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on"],
     "sc_req_item": ["number", "short_description", "priority", "state", "sys_created_on", "cat_item"],
@@ -78,7 +88,7 @@ DETAIL_FIELDS = {
     "incident": ["number", "short_description", "description", "priority", "state", "category", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id", "major_incident_state"],
     "change_request": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci"],
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "u_reference_1", "company", "cmdb_ci"],
-    "kb_knowledge": ["number", "short_description", "text","kb_category", "state", "sys_created_on", "assigned_to"],
+    "kb_knowledge": ["number", "short_description", "text", "kb_category", "workflow_state", "sys_created_on", "assigned_to"],
     "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
     "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on", "breach_time", "business_time_left", "duration", "has_breached", "business_duration", "business_elapsed_time", "planned_end_time"],
     "sc_req_item": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "cat_item", "request", "stage"],
@@ -227,7 +237,7 @@ TABLE_CONFIGS = {
         "supports_comments": False,
         "number_prefix": "KB",
         "priority_field": None,
-        "state_field": "state"
+        "state_field": "workflow_state"
     },
     "vtb_task": {
         "display_name": "Private Task",
