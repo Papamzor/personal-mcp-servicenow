@@ -53,6 +53,13 @@ async def _get_kb_article_sys_id(article_number: str) -> str | None:
     return data['result'][0]['sys_id']
 
 
+async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any] | str:
+    # Workflow endpoint triggers the actual state-machine transition.
+    # Direct PATCH to workflow_state is silently ignored by ServiceNow (read-only field).
+    url = f"{NWS_API_BASE}/api/now/table/kb_knowledge/{sys_id}/workflow/{action}"
+    return await _write_kb_article("POST", url, {}, action)
+
+
 async def update_knowledge_article(article_number: str, update_data: Dict[str, Any]) -> Dict[str, Any] | str:
     """Update fields on a knowledge article by article number (e.g. KB0001234).
 
@@ -73,7 +80,7 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
 
 
 async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str:
-    """Publish a knowledge article (workflow_state → published).
+    """Publish a knowledge article via the ServiceNow workflow endpoint.
 
     Args:
         article_number: The KB article number (e.g. KB0001234).
@@ -84,12 +91,11 @@ async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str
     sys_id = await _get_kb_article_sys_id(article_number)
     if not sys_id:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
-    url = f"{NWS_API_BASE}/api/now/table/kb_knowledge/{sys_id}"
-    return await _write_kb_article("PATCH", url, {"workflow_state": "published"}, "publish")
+    return await _call_kb_workflow(sys_id, "publish")
 
 
 async def retire_knowledge_article(article_number: str) -> Dict[str, Any] | str:
-    """Retire a knowledge article (workflow_state → retired).
+    """Retire a knowledge article via the ServiceNow workflow endpoint.
 
     Args:
         article_number: The KB article number (e.g. KB0001234).
@@ -100,5 +106,4 @@ async def retire_knowledge_article(article_number: str) -> Dict[str, Any] | str:
     sys_id = await _get_kb_article_sys_id(article_number)
     if not sys_id:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
-    url = f"{NWS_API_BASE}/api/now/table/kb_knowledge/{sys_id}"
-    return await _write_kb_article("PATCH", url, {"workflow_state": "retired"}, "retire")
+    return await _call_kb_workflow(sys_id, "retire")
