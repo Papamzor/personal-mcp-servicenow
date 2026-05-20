@@ -15,13 +15,17 @@ from constants import (
 
 def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> str:
     status_code = error.response.status_code
+    try:
+        detail = error.response.json()
+    except Exception:
+        detail = error.response.text
     error_messages = {
         401: ERROR_KB_ARTICLE_AUTH_FAILED.format(operation=operation),
         403: ERROR_KB_ARTICLE_ACCESS_DENIED.format(operation=operation),
-        400: ERROR_KB_ARTICLE_INVALID_REQUEST.format(operation=operation),
+        400: f"{ERROR_KB_ARTICLE_INVALID_REQUEST.format(operation=operation)}: {detail}",
         404: ERROR_KB_ARTICLE_NOT_FOUND.format(operation=operation),
     }
-    return error_messages.get(status_code, ERROR_KB_ARTICLE_SERVER_ERROR.format(operation=operation))
+    return error_messages.get(status_code, f"{ERROR_KB_ARTICLE_SERVER_ERROR.format(operation=operation)}: {detail}")
 
 
 def _unwrap_kb_write_response(result: Any, operation: str) -> Dict[str, Any] | str:
