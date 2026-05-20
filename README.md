@@ -1,92 +1,53 @@
-# 🚀 Personal MCP ServiceNow Integration
+# Personal MCP ServiceNow Integration
 
-A Model Context Protocol (MCP) server for ServiceNow integration, featuring **AI-powered natural language processing**, consolidated architecture, and **enterprise-grade security** across multiple ServiceNow tables with **zero functional regression**.
+MCP server for ServiceNow integration. Uses FastMCP over stdio transport, OAuth 2.0 client credentials.
 
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)
 [![ServiceNow](https://img.shields.io/badge/ServiceNow-REST%20API-green.svg)](https://servicenow.com)
 [![OAuth 2.0](https://img.shields.io/badge/Auth-OAuth%202.0%20Only-orange.svg)](https://oauth.net/2/)
-[![AI Powered](https://img.shields.io/badge/AI-Natural%20Language%20Processing-purple.svg)](#)
-[![Security](https://img.shields.io/badge/Security-ReDoS%20Protected-red.svg)](#)
 
 ---
 
-## 💖 Support This Project
-
-If this ServiceNow MCP integration is valuable to your workflow, consider supporting its continued development:
+## Support This Project
 
 [![PayPal](https://img.shields.io/badge/PayPal-Support%20Development-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.me/papamzor)
 
-Your support helps maintain and improve this project with new features, bug fixes, and better documentation.
+---
+
+## What's new in v4.0
+
+v4.0 is a breaking release. See [MIGRATION_v3_to_v4.md](MIGRATION_v3_to_v4.md) if upgrading.
+
+| Change | Detail |
+|---|---|
+| SLA tool consolidation | 8 tools collapsed into 3 (`query_slas_by_task`, `query_slas_by_status`, `query_slas_custom`). Tool count: **37 → 32**. |
+| `get_sla_details` bug fix | v3 built a `number={sys_id}` filter on `task_sla` (no `number` field). ServiceNow ignored it, returning 10,000 rows (~1.2M tokens). v4 routes via `sys_id=` — single record (~69 tokens). |
+| `filter/` package | Filter construction, validation, NL parsing, and explanation consolidated into a single package. `query_validation.py` and `query_intelligence.py` are now shims. |
+| `http_layer/` + `oauth/` packages | `make_nws_request` and `ServiceNowOAuthClient` split into focused packages. GET-path token-optimization invariants locked by 3 negative write-path tests. |
+
+Backwards-compat shims keep all v3 import paths and test-patch targets working. Shims deleted in v4.1.
 
 ---
 
 ## Installation
 
-### Option 1: Binary (Recommended)
-
-Download the latest binary for your platform from [Releases](../../releases):
-
-| Platform | Download |
-|----------|----------|
-| macOS (Apple Silicon) | `mcp-servicenow-darwin-arm64` |
-| macOS (Intel) | `mcp-servicenow-darwin-x86_64` |
-| Linux | `mcp-servicenow-linux-amd64` |
-| Windows | `mcp-servicenow-windows-amd64.exe` |
-
-**macOS/Linux Setup:**
-```bash
-# Download and install
-chmod +x mcp-servicenow-darwin-arm64
-sudo mv mcp-servicenow-darwin-arm64 /usr/local/bin/mcp-servicenow
-
-# Run setup wizard
-mcp-servicenow --setup
-
-# Verify
-mcp-servicenow --version
-```
-
-**Windows Setup:**
-```powershell
-# Move to a directory in your PATH
-Move-Item mcp-servicenow-windows-amd64.exe C:\Users\$env:USERNAME\AppData\Local\bin\mcp-servicenow.exe
-
-# Run setup wizard
-mcp-servicenow.exe --setup
-```
-
-### Claude Code Configuration
-
-Add to your Claude Code MCP configuration (`~/.claude/claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "servicenow": {
-      "command": "/usr/local/bin/mcp-servicenow"
-    }
-  }
-}
-```
-
-### Option 2: From Source
+### From source
 
 ```bash
-git clone <repo-url>
-cd mcp-servicenow
+git clone https://github.com/Papamzor/personal-mcp-servicenow.git
+cd personal-mcp-servicenow
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python personal_mcp_servicenow_main.py
 ```
 
-### Option 3: Docker (Cloud / Network Agents)
+### Docker (cloud / network agents)
 
-For hosting the MCP server so that **any network-capable agent** (N8N, LangChain, custom agents, etc.) can connect to it — not just Claude Code locally.
+For hosting over the network (N8N, LangChain, any MCP-compatible agent):
 
 ```bash
-# Build the image
 docker build -t mcp-servicenow .
 
-# Local testing only — load credentials from a gitignored .env file
 docker run -d \
   -p 8000:8000 \
   --env-file .env.local \
@@ -94,257 +55,52 @@ docker run -d \
   mcp-servicenow
 ```
 
-> ⚠️ **Do not pass secrets with `-e KEY=value` on the command line.** They land in shell history and are visible via `ps` / `docker inspect`. For production, see [Production: Azure Container Apps + Key Vault](#production-azure-container-apps--key-vault).
+> **Do not pass secrets with `-e KEY=value`.** They land in shell history and are visible via `ps` / `docker inspect`. Use `--env-file` for local testing; see [Production: Azure Container Apps + Key Vault](#production-azure-container-apps--key-vault) for production.
 
-Agents connect via SSE at: `http://<your-host>:8000/sse`
-
-See [Cloud Hosting](#7-cloud-hosting--network-agents-docker) for the full setup guide.
+The image sets `MCP_TRANSPORT=sse` by default. Agents connect at `http://<your-host>:8000/sse`.
 
 ---
 
-## 🆕 What's New in v3.0
+## Configuration
 
-**v3.0 is a quality-of-life and performance release** with no breaking API changes for end users.
+Create `.env` in project root:
 
-| Change | Impact |
-|--------|--------|
-| **Tool consolidation** | 24 table-specific wrappers replaced by 5 generic tools (`search_records`, `get_record`, `get_record_summary`, `find_similar`, `filter_records`) — pass any supported table name as a parameter. Total tools reduced from 55 to 36. |
-| **Faster API responses** | All requests now include `sysparm_exclude_reference_link=true` and `sysparm_no_count=true`, reducing payload size and eliminating unnecessary server-side COUNT queries. |
-| **Deterministic pagination** | Paginated queries automatically sort by `sys_created_on DESC`, preventing records from being skipped or duplicated across pages. |
-| **Centralized URL encoding** | `sysparm_query` values are percent-encoded in a single place, fixing edge cases where special characters caused silent over-fetching. |
-| **Correct HTTP semantics** | Partial updates to private tasks now use `PATCH` instead of `PUT`. |
-
-Upgrading from v2.x requires no configuration changes.
-
----
-
-## 🚨 Version 2.0 - BREAKING CHANGES (from v1.x)
-
-If you're upgrading from v1.x:
-
-- 📖 **Read the Migration Guide**: [`MIGRATION_V2.md`](MIGRATION_V2.md) - Complete step-by-step migration instructions
-- 📋 **Review Breaking Changes**: [`CHANGELOG.md`](CHANGELOG.md) - Full list of changes and new features
-- 🔧 **OAuth 2.0 Required**: Basic authentication has been removed - OAuth setup is mandatory
-
-**New Installations**: Start directly with v3.0 - follow the setup instructions below.
-
-## ✨ Features
-
-### 🧠 **AI-Powered Natural Language Processing (NEW)**
-
-- **Conversational Queries** - "Show me high priority incidents from last week" automatically converted to ServiceNow syntax
-- **Confidence Scoring** - 0.0-1.0 confidence ratings with intelligence metadata
-- **Smart Templates** - Enterprise-grade pre-built filter patterns for common scenarios
-- **Query Explanation** - Human-readable explanations and SQL equivalents for every query
-- **Filter Intelligence** - Automatic validation, correction, and improvement suggestions
-
-### 🛡️ **Enterprise-Grade Security (Enhanced)**
-
-- **OAuth 2.0 Exclusive** - Enhanced security with no basic auth fallback
-- **ReDoS Protection** - Windows-compatible protection against Regular Expression Denial of Service attacks
-- **Input Validation** - Pre-validation of all text inputs to prevent malicious attacks
-- **Attack Resistance** - Comprehensive protection against SQL injection, XSS, and path traversal
-- **Security Monitoring** - Real-time validation with intelligent safety warnings
-
-### 📦 **Consolidated Architecture (v3.0)**
-
-- **55 → 36 tools** - 24 near-duplicate wrappers replaced by 5 generic parameterized tools
-- **Unified Interface** - `search_records(table, query)` works across all 8 supported tables
-- **Zero Regression** - Generic tools delegate to the same core engine and API path
-- **Performance optimized** - All requests include performance params, centralized URL encoding, deterministic pagination
-- **AI Integration** - Natural language processing seamlessly integrated throughout
-
-### 🗄️ **Comprehensive Table Support (Enhanced)**
-
-- **Incidents** - AI-enhanced similarity search, intelligent filtering, and priority queries
-- **Change Requests** - Complete change management with natural language processing
-- **User Requests** - Service catalog handling with smart filter generation
-- **Knowledge Base** - Article search with AI-powered category intelligence
-- **Private Tasks** - Full CRUD operations with intelligent validation
-- **CMDB Configuration Items** - 100+ CI types with AI-enhanced discovery and search
-
-### ⚡ **Performance Revolution (5x Improvement)**
-
-- **5x Faster Processing** - Compiled regex patterns vs SpaCy NLP (47MB → <1MB)
-- **Enhanced Field Selection** - Smart field optimization (60% data reduction)
-- **Pagination Support** - Complete result retrieval preventing data loss
-- **OAuth Token Caching** - 1-hour token reuse with automatic refresh
-- **Early Exit Strategy** - Return first successful match for efficiency
-- **Async Architecture** - Non-blocking operations with optimized concurrency
-
-### 📊 **CMDB Discovery & Management (Enhanced)**
-
-- **AI-Enhanced Discovery** - Intelligent CI type detection and categorization
-- **100+ CI Type Support** - Servers, databases, applications, storage, networking, cloud resources
-- **Multi-Attribute Search** - Natural language queries across name, IP, location, status
-- **Relationship Analysis** - AI-powered similar CI detection and dependency mapping
-- **Business Service Mapping** - Complete infrastructure-to-service relationships with intelligence
-
-### 🏗️ **Code Quality & Architecture Excellence**
-
-- **SonarCloud Compliance** - All cognitive complexity violations resolved (≤15 limit)
-- **PEP 8 Standards** - Complete snake_case naming convention adherence
-- **Modular Design** - Single responsibility principle applied throughout
-- **Helper Functions** - Enhanced maintainability and testability
-- **Constants Module** - Centralized configuration eliminating hardcoded values
-- **Query Validation** - Built-in ServiceNow syntax validation with intelligent corrections
-
-## 🛠️ Available Tools (36)
-
-### **📦 Generic Table Tools (5) — NEW in v3.0**
-
-These replace 24 table-specific wrappers. Pass any supported table: `incident`, `change_request`, `sc_req_item`, `sc_task`, `universal_request`, `kb_knowledge`, `vtb_task`, `task_sla`.
-
-- `search_records(table, query)` - Text similarity search across any supported table
-- `get_record_summary(table, number)` - Short description for a single record
-- `get_record(table, number)` - Full detail fields for a single record
-- `find_similar(table, number)` - Find records similar to an existing record
-- `filter_records(table, filters, fields)` - Query with field-value filters, operators, and date ranges
-
-### **🧠 Intelligent Query Tools (5)**
-
-- `intelligent_search(query, table, context)` - Natural language search: "high priority incidents from last week"
-- `build_smart_servicenow_filter(query, table, context)` - Convert natural language to ServiceNow syntax
-- `explain_servicenow_filters(filters, table)` - Human-readable explanations of complex filters
-- `get_servicenow_filter_templates()` - Pre-built filters for common scenarios
-- `get_query_examples()` - Natural language examples that work with intelligent search
-
-### **🔧 Server & Authentication (5)**
-
-- `nowtest()` - Server connectivity verification
-- `now_test_oauth()` - OAuth 2.0 authentication testing
-- `now_auth_info()` - Current authentication method info
-- `nowtestauth()` - ServiceNow API endpoint validation
-- `nowtest_auth_input(table)` - Table description retrieval
-
-### **🔥 Priority Incidents (1)**
-
-- `get_priority_incidents(priorities, start_date, end_date, additional_filters, include_metadata)` - Priority queries with date range filtering and metadata
-
-### **📚 Knowledge Base (3)**
-
-- `similar_knowledge_for_text(input_text, kb_base, category)` - Article search with optional category/knowledge base filtering
-- `get_knowledge_by_category(category, kb_base)` - Category-based article retrieval
-- `get_active_knowledge_articles(input_text)` - Published knowledge articles
-
-### **📝 Private Task CRUD (2)**
-
-- `create_private_task(task_data)` - Create new private tasks (vtb_task)
-- `update_private_task(task_number, update_data)` - Update existing tasks via PATCH
-
-### **⏱️ SLA Management (10)**
-
-- `similar_slas_for_text(input_text)` - SLA search by text
-- `get_slas_for_task(task_number)` - All SLAs for a specific task
-- `get_sla_details(sla_sys_id)` - Detailed SLA information
-- `get_breaching_slas(time_threshold_minutes)` - SLAs at risk of breaching
-- `get_breached_slas(filters, days)` - Already breached SLAs
-- `get_slas_by_stage(stage, additional_filters)` - SLAs by stage
-- `get_active_slas(filters)` - Currently active SLAs
-- `get_sla_performance_summary(filters, days)` - SLA performance metrics
-- `get_recent_breached_slas(days)` - Recently breached SLAs
-- `get_critical_sla_status()` - High-priority SLA dashboard
-
-### **🖥️ CMDB Configuration Items (6)**
-
-- `find_cis_by_type(ci_type)` - Find CIs by type (100+ types supported)
-- `search_cis_by_attributes(name, ip_address, location, status)` - Multi-attribute CI search
-- `get_ci_details(ci_number)` - Comprehensive CI details
-- `similar_cis_for_ci(ci_number)` - Find similar configuration items
-- `get_all_ci_types()` - List all available CI types
-- `quick_ci_search(search_term)` - Fast CI search by name, IP, or number
-
-### **Supported CI Types** (Auto-Discovered)
-
-```
-Core Infrastructure    Cloud & Virtualization    Storage & Networking
-├── cmdb_ci_server      ├── cmdb_ci_vm_object      ├── cmdb_ci_storage_device
-├── cmdb_ci_database    ├── cmdb_ci_vpc            ├── cmdb_ci_san
-├── cmdb_ci_hardware    ├── cmdb_ci_subnet         ├── cmdb_ci_ip_network
-└── cmdb_ci_service     └── cmdb_ci_cloud_*        └── cmdb_ci_load_balancer
-
-Applications           Facilities                  Specialized Equipment  
-├── cmdb_ci_appl       ├── cmdb_ci_datacenter     ├── cmdb_ci_ups_*
-├── cmdb_ci_business_* ├── cmdb_ci_rack           ├── cmdb_ci_monitoring_*
-└── cmdb_ci_cluster    └── cmdb_ci_computer_room  └── 80+ more types...
-```
-
-## 📋 Prerequisites
-
-- **Python 3.8+**
-- **ServiceNow Instance** (Developer, Enterprise, or higher)
-- **API Access** - REST API enabled with appropriate permissions
-- **OAuth 2.0 Credentials**: `CLIENT_ID` and `CLIENT_SECRET` (contact maintainer)
-
-## 🚀 Quick Start
-
-### 1. **Installation**
-
-```bash
-git clone https://github.com/Papamzor/personal-mcp-servicenow.git
-cd personal-mcp-servicenow
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\\Scripts\\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### 2. **Configuration**
-
-Create `.env` file in project root:
-
-```bash
-# OAuth 2.0 Authentication (Required)
+```env
 SERVICENOW_INSTANCE=https://your-instance.service-now.com
 SERVICENOW_CLIENT_ID=your_oauth_client_id
 SERVICENOW_CLIENT_SECRET=your_oauth_client_secret
 ```
 
-⚠️ **OAuth 2.0 Credentials Required**: This application exclusively uses OAuth 2.0 authentication for security. Contact the project maintainer to obtain OAuth client credentials for your ServiceNow instance.
+OAuth 2.0 client credentials are required. Basic auth is not supported. See [OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md) for ServiceNow-side setup.
 
-### 3. **OAuth 2.0 Setup**
+---
 
-See [OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md) for complete ServiceNow OAuth configuration, or contact the maintainer for pre-configured credentials.
+## Claude Desktop / Claude Code integration
 
-### 4. **Verification**
+**Claude Desktop** — config file location:
 
-```bash
-# Test environment setup (local test - no ServiceNow connection needed), expected result 2/3 pass (.env file should not be readable)
-python -m Testing.test_oauth_simple
-
-# Test actual ServiceNow connectivity by running some CMDB tools (requires valid .env configuration)
-python -m Testing.test_cmdb_tools
-
-# Test OAuth with your ServiceNow instance (requires OAuth setup), should return token validity details
-python -c "import asyncio; from utility_tools import now_test_oauth; print(asyncio.run(now_test_oauth()))"
-```
-
-**Verification Steps Explained:**
-
-- **Step 1**: Tests OAuth client creation and environment variables (offline test)
-- **Step 2**: Tests actual ServiceNow API connectivity and CMDB functionality
-- **Step 3**: Tests OAuth authentication flow with your ServiceNow instance
-
-### 5. **Claude Desktop Integration**
-
-To use this MCP server with Claude Desktop, add the following configuration to your Claude Desktop settings:
-
-**Location of config file:**
-
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-**Add this configuration:**
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "servicenow": {
       "command": "python",
-      "args": ["/full/path/to/personal-mcp-servicenow/tools.py"],
+      "args": ["/full/path/to/personal-mcp-servicenow/personal_mcp_servicenow_main.py"]
+    }
+  }
+}
+```
+
+Credentials are read from the `.env` file. If you prefer to inject them via the config:
+
+```json
+{
+  "mcpServers": {
+    "servicenow": {
+      "command": "python",
+      "args": ["/full/path/to/personal-mcp-servicenow/personal_mcp_servicenow_main.py"],
       "env": {
         "SERVICENOW_INSTANCE": "https://your-instance.service-now.com",
         "SERVICENOW_CLIENT_ID": "your_oauth_client_id",
@@ -355,87 +111,141 @@ To use this MCP server with Claude Desktop, add the following configuration to y
 }
 ```
 
-**Important Notes:**
-
-- Replace `/full/path/to/personal-mcp-servicenow/` with your actual installation path
-- Replace the environment variables with your actual ServiceNow credentials
-- Restart Claude Desktop after adding this configuration
-- The server will auto-start when Claude Desktop launches
-
-**Alternative: Using .env file (Recommended)**
-If you prefer to keep credentials in your `.env` file:
+**Claude Code (remote SSE)**:
 
 ```json
 {
   "mcpServers": {
     "servicenow": {
-      "command": "python",
-      "args": ["/full/path/to/personal-mcp-servicenow/tools.py"]
+      "type": "sse",
+      "url": "http://<your-host>:8000/sse"
     }
   }
 }
 ```
 
-### 6. **Standalone Server (Optional)**
+---
 
-To run the MCP server independently:
+## Available tools (32)
+
+### Generic table tools (5)
+
+Work across all supported tables: `incident`, `change_request`, `sc_req_item`, `sc_task`, `universal_request`, `kb_knowledge`, `vtb_task`, `task_sla`.
+
+- `search_records(table, query)` — text similarity search
+- `get_record_summary(table, number)` — short description for a single record
+- `get_record(table, number)` — full detail fields for a single record
+- `find_similar(table, number)` — records similar to an existing record
+- `filter_records(table, filters, fields)` — field-value filters with operators and date ranges
+
+### Intelligent query tools (5)
+
+- `intelligent_search(query, table, context)` — natural language: "high priority incidents from last week"
+- `build_smart_servicenow_filter(query, table, context)` — NL → ServiceNow query syntax
+- `explain_servicenow_filters(filters, table)` — human-readable filter explanation
+- `get_servicenow_filter_templates()` — pre-built filters for common scenarios
+- `get_query_examples()` — natural language examples
+
+### Priority incidents (1)
+
+- `get_priority_incidents(priorities, start_date, end_date, additional_filters, include_metadata)`
+
+### Knowledge base (3)
+
+- `similar_knowledge_for_text(input_text, kb_base, category)`
+- `get_knowledge_by_category(category, kb_base)`
+- `get_active_knowledge_articles(input_text)`
+
+### Private task CRUD (2)
+
+- `create_private_task(task_data)` — creates vtb_task record
+- `update_private_task(task_number, update_data)` — PATCH update
+
+### SLA management (5)
+
+- `similar_slas_for_text(input_text)`
+- `get_sla_details(sla_sys_id)`
+- `query_slas_by_task(task_number)`
+- `query_slas_by_status(status, days?, threshold_minutes?, stage?, extra_filters?)` — status enum: `"active"`, `"breached"`, `"breaching"`, `"critical"`, `"by_stage"`, `"performance"`
+- `query_slas_custom(filters, fields?, days?)` — escape hatch; `fields=None` defaults to `ESSENTIAL_FIELDS["task_sla"]`
+
+### CMDB (6)
+
+- `find_cis_by_type(ci_type)` — 100+ CI types supported
+- `search_cis_by_attributes(name, ip_address, location, status)`
+- `get_ci_details(ci_number)`
+- `similar_cis_for_ci(ci_number)`
+- `get_all_ci_types()`
+- `quick_ci_search(search_term)`
+
+### Server & auth (5)
+
+- `nowtest()`, `now_test_oauth()`, `now_auth_info()`, `nowtestauth()`, `nowtest_auth_input(table)`
+
+---
+
+## Architecture
+
+```
+MCP Client (Claude)
+  ↓ stdio / sse
+tools.py (FastMCP — 32 tools)
+  ↓
+generic_tool_wrappers.py   consolidated_tools.py   vtb_task_tools.py
+cmdb_tools.py              intelligent_query_tools.py
+  ↓
+generic_table_tools.py (core query engine, pagination, deterministic sort)
+  ↓
+filter/                     (v4.0 Sprint 1)
+  builder.py                — ServiceNowQueryBuilder
+  validator.py              — validate_query_filters, validate_and_correct_filters
+  intelligence.py           — QueryIntelligence (NL → filter; no backref to builder)
+  explainer.py              — QueryExplainer
+  models.py                 — TableFilterParams, SmartQueryParams
+  ↓
+http_layer/                 (v4.0 Sprint 3)
+  url_builder.py            — ensure_query_encoded, add_default_params (GET-only)
+  response_parser.py        — extract_display_values (GET-only)
+  request_dispatcher.py     — make_nws_request (~30 lines, dispatches GET vs write)
+  ↓
+oauth/                      (v4.0 Sprint 3)
+  token_store.py            — token cache + refresh (injectable fetcher)
+  request_executor.py       — authenticated HTTP + 401 retry
+  client.py                 — ServiceNowOAuthClient façade
+  exceptions.py             — 4 exception classes
+  ↓
+httpx → ServiceNow REST API
+```
+
+**GET path** applies `sysparm_exclude_reference_link=true`, `sysparm_no_count=true`, `sysparm_display_value=true`, and display-value flattening.  
+**POST/PATCH/DELETE** bypass all of the above — enforced by 3 negative tests in `tests/test_http_layer.py`.
+
+**v4.0 shims** (deleted in v4.1): `query_validation.py`, `query_intelligence.py`, `oauth_client.py`, `service_now_api_oauth.py`
+
+---
+
+## Testing
 
 ```bash
-python tools.py
+# Full suite
+pytest tests/ -v --tb=short
+
+# With coverage
+pytest tests/ --cov=. --cov-report=term-missing
+
+# Live ServiceNow regression
+python scripts/capture_sla_token_baseline.py
+python scripts/compare_sla_token_baseline.py
+python scripts/capture_read_path_baseline.py
 ```
 
-### 7. **Cloud Hosting & Network Agents (Docker)**
+575 tests passing, ~83% overall coverage. `filter/` 98.16%, `oauth/` + `http_layer/` 92.98%.
 
-By default the server uses **stdio transport**, which means it runs as a local subprocess controlled by an MCP client like Claude Code. To make it accessible over the network to any agent, the server must be switched to **SSE (Server-Sent Events) transport**. The Docker image handles this automatically via the `MCP_TRANSPORT` environment variable.
+---
 
-#### Transport modes
+## Cloud hosting: Azure Container Apps + Key Vault
 
-| `MCP_TRANSPORT` | How it runs | Use case |
-|---|---|---|
-| `stdio` (default) | Subprocess, communicates via stdin/stdout | Local Claude Code |
-| `sse` | HTTP server, agents connect via SSE | Docker, cloud, N8N, any network agent |
-
-#### Build and run (local testing)
-
-```bash
-docker build -t mcp-servicenow .
-
-docker run -d \
-  -p 8000:8000 \
-  --env-file .env.local \
-  --name mcp-servicenow \
-  mcp-servicenow
-```
-
-Where `.env.local` contains:
-
-```env
-SERVICENOW_INSTANCE=https://your-instance.service-now.com
-SERVICENOW_CLIENT_ID=your_oauth_client_id
-SERVICENOW_CLIENT_SECRET=your_oauth_client_secret
-```
-
-> ⚠️ **Add `.env.local` to `.gitignore`.** Never commit it. The `--env-file` form keeps credentials out of shell history and `ps` output, but the file is still plaintext on disk — only use this for local testing.
-
-The image sets `MCP_TRANSPORT=sse` by default, so no extra flags are needed. Credentials are **never baked into the image**.
-
-You can also override the host and port:
-
-```bash
-docker run -d \
-  -p 9000:9000 \
-  -e MCP_TRANSPORT=sse \
-  -e MCP_HOST=0.0.0.0 \
-  -e MCP_PORT=9000 \
-  --env-file .env.local \
-  mcp-servicenow
-```
-
-#### Production: Azure Container Apps + Key Vault
-
-For production, store the ServiceNow credentials in **Azure Key Vault** and let **Azure Container Apps** fetch them at runtime using the Container App's **system-assigned managed identity**. No secrets ever appear in env vars on your machine, in source control, in shell history, or in `docker inspect` output on the host.
-
-The flow:
+For production, store credentials in Azure Key Vault and inject via managed identity. No secrets in env vars, shell history, or `docker inspect`.
 
 ```
 Key Vault (secrets)
@@ -445,7 +255,7 @@ Container App (managed identity)
 mcp-servicenow container
 ```
 
-**1. Push the image to Azure Container Registry**
+**1. Push to Azure Container Registry**
 
 ```bash
 az acr create -g <rg> -n <acrName> --sku Basic
@@ -454,17 +264,16 @@ docker tag mcp-servicenow <acrName>.azurecr.io/mcp-servicenow:latest
 docker push <acrName>.azurecr.io/mcp-servicenow:latest
 ```
 
-**2. Create a Key Vault and store the three secrets**
+**2. Create Key Vault and store secrets**
 
 ```bash
 az keyvault create -g <rg> -n <kvName> --enable-rbac-authorization true
-
 az keyvault secret set --vault-name <kvName> --name servicenow-instance      --value "https://your-instance.service-now.com"
 az keyvault secret set --vault-name <kvName> --name servicenow-client-id     --value "your_oauth_client_id"
 az keyvault secret set --vault-name <kvName> --name servicenow-client-secret --value "your_oauth_client_secret"
 ```
 
-**3. Create the Container App with a system-assigned managed identity**
+**3. Create Container App with system-assigned managed identity**
 
 ```bash
 az containerapp env create -g <rg> -n <envName> --location westeurope
@@ -478,7 +287,7 @@ az containerapp create \
   --registry-server <acrName>.azurecr.io
 ```
 
-**4. Grant the Container App's identity read access to the vault**
+**4. Grant Key Vault access to the identity**
 
 ```bash
 PRINCIPAL_ID=$(az containerapp show -g <rg> -n mcp-servicenow --query identity.principalId -o tsv)
@@ -490,7 +299,7 @@ az role assignment create \
   --scope "$KV_ID"
 ```
 
-**5. Wire Key Vault references into Container App secrets and env vars**
+**5. Wire Key Vault references into the Container App**
 
 ```bash
 az containerapp secret set \
@@ -508,187 +317,55 @@ az containerapp update \
     "SERVICENOW_CLIENT_SECRET=secretref:servicenow-client-secret"
 ```
 
-**Why this is safer than `-e` flags**
-
-| Risk with `docker run -e ...` | How this approach mitigates it |
-|---|---|
-| Secrets in shell history | Never typed on the command line |
-| Visible via `ps auxe` / `docker inspect` | Stored encrypted in Key Vault, resolved by the platform |
-| Leak into CI logs / screen-shares | Never appear in plaintext anywhere outside the vault |
-| Rotation requires rebuild/redeploy | Update the secret in Key Vault; the Container App picks up the new value on next revision |
-| Anyone with repo access sees them | Access gated by Azure RBAC + managed identity, not file permissions |
-
-To rotate a credential, update the Key Vault secret and create a new Container App revision (`az containerapp update --revision-suffix vN`).
-
-#### Connecting agents
-
-Once running, agents connect to the SSE endpoint:
-
-```
-http://<your-host>:8000/sse
-```
-
-**N8N**: Use the MCP Client node and point it at the SSE URL above.
-
-**LangChain / custom agents**: Use any MCP-compatible SSE client library pointed at the same URL.
-
-**Claude Code (remote)**: Add to your MCP config:
-
-```json
-{
-  "mcpServers": {
-    "servicenow": {
-      "type": "sse",
-      "url": "http://<your-host>:8000/sse"
-    }
-  }
-}
-```
-
-#### Development dependency separation
-
-When developing locally, install the full dev toolchain:
-
-```bash
-pip install -r requirements-dev.txt
-```
-
-For production builds (including Docker), only production dependencies are installed:
-
-```bash
-pip install -r requirements.txt
-```
-
-`requirements-dev.txt` includes everything in `requirements.txt` plus `pytest`, `pytest-cov`, and `coverage`. These are never installed in the Docker image.
-
-## 🏗️ Architecture
-
-```
-MCP Server (FastMCP — 36 tools)
-├── Tool Layer
-│   ├── Generic Wrappers (generic_tool_wrappers.py — 5 tools for 8 tables)
-│   ├── Consolidated Tools (consolidated_tools.py — priority, knowledge, SLA)
-│   ├── Private Task CRUD (vtb_task_tools.py — create, update via PATCH)
-│   ├── CMDB Tools (cmdb_tools.py — 6 tools, 100+ CI types)
-│   └── Intelligent Query Tools (intelligent_query_tools.py — NLP)
-├── Core Engine
-│   ├── Generic Table Tools (generic_table_tools.py — pagination, sorting, filtering)
-│   └── Query Intelligence (query_intelligence.py — regex NLP)
-├── API Layer
-│   ├── OAuth 2.0 Client (oauth_client.py — token management)
-│   └── HTTP Client (service_now_api_oauth.py — perf params, URL encoding)
-└── Utilities
-    ├── Server Tools (utility_tools.py)
-    ├── Date Utils (date_utils.py)
-    └── Constants & Config (constants.py, config_loader.py)
-```
-
-## 🧪 Testing Infrastructure
-
-The project includes comprehensive testing capabilities:
-
-### **Test Categories**
-
-- **OAuth Testing** - OAuth 2.0 client creation and environment validation
-- **CMDB Testing** - Configuration Item discovery and ServiceNow connectivity
-- **Integration Testing** - End-to-end OAuth authentication with ServiceNow
-
-### **Run Tests**
-
-```bash
-# Test environment setup (offline)
-python -m Testing.test_oauth_simple
-
-# Test ServiceNow connectivity and CMDB functionality
-python -m Testing.test_cmdb_tools
-```
-
-## 📈 Performance & Code Quality
-
-- **50-60% Token Usage Reduction** - Optimized field selection and query efficiency
-- **Async Operations** - Non-blocking API calls with proper error handling
-- **Smart Field Selection** - Essential vs. detailed modes for optimal performance
-- **Efficient Error Handling** - Graceful degradation and meaningful error messages
-- **Resource Management** - Configurable limits and intelligent caching
-- **SonarCloud Compliance** - Cognitive complexity reduced from 20 to ≤8 in critical functions
-- **PEP 8 Standards** - Complete snake_case naming convention compliance
-- **Modular Architecture** - Helper functions improve maintainability and testability
-- **ServiceNow Query Reliability** - Comprehensive pagination and result validation preventing missing critical incidents
-- **Constants Module** - Centralized configuration eliminating hardcoded strings and magic values
-- **Query Validation Framework** - Built-in ServiceNow syntax validation with completeness checks
-
-## 🔧 Advanced Configuration
-
-### **Field Customization**
-
-```python
-# Essential fields (fast queries)
-ESSENTIAL_FIELDS = ["number", "short_description", "priority", "state"]
-
-# Detailed fields (comprehensive data)
-DETAILED_FIELDS = [..., "work_notes", "comments", "assigned_to", "sys_created_on"]
-```
-
-### **Date Filtering**
-
-```python
-# Multiple date formats supported
-filters = {
-    "sys_created_on_gte": "2024-01-01",  # Standard format
-    "sys_created_on": ">=javascript:gs.daysAgoStart(14)",  # ServiceNow JS
-    "state": "1",  # Active state
-    "priority": "1"  # High priority
-}
-```
-
-### **CMDB Discovery**
-
-The system automatically discovers all CMDB tables in your ServiceNow instance and updates the supported CI types list. No manual configuration required!
-
-## 🤝 Contributing
-
-Contributions welcome! Please see [Contributing Guidelines](CONTRIBUTING.md).
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
-
-## 📚 Documentation
-
-- [**OAuth Setup Guide**](OAUTH_SETUP_GUIDE.md) - Complete OAuth 2.0 configuration
-- [**Project Documentation**](CLAUDE.md) - Comprehensive technical documentation
-- [**ServiceNow Query Guide**](SERVICENOW_QUERY_GUIDE.md) - Proper ServiceNow syntax and best practices
-- [**Test Documentation**](Testing/TEST_PROMPTS.md) - Testing procedures and scenarios
-- [**Optimization Guide**](OPTIMIZATION_SUMMARY.md) - Performance improvements and token usage
-- [**Cloud Hosting**](#7-cloud-hosting--network-agents-docker) - Docker setup and network agent integration
-
-## 🔐 Security
-
-- **OAuth 2.0 Exclusive** - No username/password authentication supported
-- **Zero Password Storage** - Enhanced security through OAuth-only approach
-- **Automatic Token Management** - Secure token refresh and expiration handling
-- **Environment-Based Config** - All credentials via environment variables only
-- **Proper API Scoping** - Controlled permissions and access management
-- **No Credential Exposure** - Comprehensive error handling without information disclosure
-
-## 📊 Project Statistics
-
-- **36 MCP Tools** covering 8 ServiceNow tables + CMDB (100+ CI types)
-- **537 tests passing** with 80% overall code coverage
-- **OAuth 2.0 Exclusive** - Enhanced security with single authentication method
-- **SonarCloud Compliant** - All cognitive complexity violations resolved (CC ≤ 15)
-- **PEP 8 Compliant** - 100% snake_case naming convention adherence
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+To rotate a credential: update the Key Vault secret and create a new Container App revision (`az containerapp update --revision-suffix vN`).
 
 ---
 
-⭐ **Star this project** if you find it useful!
+## Transport modes
 
-🐛 **Found a bug?** Please [open an issue](https://github.com/Papamzor/personal-mcp-servicenow/issues).
+| `MCP_TRANSPORT` | How it runs | Use case |
+|---|---|---|
+| `stdio` (default) | subprocess via stdin/stdout | local Claude Code |
+| `sse` | HTTP server | Docker, cloud, N8N, any network agent |
 
-💡 **Have a feature request?** We'd love to hear from you!
+Override host/port:
+
+```bash
+docker run -d \
+  -p 9000:9000 \
+  -e MCP_TRANSPORT=sse \
+  -e MCP_HOST=0.0.0.0 \
+  -e MCP_PORT=9000 \
+  --env-file .env.local \
+  mcp-servicenow
+```
+
+**N8N**: MCP Client node → SSE URL.  
+**LangChain / custom agents**: any MCP-compatible SSE client library.
+
+---
+
+## Dependencies
+
+Production: `requirements.txt`  
+Dev (pytest, coverage, tiktoken, pytest-asyncio): `requirements-dev.txt`  
+Dev dependencies are never installed in the Docker image.
+
+---
+
+## Documentation
+
+- [OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md) — ServiceNow OAuth 2.0 setup
+- [MIGRATION_v3_to_v4.md](MIGRATION_v3_to_v4.md) — v3 → v4 migration guide
+- [CHANGELOG.md](CHANGELOG.md) — full change history
+- [ARCHITECTURE_REFACTOR_PLAN.md](ARCHITECTURE_REFACTOR_PLAN.md) — rationale behind v4.0 refactor sprints
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+Found a bug? [Open an issue](https://github.com/Papamzor/personal-mcp-servicenow/issues).
