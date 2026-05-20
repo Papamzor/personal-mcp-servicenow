@@ -3,6 +3,7 @@ source = ["."]
 omit = [
     "Testing/*",
     "tests/*",
+    "scripts/*",
     "*/__pycache__/*",
     "*/test_*",
     "venv/*",

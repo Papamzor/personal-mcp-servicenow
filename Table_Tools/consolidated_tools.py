@@ -12,7 +12,6 @@ import logging
 from datetime import datetime, timezone
 from .generic_table_tools import (
     query_table_by_text,
-    get_record_details,
     query_table_with_filters,
     get_records_by_priority,
     query_table_with_generic_filters,
@@ -301,95 +300,181 @@ async def get_active_knowledge_articles(input_text: str) -> Dict[str, Any]:  # n
 
 
 # ---------------------------------------------------------------------------
-# SLA tools (each has specialised query patterns)
+# SLA tools — v4.0 consolidation (10 -> 5)
 # ---------------------------------------------------------------------------
 
-async def similar_slas_for_text(input_text: str) -> Dict[str, Any]:
-    """Find SLAs based on input text (searches related task descriptions)."""
-    return await query_table_by_text("task_sla", input_text)
+SLA_STATUS_VALUES = ("active", "breached", "breaching", "critical", "by_stage", "performance")
 
-async def get_slas_for_task(task_number: str) -> Dict[str, Any]:
-    """Get all SLA records for a specific task."""
-    filters = {TASK_NUMBER_FIELD: task_number}
-    params = TableFilterParams(filters=filters)
-    return await query_table_with_filters("task_sla", params)
+# Curated field list for the critical-status dashboard view.
+# Preserves the v3 token budget for this preset (~1,650 tokens / 24 rows).
+_SLA_CRITICAL_FIELDS = [
+    TASK_NUMBER_FIELD, "task.priority", "sla.name", "stage",
+    "business_percentage", "business_time_left", "has_breached",
+]
 
-async def get_sla_details(sla_sys_id: str) -> Dict[str, Any]:
-    """Get detailed SLA information by sys_id."""
-    return await get_record_details("task_sla", sla_sys_id)
+# Curated field list for the performance-summary view.
+# Preserves the v3 token budget for this preset (~11,400 tokens / 100 rows).
+_SLA_PERFORMANCE_FIELDS = [
+    TASK_NUMBER_FIELD, "task.short_description", "sla.name", "stage",
+    "business_percentage", "active", "has_breached", "breach_time",
+    "business_time_left", "duration", "sys_created_on",
+]
 
-async def get_breaching_slas(time_threshold_minutes: Optional[int] = 60) -> Dict[str, Any]:
-    """Get SLAs at risk of breaching within specified time threshold."""
-    filters = {
+
+# Per-preset filter builders. Each returns (filters, fields_or_None).
+# Extra filters and dispatch are handled by _build_sla_status_filter.
+
+def _sla_filter_active(**_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    return {"active": "true"}, None
+
+
+def _sla_filter_breached(days: Optional[int] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    return {
+        "has_breached": "true",
+        "sys_created_on": build_last_n_days_filter(days if days is not None else 7),
+    }, None
+
+
+def _sla_filter_breaching(threshold_minutes: Optional[int] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    threshold = (threshold_minutes if threshold_minutes is not None else 60) * 60
+    return {
         "active": "true",
-        "business_time_left": f"<{time_threshold_minutes * 60}",
-        "has_breached": "false"
-    }
-    params = TableFilterParams(filters=filters, fields=None)
-    return await query_table_with_filters("task_sla", params)
+        "business_time_left": f"<{threshold}",
+        "has_breached": "false",
+    }, None
 
-async def get_breached_slas(filters: Optional[Dict[str, str]] = None, days: int = 7) -> Dict[str, Any]:
-    """Get SLAs that have already breached (defaults to last 7 days)."""
-    base_filters = {
-        "has_breached": "true",
-        "sys_created_on": build_last_n_days_filter(days)
-    }
-    if filters:
-        base_filters.update(filters)
-    params = TableFilterParams(filters=base_filters)
-    return await query_table_with_filters("task_sla", params)
 
-async def get_slas_by_stage(stage: str, additional_filters: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """Get SLAs by stage (In progress, Completed, etc.)."""
-    filters = {"stage": stage}
-    if additional_filters:
-        filters.update(additional_filters)
-    params = TableFilterParams(filters=filters)
-    return await query_table_with_filters("task_sla", params)
-
-async def get_active_slas(filters: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
-    """Get currently active SLA records."""
-    base_filters = {"active": "true"}
-    if filters:
-        base_filters.update(filters)
-    params = TableFilterParams(filters=base_filters)
-    return await query_table_with_filters("task_sla", params)
-
-async def get_sla_performance_summary(filters: Optional[Dict[str, str]] = None, days: int = 30) -> Dict[str, Any]:
-    """Get SLA performance metrics (defaults to last 30 days)."""
-    default_filters = {
-        "sys_created_on": build_last_n_days_filter(days)
-    }
-    if filters:
-        default_filters.update(filters)
-
-    fields = [
-        TASK_NUMBER_FIELD, "task.short_description", "sla.name", "stage",
-        "business_percentage", "active", "has_breached", "breach_time",
-        "business_time_left", "duration", "sys_created_on"
-    ]
-    params = TableFilterParams(filters=default_filters, fields=fields)
-    return await query_table_with_filters("task_sla", params)
-
-async def get_recent_breached_slas(days: int = 1) -> Dict[str, Any]:
-    """Get recently breached SLAs (default last 24 hours)."""
-    filters = {
-        "has_breached": "true",
-        "sys_created_on": build_last_n_days_filter(days)
-    }
-    params = TableFilterParams(filters=filters)
-    return await query_table_with_filters("task_sla", params)
-
-async def get_critical_sla_status() -> Dict[str, Any]:
-    """Get high-priority SLA status summary for dashboard/monitoring."""
-    filters = {
+def _sla_filter_critical(**_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    return {
         "active": "true",
         "task.priority": "IN1,2",
-        "business_percentage": ">80"
-    }
-    fields = [
-        TASK_NUMBER_FIELD, "task.priority", "sla.name", "stage",
-        "business_percentage", "business_time_left", "has_breached"
-    ]
+        "business_percentage": ">80",
+    }, _SLA_CRITICAL_FIELDS
+
+
+def _sla_filter_by_stage(stage: Optional[str] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    if not stage:
+        raise ValueError("query_slas_by_status(status='by_stage') requires the 'stage' argument")
+    return {"stage": stage}, None
+
+
+def _sla_filter_performance(days: Optional[int] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    return (
+        {"sys_created_on": build_last_n_days_filter(days if days is not None else 30)},
+        _SLA_PERFORMANCE_FIELDS,
+    )
+
+
+_SLA_STATUS_DISPATCH = {
+    "active": _sla_filter_active,
+    "breached": _sla_filter_breached,
+    "breaching": _sla_filter_breaching,
+    "critical": _sla_filter_critical,
+    "by_stage": _sla_filter_by_stage,
+    "performance": _sla_filter_performance,
+}
+
+
+def _build_sla_status_filter(
+    status: str,
+    days: Optional[int] = None,
+    threshold_minutes: Optional[int] = None,
+    stage: Optional[str] = None,
+    extra_filters: Optional[Dict[str, str]] = None,
+) -> tuple[Dict[str, str], Optional[List[str]]]:
+    """Translate an SLA status preset into a (filter_dict, fields) pair."""
+    handler = _SLA_STATUS_DISPATCH.get(status)
+    if handler is None:
+        raise ValueError(
+            f"Unknown SLA status preset {status!r}. Valid values: {SLA_STATUS_VALUES}"
+        )
+    filters, fields = handler(days=days, threshold_minutes=threshold_minutes, stage=stage)
+    if extra_filters:
+        filters.update(extra_filters)
+    return filters, fields
+
+
+async def similar_slas_for_text(input_text: str) -> Dict[str, Any]:
+    """Find SLAs whose related task descriptions match the given text."""
+    return await query_table_by_text("task_sla", input_text)
+
+
+async def get_sla_details(sla_sys_id: str) -> Dict[str, Any]:
+    """Get a single SLA record by its sys_id.
+
+    v4.0 routes via a `sys_id={sla_sys_id}` filter. v3.0 routed via
+    `get_record_details("task_sla", sla_sys_id)` which built a
+    `number={sla_sys_id}` filter — but the `task_sla` table has no
+    `number` field, so the filter was silently ignored and the call
+    returned the full default page (10,000 rows / ~1.2M tokens). The
+    v4.0 lookup returns the single record (~69 tokens).
+    """
+    params = TableFilterParams(filters={"sys_id": sla_sys_id})
+    return await query_table_with_filters("task_sla", params)
+
+
+async def query_slas_by_task(task_number: str) -> Dict[str, Any]:
+    """Get all SLA records attached to a given task number."""
+    params = TableFilterParams(filters={TASK_NUMBER_FIELD: task_number})
+    return await query_table_with_filters("task_sla", params)
+
+
+async def query_slas_by_status(
+    status: str,
+    days: Optional[int] = None,
+    threshold_minutes: Optional[int] = None,
+    stage: Optional[str] = None,
+    extra_filters: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
+    """Query SLA records by a named status preset.
+
+    Args:
+        status: one of "active", "breached", "breaching", "critical",
+            "by_stage", "performance":
+            - active:      currently active SLAs.
+            - breached:    SLAs that have already breached. `days` widens the
+                           sys_created_on window (default 7).
+            - breaching:   active SLAs at risk of breaching within
+                           `threshold_minutes` (default 60).
+            - critical:    high-priority (P1/P2) active SLAs >80% consumed.
+                           Returns a curated 7-field dashboard view.
+            - by_stage:    filter by `stage` (e.g. "in_progress",
+                           "completed"). Requires the `stage` argument.
+            - performance: last-N-days SLA performance metrics with a curated
+                           11-field view (default 30 days).
+        extra_filters: optional dict merged on top of the preset's filters.
+
+    Returns:
+        Dict in the same shape as the v3 SLA tools (`{"result": [...]}`).
+    """
+    filters, fields = _build_sla_status_filter(
+        status,
+        days=days,
+        threshold_minutes=threshold_minutes,
+        stage=stage,
+        extra_filters=extra_filters,
+    )
     params = TableFilterParams(filters=filters, fields=fields)
+    return await query_table_with_filters("task_sla", params)
+
+
+async def query_slas_custom(
+    filters: Dict[str, str],
+    fields: Optional[List[str]] = None,
+    days: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Custom SLA query — escape hatch for filter shapes the presets do not cover.
+
+    Args:
+        filters: arbitrary ServiceNow filter dict (required).
+        fields:  override returned columns. When None, the query layer falls
+                 back to ESSENTIAL_FIELDS for `task_sla` — never returns all
+                 columns by default, preserving the per-call token budget.
+        days:    when provided, ANDs `sys_created_on=last N days` into the
+                 filter dict.
+    """
+    final_filters = dict(filters)
+    if days is not None:
+        final_filters["sys_created_on"] = build_last_n_days_filter(days)
+    params = TableFilterParams(filters=final_filters, fields=fields)
     return await query_table_with_filters("task_sla", params)

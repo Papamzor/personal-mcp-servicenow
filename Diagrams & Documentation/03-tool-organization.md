@@ -48,13 +48,13 @@ graph TB
 ## v3.0 Tool Categories Overview
 ```mermaid
 graph LR
-    subgraph "36 MCP Tools"
+    subgraph "32 MCP Tools (v4.0)"
         A[Generic Table Tools<br/>5 tools - parameterized]
         B[Incident Tools<br/>1 tool - priority + dates]
         C[Knowledge Tools<br/>3 tools - category filtering]
         D[CMDB Tools<br/>6 tools - CI discovery]
         E[Private Task Tools<br/>2 tools - CRUD]
-        F[SLA Tools<br/>10 tools - specialised queries]
+        F[SLA Tools<br/>5 tools - preset dispatcher + escape hatch]
         G[Utility Tools<br/>5 tools - auth/connectivity]
         H[Intelligent Query Tools<br/>5 tools - NLP]
     end
@@ -137,11 +137,11 @@ Each validates `table` against `TABLE_CONFIGS` and delegates to `generic_table_t
 - **find_similar(table, number)** → `find_similar_records()` — similarity matching
 - **filter_records(table, filters, fields)** → `query_table_with_filters()` — structured filtering
 
-### Consolidated Tools (14 tools — consolidated_tools.py)
+### Consolidated Tools (9 tools — consolidated_tools.py)
 Tools with unique logic that cannot be replaced by generic wrappers:
 - **Priority Incidents** (1): Complex date logic, metadata, convenience helpers
 - **Knowledge** (3): Category/kb_base filtering, active articles
-- **SLA** (10): Each has specialised query patterns (breaching, stage, performance, etc.)
+- **SLA** (5, v4.0): `similar_slas_for_text`, `get_sla_details` (sys_id lookup — fixed v3 bug), `query_slas_by_task`, `query_slas_by_status` (preset enum: active/breached/breaching/critical/by_stage/performance), `query_slas_custom` (escape hatch, defaults to ESSENTIAL_FIELDS)
 
 ### CMDB Tools (6 tools — cmdb_tools.py)
 Separate architecture with 100+ CI table types:

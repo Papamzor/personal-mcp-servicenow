@@ -2,6 +2,21 @@
 
 This diagram shows the **SLA monitoring architecture** with token-optimized functions designed for large ServiceNow databases.
 
+> **v4.0 update**: the 10 SLA tools shown below were collapsed into 5 via a preset dispatcher. The diagrams still reference the v3 names — see the mapping table below for the v4 replacement.
+>
+> | v3 tool | v4 replacement |
+> |---|---|
+> | `get_slas_for_task(num)` | `query_slas_by_task(num)` |
+> | `get_breaching_slas(mins)` | `query_slas_by_status("breaching", threshold_minutes=mins)` |
+> | `get_breached_slas(filters, days)` | `query_slas_by_status("breached", days=days, extra_filters=filters)` |
+> | `get_slas_by_stage(stage, filters)` | `query_slas_by_status("by_stage", stage=stage, extra_filters=filters)` |
+> | `get_active_slas(filters)` | `query_slas_by_status("active", extra_filters=filters)` |
+> | `get_sla_performance_summary(filters, days)` | `query_slas_by_status("performance", days=days, extra_filters=filters)` |
+> | `get_recent_breached_slas(days)` | `query_slas_by_status("breached", days=1)` |
+> | `get_critical_sla_status()` | `query_slas_by_status("critical")` |
+>
+> Plus `get_sla_details(sys_id)` was bug-fixed in v4 (v3 returned a 10K-row table dump for any sys_id call — see `ARCHITECTURE_REFACTOR_PLAN.md`).
+
 ## 🚀 SLA Tool Architecture Overview
 ```mermaid
 graph TB
