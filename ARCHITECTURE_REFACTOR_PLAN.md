@@ -222,9 +222,13 @@ Per `MEMORY.md` convention: `feature/v3.1_filter-pipeline` (Sprint 1), `feature/
 
 ---
 
-## Open questions for sprint planning
+## Decisions (resolved 2026-05-20)
 
-1. Order: 2 → 1 → 3 recommended. Confirm vs alternative (1 → 2 → 3 or all parallel).
-2. Sprint 2 breaks MCP client compatibility for callers of the 5 removed SLA tools. Confirm acceptable for v3.1 minor release, or defer to v4.0.
-3. Sprint 3 step 12 (subsystem unit tests) — adopt `pytest-asyncio` fully or keep `unittest.IsolatedAsyncioTestCase`?
-4. Sprint 1 stale test failures (`build_not_equals_filter`, `build_or_filter`) — restore methods on `ServiceNowQueryBuilder`, or delete tests? Default: delete tests if no production caller exists.
+1. Sprint order: 2 → 1 → 3.
+2. Sprint 2 MCP tool removal — accepted as breaking change in v4.0 (major release).
+3. Sprint 3 subsystem unit tests — adopt `pytest-asyncio` for new modules.
+4. Sprint 1 stale test failures — delete tests for `build_not_equals_filter` and `build_or_filter` (no production caller; methods stay removed).
+
+## Out-of-band release note
+
+`remote/feature/v3.1_docker-cloud-hosting` (GitHub-only branch) lands in a v3.1 release, not rebased onto v4.0. v3.1 ships independently before or in parallel with v4.0.
