@@ -58,10 +58,15 @@ async def _get_kb_article_sys_id(article_number: str) -> str | None:
 
 
 async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any] | str:
-    # Workflow endpoint triggers the actual state-machine transition.
-    # Direct PATCH to workflow_state is silently ignored by ServiceNow (read-only field).
-    url = f"{NWS_API_BASE}/api/now/table/kb_knowledge/{sys_id}/workflow/{action}"
-    return await _write_kb_article("POST", url, {}, action)
+    # PUT (not PATCH) triggers the full record-update pipeline on ServiceNow,
+    # which evaluates workflow state transitions. PATCH silently ignores
+    # workflow_state writes; the /workflow/{action} sub-resource URL does not exist.
+    target_state = "published" if action == "publish" else "retired"
+    url = f"{NWS_API_BASE}/api/now/table/kb_knowledge/{sys_id}"
+    result = await _write_kb_article("PUT", url, {"workflow_state": target_state}, action)
+    if isinstance(result, str):
+        return f"{result} [url={url}]"
+    return result
 
 
 async def update_knowledge_article(article_number: str, update_data: Dict[str, Any]) -> Dict[str, Any] | str:

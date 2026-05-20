@@ -188,7 +188,7 @@ class TestPublishKnowledgeArticle:
             assert "KB9999999" in result
 
     @pytest.mark.asyncio
-    async def test_success_posts_to_workflow_publish_endpoint(self):
+    async def test_success_puts_workflow_state_published(self):
         with patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_sys_id, \
              patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
             mock_sys_id.return_value = "abc123"
@@ -199,8 +199,9 @@ class TestPublishKnowledgeArticle:
             assert result["workflow_state"] == "published"
             call_url = mock_request.call_args.args[0]
             call_kwargs = mock_request.call_args.kwargs
-            assert "abc123/workflow/publish" in call_url
-            assert call_kwargs["method"] == "POST"
+            assert "kb_knowledge/abc123" in call_url
+            assert call_kwargs["method"] == "PUT"
+            assert call_kwargs["json_data"] == {"workflow_state": "published"}
 
 
 class TestRetireKnowledgeArticle:
@@ -214,7 +215,7 @@ class TestRetireKnowledgeArticle:
             assert "KB9999999" in result
 
     @pytest.mark.asyncio
-    async def test_success_posts_to_workflow_retire_endpoint(self):
+    async def test_success_puts_workflow_state_retired(self):
         with patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_sys_id, \
              patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
             mock_sys_id.return_value = "abc123"
@@ -225,8 +226,9 @@ class TestRetireKnowledgeArticle:
             assert result["workflow_state"] == "retired"
             call_url = mock_request.call_args.args[0]
             call_kwargs = mock_request.call_args.kwargs
-            assert "abc123/workflow/retire" in call_url
-            assert call_kwargs["method"] == "POST"
+            assert "kb_knowledge/abc123" in call_url
+            assert call_kwargs["method"] == "PUT"
+            assert call_kwargs["json_data"] == {"workflow_state": "retired"}
 
 
 class TestRoutesThroughUnifiedPipeline:
@@ -243,7 +245,7 @@ class TestRoutesThroughUnifiedPipeline:
 
             mock_request.assert_called_once()
             call_kwargs = mock_request.call_args.kwargs
-            assert call_kwargs["method"] == "POST"
+            assert call_kwargs["method"] == "PUT"
             assert "sysparm_display_value" not in mock_request.call_args.args[0]
 
     @pytest.mark.asyncio
@@ -257,4 +259,4 @@ class TestRoutesThroughUnifiedPipeline:
 
             mock_request.assert_called_once()
             call_kwargs = mock_request.call_args.kwargs
-            assert call_kwargs["method"] == "POST"
+            assert call_kwargs["method"] == "PUT"
