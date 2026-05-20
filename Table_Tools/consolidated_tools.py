@@ -321,6 +321,60 @@ _SLA_PERFORMANCE_FIELDS = [
 ]
 
 
+# Per-preset filter builders. Each returns (filters, fields_or_None).
+# Extra filters and dispatch are handled by _build_sla_status_filter.
+
+def _sla_filter_active(**_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    return {"active": "true"}, None
+
+
+def _sla_filter_breached(days: Optional[int] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    return {
+        "has_breached": "true",
+        "sys_created_on": build_last_n_days_filter(days if days is not None else 7),
+    }, None
+
+
+def _sla_filter_breaching(threshold_minutes: Optional[int] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    threshold = (threshold_minutes if threshold_minutes is not None else 60) * 60
+    return {
+        "active": "true",
+        "business_time_left": f"<{threshold}",
+        "has_breached": "false",
+    }, None
+
+
+def _sla_filter_critical(**_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    return {
+        "active": "true",
+        "task.priority": "IN1,2",
+        "business_percentage": ">80",
+    }, _SLA_CRITICAL_FIELDS
+
+
+def _sla_filter_by_stage(stage: Optional[str] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    if not stage:
+        raise ValueError("query_slas_by_status(status='by_stage') requires the 'stage' argument")
+    return {"stage": stage}, None
+
+
+def _sla_filter_performance(days: Optional[int] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
+    return (
+        {"sys_created_on": build_last_n_days_filter(days if days is not None else 30)},
+        _SLA_PERFORMANCE_FIELDS,
+    )
+
+
+_SLA_STATUS_DISPATCH = {
+    "active": _sla_filter_active,
+    "breached": _sla_filter_breached,
+    "breaching": _sla_filter_breaching,
+    "critical": _sla_filter_critical,
+    "by_stage": _sla_filter_by_stage,
+    "performance": _sla_filter_performance,
+}
+
+
 def _build_sla_status_filter(
     status: str,
     days: Optional[int] = None,
@@ -329,43 +383,12 @@ def _build_sla_status_filter(
     extra_filters: Optional[Dict[str, str]] = None,
 ) -> tuple[Dict[str, str], Optional[List[str]]]:
     """Translate an SLA status preset into a (filter_dict, fields) pair."""
-    if status == "active":
-        filters = {"active": "true"}
-        fields = None
-    elif status == "breached":
-        filters = {
-            "has_breached": "true",
-            "sys_created_on": build_last_n_days_filter(days if days is not None else 7),
-        }
-        fields = None
-    elif status == "breaching":
-        threshold = (threshold_minutes if threshold_minutes is not None else 60) * 60
-        filters = {
-            "active": "true",
-            "business_time_left": f"<{threshold}",
-            "has_breached": "false",
-        }
-        fields = None
-    elif status == "critical":
-        filters = {
-            "active": "true",
-            "task.priority": "IN1,2",
-            "business_percentage": ">80",
-        }
-        fields = _SLA_CRITICAL_FIELDS
-    elif status == "by_stage":
-        if not stage:
-            raise ValueError("query_slas_by_status(status='by_stage') requires the 'stage' argument")
-        filters = {"stage": stage}
-        fields = None
-    elif status == "performance":
-        filters = {"sys_created_on": build_last_n_days_filter(days if days is not None else 30)}
-        fields = _SLA_PERFORMANCE_FIELDS
-    else:
+    handler = _SLA_STATUS_DISPATCH.get(status)
+    if handler is None:
         raise ValueError(
             f"Unknown SLA status preset {status!r}. Valid values: {SLA_STATUS_VALUES}"
         )
-
+    filters, fields = handler(days=days, threshold_minutes=threshold_minutes, stage=stage)
     if extra_filters:
         filters.update(extra_filters)
     return filters, fields
