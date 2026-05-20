@@ -10,7 +10,7 @@ graph TB
 
     subgraph "MCP Server Core"
         B --> C[tools.py - FastMCP Server]
-        C --> D[Tool Registration - 36 tools]
+        C --> D[Tool Registration - 32 tools]
     end
 
     subgraph "Tool Categories"
@@ -28,9 +28,16 @@ graph TB
         H --> CT[consolidated_tools.py]
         I --> CMDB[cmdb_tools.py]
 
-        AI --> NLP[query_intelligence.py - NLP Engine]
+        AI --> NLP[filter/intelligence.py - QueryIntelligence]
         GW --> GTT[generic_table_tools.py - Core Engine]
         CT --> GTT
+    end
+
+    subgraph "Filter Pipeline (v4.0)"
+        NLP --> FV[filter/validator.py<br/>validate_and_correct_filters]
+        FV --> FB[filter/builder.py<br/>ServiceNowQueryBuilder]
+        AI --> FEXP[filter/explainer.py<br/>QueryExplainer]
+        GTT --> FMOD[filter/models.py<br/>TableFilterParams, SmartQueryParams]
     end
 
     subgraph "ServiceNow Integration"
@@ -45,8 +52,6 @@ graph TB
     subgraph "Support Modules"
         GTT --> CONST[constants.py<br/>TABLE_CONFIGS, fields, errors]
         GTT --> UTILS[utils.py - extract_keywords]
-        NLP --> QV[query_validation.py]
-        AI --> QV
         CT --> DATE[date_utils.py]
     end
 
@@ -60,12 +65,12 @@ graph TB
 
 ### Core Infrastructure
 - **MCP Client**: External clients (Claude) communicating via MCP protocol over stdio
-- **FastMCP Server**: Tool registration and routing for 36 tools
+- **FastMCP Server**: Tool registration and routing for 32 tools
 - **Generic Tool Wrappers**: 5 parameterized tools replace 24 per-table wrappers
 
 ### Tool Layer
 - **generic_tool_wrappers.py** (v3.0): `search_records`, `get_record`, `get_record_summary`, `find_similar`, `filter_records` — each takes a `table` parameter and validates against `TABLE_CONFIGS`
-- **consolidated_tools.py**: Priority incidents (date logic), knowledge tools (category filtering), 10 SLA tools (specialised query patterns)
+- **consolidated_tools.py**: Priority incidents (date logic), knowledge tools (category filtering), 5 SLA tools (preset dispatcher: `query_slas_by_status`, `query_slas_custom`, `query_slas_by_task`, `get_sla_details`, `similar_slas_for_text`)
 - **intelligent_query_tools.py**: NLP-based query processing with confidence scoring
 - **cmdb_tools.py**: 6 CMDB tools with 100+ CI table types
 
@@ -78,7 +83,31 @@ graph TB
 
 ### Configuration
 - **constants.py**: `TABLE_CONFIGS` (8 tables), `ESSENTIAL_FIELDS`, `DETAIL_FIELDS`, error messages, priority values
-- **query_validation.py**: ServiceNowQueryBuilder for OR filters, date ranges, exclusion filters
+
+### Filter Pipeline (v4.0 Sprint 1)
+- **filter/builder.py**: `ServiceNowQueryBuilder` — static OR / date-range / exclusion / complete-filter constructors
+- **filter/validator.py**: `validate_query_filters`, per-field validators, `validate_and_correct_filters` (auto-correction owns the only intelligence → builder bridge), `debug_query_construction`
+- **filter/intelligence.py**: `QueryIntelligence` — regex-based NL → filter conversion. Does not import builder.
+- **filter/explainer.py**: `QueryExplainer` — human-readable explanation + result-size estimation
+- **filter/models.py**: `TableFilterParams`, `SmartQueryParams` (Pydantic) and `QueryValidationResult` container
+- **query_validation.py / query_intelligence.py**: backwards-compat shims, deleted in v4.1
+
+## v4.0 Changes (in progress)
+
+### Sprint 2 — SLA tool collapse (shipped)
+- 10 SLA tools → 5 via `query_slas_by_status` preset dispatcher + `query_slas_custom` escape hatch
+- Tool count: 37 → 32
+- Bug fix: `get_sla_details(sys_id)` now routes via `sys_id={sys_id}` (v3 routed via `number={sys_id}` against a table with no `number` field, returning 10K-row dumps)
+- Offline token-footprint regression suite: `tests/test_token_footprint.py`
+
+### Sprint 1 — Filter pipeline consolidation (in progress)
+- `query_validation.py` + `query_intelligence.py` + `TableFilterParams`/`SmartQueryParams` from `generic_table_tools.py` collapsed into `filter/` package
+- Auto-correction logic moved from intelligence to validator → no backref `intelligence → builder`
+- Old modules retained as shims, deleted in v4.1
+
+### Sprint 3 — OAuth + HTTP split (planned)
+- Split `ServiceNowOAuthClient` into TokenStore + AuthHeaderProvider + RequestExecutor
+- Split `make_nws_request` into `http_layer/` (url_builder + response_parser + request_dispatcher)
 
 ## v3.0 Changes
 
@@ -91,12 +120,17 @@ graph TB
 - `consolidated_tools.py` — removed 24 wrappers, kept unique logic
 - `vtb_task_tools.py` — PUT to PATCH, removed dead code
 
-### Key Metrics
-- 36 tools (down from 55)
+### Key Metrics (v3.0)
+- 37 tools (down from 55)
 - 537 tests passing, 80% coverage
 - All functions under CC 15
 
-## Tool Inventory (36 tools)
+## Key Metrics (v4.0, current)
+- 32 tools
+- 562 tests passing, 82.44% coverage
+- `filter/` package coverage: 98.16%
+
+## Tool Inventory (32 tools — v4.0)
 
 | # | Tool | Source |
 |---|------|--------|
