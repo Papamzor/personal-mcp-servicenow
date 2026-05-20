@@ -66,6 +66,7 @@ filter/
 - Pydantic models import path: `from filter.models import TableFilterParams`
 - Stale `ServiceNowQueryBuilder` test failures removed from `test-results.xml`
 - Graphify shows c17/c23/c32/c41/c113 collapsed into one community in `filter/`
+- **Token gate**: response token counts for `search_records`, `filter_records`, `get_record_summary`, `get_priority_incidents`, and `explain_existing_filter` are ≤ baseline (no regression). `ESSENTIAL_FIELDS` / `DETAIL_FIELDS` allowlists still applied at every read entry point.
 
 ### Out of scope
 
@@ -122,6 +123,12 @@ Two SLA tools use distinct code paths and stay separate:
 - All previously-failing SLA scenarios (breaching, breached, critical, etc.) still callable via `query_slas_by_status(status=...)`
 - No filter-dict shape changes — same ServiceNow API queries emitted
 - Tests in `test_consolidated_tools.py` exercise each enum value of `status`
+- **Token gate (baseline + per-call)**:
+  - Establish `v4.0/token_baseline.json` for the 10 v3.x SLA tools before deleting any.
+  - `query_slas_by_status(status="critical")` returns same 7-field curated list as old `get_critical_sla_status()` — assert in unit test.
+  - `query_slas_by_status(status="performance" | "by_stage" | ...)` matches old field sets per status preset.
+  - `query_slas_custom(filters, fields=None)` defaults `fields` to `ESSENTIAL_FIELDS["task_sla"]` — do not return all columns by default.
+  - `tests/test_token_footprint.py` introduced and wired into CI as soft gate.
 
 ### Out of scope
 
@@ -188,6 +195,11 @@ The `ServiceNowOAuthClient` class remains in `oauth/client.py` as a façade that
 - No call site changes for read path: `make_nws_request(url)` signature unchanged
 - No call site changes for write path: `make_nws_request(url, method='POST', json_data=...)` signature unchanged
 - Graphify shows `ServiceNowOAuthClient` betweenness < 0.10 after refactor
+- **Token gate (highest risk sprint)**:
+  - GET path still applies `sysparm_exclude_reference_link=true`, `sysparm_no_count=true`, `sysparm_display_value=true` via `http_layer/url_builder.py`. Verify via outgoing-URL assertion in unit test.
+  - GET path still calls `_extract_display_values` after response. Verify via response-shape assertion in unit test.
+  - Write path (POST/PATCH/DELETE) does NOT call `_add_default_params` or `_extract_display_values`. Add explicit negative unit test — invoke `make_nws_request(url, method='POST', json_data={...})` and assert URL is unchanged + response is raw.
+  - Run full token-baseline regression battery; every read response token count must be ≤ pre-Sprint-3 baseline. Zero regressions tolerated — this sprint moves the most token-critical functions.
 
 ### Out of scope
 
@@ -198,6 +210,33 @@ The `ServiceNowOAuthClient` class remains in `oauth/client.py` as a façade that
 ---
 
 ## Cross-cutting concerns
+
+### Token-optimization invariant (non-negotiable)
+
+ServiceNow MCP responses flow directly into the LLM client's context window. Every refactor must preserve or improve the current per-call token footprint. This is the single hardest constraint on the release.
+
+**Existing optimizations that must stay intact:**
+
+| Optimization | Where | What it does | Risk surface |
+|--------------|-------|--------------|--------------|
+| `sysparm_exclude_reference_link=true` | `_add_default_params()` in `service_now_api_oauth.py` | Strips `link` URLs from every reference field (largest single saving) | Sprint 3 (function relocates) |
+| `sysparm_no_count=true` | `_add_default_params()` | Skips SELECT COUNT, avoids count metadata in response | Sprint 3 |
+| `sysparm_display_value=true` + display flattening | `_extract_display_values()` | Replaces `{display_value: X, value: Y}` dicts with scalars | Sprint 3 |
+| Per-table field allowlists | `ESSENTIAL_FIELDS` / `DETAIL_FIELDS` in `constants.py` | Limits returned fields per tool path (list vs detail views) | Sprints 1, 2 |
+| Category exclusion filtering | `_apply_incident_category_filter()`, `_apply_sc_catalog_filter()` | Drops irrelevant incident/RITM categories at query time | Sprint 1 |
+| Deterministic sort + paginated fetch | `_make_paginated_request()` | Avoids over-fetching; sort prevents duplicate rows across pages | Sprint 1 |
+
+**Per-sprint token gates (must pass before PR merge into `release/v4.0`):**
+
+1. **Baseline capture** — before Sprint 2 starts, record token counts for a fixed query battery against the live ServiceNow instance: one query per supported table, both list view and detail view, plus the 10 SLA tools. Persist results to `v4.0/token_baseline.json` (gitignored — use `-f`).
+2. **Per-sprint regression check** — at the end of each sprint, re-run the same query battery. Assert: every call's response token count is ≤ baseline + 0% (no growth). Persist the diff to the sprint PR description.
+3. **Sprint 2 specific** — `query_slas_by_status(status="critical")` must return the same field set as the old `get_critical_sla_status()` (curated 7-field list). `query_slas_custom(filters)` MUST default to `ESSENTIAL_FIELDS` for `task_sla` when `fields=None` — do not return all columns by default.
+4. **Sprint 3 specific** — `_add_default_params` and `_extract_display_values` must remain on the GET path only. Write path (POST/PATCH/DELETE) must NOT apply these — write payloads are small and changing their shape would break vtb_task CRUD callers. Add explicit unit test: invoking `make_nws_request(url, method='POST')` must not call into `_add_default_params` or `_extract_display_values`.
+5. **Sprint 1 specific** — `filter/explainer.py` response payload (the result of `explain_existing_filter`) must keep its current shape and field count. Don't add verbose metadata for LLM convenience — explanation is for tool callers, not for context window inflation.
+
+**Token budget tooling:**
+
+Add `tests/test_token_footprint.py` (Sprint 2 deliverable) — uses recorded HTTP fixtures + `tiktoken` (cl100k_base) to assert response payload tokenizes to ≤ a per-tool threshold. Wire into CI as a soft gate first, hard gate before v4.0 ships.
 
 ### Test coverage gate
 
