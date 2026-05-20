@@ -11,9 +11,9 @@ from Table_Tools.consolidated_tools import (
     get_priority_incidents,
     # Knowledge-specific tools
     similar_knowledge_for_text, get_knowledge_by_category, get_active_knowledge_articles,
-    # SLA tools
-    similar_slas_for_text, get_slas_for_task, get_sla_details, get_breaching_slas, get_breached_slas,
-    get_slas_by_stage, get_active_slas, get_sla_performance_summary, get_recent_breached_slas, get_critical_sla_status
+    # SLA tools (v4.0: 10 -> 5 consolidated)
+    similar_slas_for_text, get_sla_details,
+    query_slas_by_task, query_slas_by_status, query_slas_custom,
 )
 from Table_Tools.table_tools import nowtestauth, nowtest_auth_input
 from Table_Tools.vtb_task_tools import create_private_task, update_private_task
@@ -28,7 +28,7 @@ from Table_Tools.intelligent_query_tools import (
 
 mcp = FastMCP("personalmcpservicenow")
 
-# Register tools — consolidated from 55 to ~36
+# Register tools — consolidated from 55 -> 37 (v3.0) -> 32 (v4.0)
 tools = [
     # Server & Authentication tools
     nowtest, now_test_oauth, now_auth_info, nowtestauth, nowtest_auth_input,
@@ -45,9 +45,9 @@ tools = [
     # Private Task CRUD
     create_private_task, update_private_task,
 
-    # SLA tools (specialised query patterns)
-    similar_slas_for_text, get_slas_for_task, get_sla_details, get_breaching_slas, get_breached_slas,
-    get_slas_by_stage, get_active_slas, get_sla_performance_summary, get_recent_breached_slas, get_critical_sla_status,
+    # SLA tools (v4.0: 10 -> 5 consolidated; presets exposed via query_slas_by_status)
+    similar_slas_for_text, get_sla_details,
+    query_slas_by_task, query_slas_by_status, query_slas_custom,
 
     # CMDB tools
     find_cis_by_type, search_cis_by_attributes, get_ci_details, similar_cis_for_ci, get_all_ci_types, quick_ci_search,
