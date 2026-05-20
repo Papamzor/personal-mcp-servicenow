@@ -1,7 +1,6 @@
 from service_now_api_oauth import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
-from pydantic import BaseModel, Field
 import re
 from contextlib import contextmanager
 from constants import (
@@ -24,13 +23,18 @@ from constants import (
     EXCLUDED_SC_ASSIGNMENT_GROUPS,
     SC_CATALOG_TABLES
 )
-from query_validation import (
-    validate_query_filters, 
-    validate_result_count, 
+from filter import (
+    QueryExplainer,
+    QueryIntelligence,
+    SmartQueryParams,
+    TableFilterParams,
     build_pagination_params,
-    suggest_query_improvements
+    build_smart_filter,
+    explain_existing_filter,
+    suggest_query_improvements,
+    validate_query_filters,
+    validate_result_count,
 )
-from query_intelligence import QueryIntelligence, QueryExplainer, build_smart_filter, explain_existing_filter
 
 
 @contextmanager
@@ -177,9 +181,9 @@ async def find_similar_records(table_name: str, record_number: str) -> dict[str,
     except Exception:
         return {"result": [], "message": CONNECTION_ERROR}
 
-class TableFilterParams(BaseModel):
-    filters: Optional[Dict[str, str]] = Field(None, description="Field-value pairs for filtering")
-    fields: Optional[List[str]] = Field(None, description="Fields to return")
+# TableFilterParams + SmartQueryParams moved to filter/models.py in v4.0
+# Sprint 1. Re-exported above via `from filter import ...` so existing
+# imports of these names from this module continue to work.
 
 def _has_operator_in_value(value: str) -> bool:
     """Check if value already contains a comparison operator or ServiceNow text operator."""
@@ -854,12 +858,7 @@ def explain_filter_query(
     }
 
 
-class SmartQueryParams(BaseModel):
-    """Parameters for intelligent queries."""
-    natural_language: str = Field(description="Natural language description of what to find")
-    table_name: str = Field(description="ServiceNow table to search")
-    context: Optional[Dict[str, Any]] = Field(None, description="Additional context for the query")
-    include_explanation: bool = Field(True, description="Whether to include explanation in results")
+# SmartQueryParams moved to filter/models.py (see TableFilterParams note).
 
 
 def build_and_validate_smart_filter(
