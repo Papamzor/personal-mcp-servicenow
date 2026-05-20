@@ -90,7 +90,10 @@ CLAUDE.md notes "37 tools" — bloated MCP discoverability surface for LLM clien
 
 Two SLA tools use distinct code paths and stay separate:
 - `similar_slas_for_text(text)` — text search via `query_table_by_text`
-- `get_sla_details(sys_id)` — sys_id lookup via `get_record_details`
+- `get_sla_details(sys_id)` — sys_id lookup via `get_record_details` (**v3.0 bug — see below**)
+
+**v3.0 bug discovered during baseline capture (2026-05-20):**
+`get_sla_details(sys_id)` delegates to `get_record_details("task_sla", sys_id)` which builds a `number={sys_id}` filter. The `task_sla` table has no `number` field (per CLAUDE.md), so ServiceNow silently ignores the filter and returns the full default page — 10,000 rows / ~1.2M tokens. A correctly-scoped `sys_id={sys_id}` lookup returns 1 row / ~69 tokens (99.99% reduction). Sprint 2 must fix this when replacing the tool: route through `query_table_with_filters("task_sla", TableFilterParams(filters={"sys_id": sla_sys_id}))` or equivalent.
 
 ### Target structure
 

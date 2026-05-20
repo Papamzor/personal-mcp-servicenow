@@ -60,11 +60,11 @@ class TestToolRegistry:
 
     def test_expected_tool_count(self):
         import tools
-        # CLAUDE.md mentions ~36 tools; current actual is 37
+        # v4.0 Sprint 2: SLA tools consolidated 10 -> 5 (32 total).
         # (5 server/auth + 5 generic + 1 priority + 3 knowledge +
-        #  2 vtb CRUD + 10 SLA + 6 CMDB + 5 intelligent).
-        assert len(tools.tools) == 37, (
-            f"Expected 37 registered tools, got {len(tools.tools)}. "
+        #  2 vtb CRUD + 5 SLA + 6 CMDB + 5 intelligent).
+        assert len(tools.tools) == 32, (
+            f"Expected 32 registered tools, got {len(tools.tools)}. "
             "If tool count changed intentionally, update this test and CLAUDE.md."
         )
 
@@ -80,6 +80,9 @@ class TestToolRegistry:
             "find_cis_by_type", "get_ci_details",
             "intelligent_search",
             "now_test_oauth",
+            # v4.0 SLA consolidation
+            "similar_slas_for_text", "get_sla_details",
+            "query_slas_by_task", "query_slas_by_status", "query_slas_custom",
         }
         missing = expected - names
         assert not missing, f"Missing tools in registry: {missing}"
