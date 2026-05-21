@@ -109,13 +109,15 @@ COMMON_VTB_TASK_FIELDS = [
 DETAILED_VTB_TASK_FIELDS = COMMON_VTB_TASK_FIELDS + [
     "description",
     "comments",
-    "work_notes", 
+    "work_notes",
     "close_code",
     "close_notes",
     "sys_updated_on",
     "due_date",
     "parent"
 ]
+
+KB_WRITE_RESPONSE_FIELDS = {"number", "sys_id", "short_description", "workflow_state"}
 
 # ServiceNow Query Patterns and Validation
 SERVICENOW_OR_SYNTAX_EXAMPLE = "1^ORpriority=2"
