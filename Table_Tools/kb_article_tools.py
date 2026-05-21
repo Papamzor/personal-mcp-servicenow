@@ -58,12 +58,10 @@ async def _get_kb_article_sys_id(article_number: str) -> str | None:
 
 
 async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any] | str:
-    # PUT (not PATCH) triggers the full record-update pipeline on ServiceNow,
-    # which evaluates workflow state transitions. PATCH silently ignores
-    # workflow_state writes; the /workflow/{action} sub-resource URL does not exist.
-    target_state = "published" if action == "publish" else "retired"
-    url = f"{NWS_API_BASE}/api/now/table/kb_knowledge/{sys_id}"
-    result = await _write_kb_article("PUT", url, {"workflow_state": target_state}, action)
+    # Custom Scripted REST API (qonv/publish) — invokes KnowledgeUIAction server-side.
+    # Direct Table API writes to workflow_state are ignored by ServiceNow.
+    url = f"{NWS_API_BASE}/api/qonv/publish/articles/{sys_id}/{action}"
+    result = await _write_kb_article("POST", url, {}, action)
     if isinstance(result, str):
         return f"{result} [url={url}]"
     return result
