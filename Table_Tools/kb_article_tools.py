@@ -60,7 +60,7 @@ async def _get_kb_article_sys_id(article_number: str) -> str | None:
 async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any] | str:
     # Custom Scripted REST API (qonv/publish) — invokes KnowledgeUIAction server-side.
     # Direct Table API writes to workflow_state are ignored by ServiceNow.
-    url = f"{NWS_API_BASE}/api/qonv/publish/articles/{sys_id}/{action}"
+    url = f"{NWS_API_BASE}/api/qonv/mateco_knowledge/articles/{sys_id}/{action}"
     result = await _write_kb_article("POST", url, {}, action)
     if isinstance(result, str):
         return f"{result} [url={url}]"

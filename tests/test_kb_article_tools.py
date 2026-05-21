@@ -199,7 +199,7 @@ class TestPublishKnowledgeArticle:
             assert result["workflow_state"] == "published"
             call_url = mock_request.call_args.args[0]
             call_kwargs = mock_request.call_args.kwargs
-            assert "/api/qonv/publish/articles/abc123/publish" in call_url
+            assert "/api/qonv/mateco_knowledge/articles/abc123/publish" in call_url
             assert call_kwargs["method"] == "POST"
 
 
@@ -225,7 +225,7 @@ class TestRetireKnowledgeArticle:
             assert result["workflow_state"] == "retired"
             call_url = mock_request.call_args.args[0]
             call_kwargs = mock_request.call_args.kwargs
-            assert "/api/qonv/publish/articles/abc123/retire" in call_url
+            assert "/api/qonv/mateco_knowledge/articles/abc123/retire" in call_url
             assert call_kwargs["method"] == "POST"
 
 
@@ -244,7 +244,7 @@ class TestRoutesThroughUnifiedPipeline:
             mock_request.assert_called_once()
             call_kwargs = mock_request.call_args.kwargs
             assert call_kwargs["method"] == "POST"
-            assert "/api/qonv/publish/articles/" in mock_request.call_args.args[0]
+            assert "/api/qonv/mateco_knowledge/articles/" in mock_request.call_args.args[0]
 
     @pytest.mark.asyncio
     async def test_retire_routes_through_make_nws_request(self):
@@ -258,4 +258,4 @@ class TestRoutesThroughUnifiedPipeline:
             mock_request.assert_called_once()
             call_kwargs = mock_request.call_args.kwargs
             assert call_kwargs["method"] == "POST"
-            assert "/api/qonv/publish/articles/" in mock_request.call_args.args[0]
+            assert "/api/qonv/mateco_knowledge/articles/" in mock_request.call_args.args[0]
