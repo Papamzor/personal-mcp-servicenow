@@ -12,6 +12,8 @@ from Table_Tools.kb_article_tools import (
     _unwrap_kb_write_response,
     _write_kb_article,
     _get_kb_article_sys_id,
+    _get_kb_article_meta,
+    _check_kb_duplicates,
     update_knowledge_article,
     publish_knowledge_article,
     retire_knowledge_article,
@@ -177,21 +179,121 @@ class TestUpdateKnowledgeArticle:
             assert kwargs["json_data"] == {"short_description": "Updated"}
 
 
+class TestGetKbArticleMeta:
+
+    @pytest.mark.asyncio
+    async def test_success_returns_sys_id_and_short_description(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [{"sys_id": "abc123", "short_description": "Test article"}]}
+
+            meta = await _get_kb_article_meta("KB0001234")
+
+            assert meta["sys_id"] == "abc123"
+            assert meta["short_description"] == "Test article"
+
+    @pytest.mark.asyncio
+    async def test_not_found_returns_none(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": []}
+
+            assert await _get_kb_article_meta("KB9999999") is None
+
+    @pytest.mark.asyncio
+    async def test_none_response_returns_none(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = None
+
+            assert await _get_kb_article_meta("KB0001234") is None
+
+
+class TestCheckKbDuplicates:
+
+    @pytest.mark.asyncio
+    async def test_no_duplicates_returns_empty_list(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [
+                {"number": "KB0001234", "short_description": "Account self-registration", "workflow_state": "draft"}
+            ]}
+
+            result = await _check_kb_duplicates("Account self-registration", "KB0001234")
+            assert result == []
+
+    @pytest.mark.asyncio
+    async def test_duplicate_in_draft_state_detected(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [
+                {"number": "KB0009999", "short_description": "Account self-registration", "workflow_state": "draft"}
+            ]}
+
+            result = await _check_kb_duplicates("Account self-registration", "KB0001234")
+            assert len(result) == 1
+            assert result[0]["number"] == "KB0009999"
+
+    @pytest.mark.asyncio
+    async def test_case_insensitive_exact_match(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [
+                {"number": "KB0009999", "short_description": "ACCOUNT SELF-REGISTRATION", "workflow_state": "published"}
+            ]}
+
+            result = await _check_kb_duplicates("Account self-registration", "KB0001234")
+            assert len(result) == 1
+
+    @pytest.mark.asyncio
+    async def test_partial_match_not_returned(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [
+                {"number": "KB0009999", "short_description": "Account self-registration guide", "workflow_state": "published"}
+            ]}
+
+            result = await _check_kb_duplicates("Account self-registration", "KB0001234")
+            assert result == []
+
+    @pytest.mark.asyncio
+    async def test_empty_result_returns_empty_list(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": []}
+
+            assert await _check_kb_duplicates("Test", "KB0001234") == []
+
+    @pytest.mark.asyncio
+    async def test_none_response_returns_empty_list(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = None
+
+            assert await _check_kb_duplicates("Test", "KB0001234") == []
+
+
 class TestPublishKnowledgeArticle:
 
     @pytest.mark.asyncio
     async def test_article_not_found_returns_error(self):
-        with patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_sys_id:
-            mock_sys_id.return_value = None
+        with patch('Table_Tools.kb_article_tools._get_kb_article_meta') as mock_meta:
+            mock_meta.return_value = None
 
             result = await publish_knowledge_article("KB9999999")
             assert "KB9999999" in result
 
     @pytest.mark.asyncio
-    async def test_success_posts_to_workflow_publish_endpoint(self):
-        with patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_sys_id, \
+    async def test_duplicate_found_blocks_publish(self):
+        with patch('Table_Tools.kb_article_tools._get_kb_article_meta') as mock_meta, \
+             patch('Table_Tools.kb_article_tools._check_kb_duplicates') as mock_dupes:
+            mock_meta.return_value = {"sys_id": "abc123", "short_description": "Test article"}
+            mock_dupes.return_value = [{"number": "KB0009999", "short_description": "Test article", "workflow_state": "draft"}]
+
+            result = await publish_knowledge_article("KB0001234")
+
+            assert result["success"] is False
+            assert "Duplicate" in result["message"]
+            assert len(result["duplicates"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_success_posts_to_scripted_rest_publish(self):
+        with patch('Table_Tools.kb_article_tools._get_kb_article_meta') as mock_meta, \
+             patch('Table_Tools.kb_article_tools._check_kb_duplicates') as mock_dupes, \
              patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
-            mock_sys_id.return_value = "abc123"
+            mock_meta.return_value = {"sys_id": "abc123", "short_description": "Test article"}
+            mock_dupes.return_value = []
             mock_request.return_value = {"result": {"number": "KB0001234", "workflow_state": "published"}}
 
             result = await publish_knowledge_article("KB0001234")
@@ -199,7 +301,7 @@ class TestPublishKnowledgeArticle:
             assert result["workflow_state"] == "published"
             call_url = mock_request.call_args.args[0]
             call_kwargs = mock_request.call_args.kwargs
-            assert "abc123/workflow/publish" in call_url
+            assert "/api/qonv/mateco_knowledge/articles/abc123/publish" in call_url
             assert call_kwargs["method"] == "POST"
 
 
@@ -214,7 +316,7 @@ class TestRetireKnowledgeArticle:
             assert "KB9999999" in result
 
     @pytest.mark.asyncio
-    async def test_success_posts_to_workflow_retire_endpoint(self):
+    async def test_success_posts_to_scripted_rest_retire(self):
         with patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_sys_id, \
              patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
             mock_sys_id.return_value = "abc123"
@@ -225,7 +327,7 @@ class TestRetireKnowledgeArticle:
             assert result["workflow_state"] == "retired"
             call_url = mock_request.call_args.args[0]
             call_kwargs = mock_request.call_args.kwargs
-            assert "abc123/workflow/retire" in call_url
+            assert "/api/qonv/mateco_knowledge/articles/abc123/retire" in call_url
             assert call_kwargs["method"] == "POST"
 
 
@@ -234,9 +336,11 @@ class TestRoutesThroughUnifiedPipeline:
 
     @pytest.mark.asyncio
     async def test_publish_routes_through_make_nws_request(self):
-        with patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_sys_id, \
+        with patch('Table_Tools.kb_article_tools._get_kb_article_meta') as mock_meta, \
+             patch('Table_Tools.kb_article_tools._check_kb_duplicates') as mock_dupes, \
              patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
-            mock_sys_id.return_value = "abc123"
+            mock_meta.return_value = {"sys_id": "abc123", "short_description": "Test"}
+            mock_dupes.return_value = []
             mock_request.return_value = {"result": {"number": "KB0001234"}}
 
             await publish_knowledge_article("KB0001234")
@@ -244,7 +348,7 @@ class TestRoutesThroughUnifiedPipeline:
             mock_request.assert_called_once()
             call_kwargs = mock_request.call_args.kwargs
             assert call_kwargs["method"] == "POST"
-            assert "sysparm_display_value" not in mock_request.call_args.args[0]
+            assert "/api/qonv/mateco_knowledge/articles/" in mock_request.call_args.args[0]
 
     @pytest.mark.asyncio
     async def test_retire_routes_through_make_nws_request(self):
@@ -258,3 +362,4 @@ class TestRoutesThroughUnifiedPipeline:
             mock_request.assert_called_once()
             call_kwargs = mock_request.call_args.kwargs
             assert call_kwargs["method"] == "POST"
+            assert "/api/qonv/mateco_knowledge/articles/" in mock_request.call_args.args[0]
