@@ -76,11 +76,9 @@ def main():
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
 
     if transport == "sse":
-        host = os.environ.get("MCP_HOST", "0.0.0.0")
-        port = int(os.environ.get("MCP_PORT", "8000"))
-        print(f"Personal ServiceNow MCP Server started (SSE) on {host}:{port}", file=sys.stderr)
+        print(f"Personal ServiceNow MCP Server started (SSE)", file=sys.stderr)
         from tools import mcp
-        mcp.run(transport="sse", host=host, port=port)
+        mcp.run(transport="sse")
     else:
         print("Personal ServiceNow MCP Server started (stdio).", file=sys.stderr)
         from tools import mcp
