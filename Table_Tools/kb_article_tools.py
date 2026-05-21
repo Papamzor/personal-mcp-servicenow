@@ -10,6 +10,7 @@ from constants import (
     ERROR_KB_ARTICLE_INVALID_REQUEST,
     ERROR_KB_ARTICLE_NOT_FOUND,
     ERROR_KB_ARTICLE_SERVER_ERROR,
+    KB_WRITE_RESPONSE_FIELDS,
 )
 
 
@@ -30,7 +31,10 @@ def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> str:
 
 def _unwrap_kb_write_response(result: Any, operation: str) -> Dict[str, Any] | str:
     if result and isinstance(result, dict) and result.get('result'):
-        return result['result']
+        record = result['result']
+        if isinstance(record, dict):
+            return {k: v for k, v in record.items() if k in KB_WRITE_RESPONSE_FIELDS}
+        return record
     return result if result else f"Knowledge article {operation} successful but no data returned."
 
 
@@ -118,7 +122,8 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
     sys_id = await _get_kb_article_sys_id(article_number)
     if not sys_id:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
-    url = f"{NWS_API_BASE}/api/now/table/kb_knowledge/{sys_id}"
+    fields = ",".join(KB_WRITE_RESPONSE_FIELDS)
+    url = f"{NWS_API_BASE}/api/now/table/kb_knowledge/{sys_id}?sysparm_fields={fields}"
     return await _write_kb_article("PATCH", url, update_data, "update")
 
 
