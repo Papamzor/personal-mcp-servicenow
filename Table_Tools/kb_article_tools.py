@@ -57,6 +57,42 @@ async def _get_kb_article_sys_id(article_number: str) -> str | None:
     return data['result'][0]['sys_id']
 
 
+async def _get_kb_article_meta(article_number: str) -> Dict[str, Any] | None:
+    """Fetch sys_id + short_description in one GET — avoids a second round-trip in publish."""
+    url = (
+        f"{NWS_API_BASE}/api/now/table/kb_knowledge"
+        f"?sysparm_fields=sys_id,short_description"
+        f"&sysparm_query=number={article_number}"
+    )
+    data = await make_nws_request(url)
+    if not data or not data.get('result') or not data['result']:
+        return None
+    return data['result'][0]
+
+
+async def _check_kb_duplicates(short_description: str, exclude_number: str) -> list:
+    """Return KB articles matching short_description exactly across ALL workflow states.
+
+    Queries with CONTAINS then exact-matches in Python so the check catches
+    drafts, published, and retired articles — not just active ones.
+    Excludes the article being published (exclude_number) from results.
+    """
+    url = (
+        f"{NWS_API_BASE}/api/now/table/kb_knowledge"
+        f"?sysparm_fields=number,short_description,workflow_state,sys_created_on,kb_category"
+        f"&sysparm_query=short_descriptionCONTAINS{short_description}"
+    )
+    data = await make_nws_request(url)
+    if not data or not data.get('result'):
+        return []
+    needle = short_description.strip().lower()
+    return [
+        r for r in data['result']
+        if r.get('short_description', '').strip().lower() == needle
+        and r.get('number') != exclude_number
+    ]
+
+
 async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any] | str:
     # Custom Scripted REST API (qonv/publish) — invokes KnowledgeUIAction server-side.
     # Direct Table API writes to workflow_state are ignored by ServiceNow.
@@ -89,16 +125,28 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
 async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str:
     """Publish a knowledge article via the ServiceNow workflow endpoint.
 
+    Runs a duplicate check across all workflow states before publishing.
+    Returns early with a list of duplicates if any are found.
+
     Args:
         article_number: The KB article number (e.g. KB0001234).
 
     Returns:
-        Updated article record dict, or error string on failure.
+        Updated article record dict, duplicate warning dict, or error string on failure.
     """
-    sys_id = await _get_kb_article_sys_id(article_number)
-    if not sys_id:
+    meta = await _get_kb_article_meta(article_number)
+    if not meta:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
-    return await _call_kb_workflow(sys_id, "publish")
+
+    duplicates = await _check_kb_duplicates(meta['short_description'], article_number)
+    if duplicates:
+        return {
+            "success": False,
+            "message": "Duplicate KB article(s) found. Resolve before publishing.",
+            "duplicates": duplicates,
+        }
+
+    return await _call_kb_workflow(meta['sys_id'], "publish")
 
 
 async def retire_knowledge_article(article_number: str) -> Dict[str, Any] | str:
