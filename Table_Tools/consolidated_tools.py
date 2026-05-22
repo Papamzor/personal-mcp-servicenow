@@ -299,6 +299,126 @@ async def get_active_knowledge_articles(input_text: str) -> Dict[str, Any]:  # n
     return await query_table_with_generic_filters("kb_knowledge", filters)
 
 
+# Canonical workflow_state precedence for KB de-duplication.
+# Lower index = higher priority (= the row chosen as "current" when one number has multiple versions).
+# Rationale: published reflects live content; draft/review are in-flight; outdated is a versioning
+# artefact left behind by ServiceNow when a newer version publishes; retired = explicitly killed.
+_KB_STATE_PRIORITY = ["published", "draft", "review", "outdated", "retired"]
+_KB_STATE_RANK = {state: idx for idx, state in enumerate(_KB_STATE_PRIORITY)}
+_KB_DEDUP_FIELDS = [
+    "number", "sys_id", "short_description", "workflow_state",
+    "kb_category", "sys_updated_on",
+]
+
+
+def _pick_canonical_kb_row(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """De-duplicate kb_knowledge rows by `number`, keeping the highest-priority workflow_state row.
+
+    Returns a dict keyed by number with {canonical_row, version_count, canonical_rank}.
+    """
+    by_number: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        num = row.get("number")
+        if not num:
+            continue
+        state = (row.get("workflow_state") or "").strip().lower()
+        rank = _KB_STATE_RANK.get(state, len(_KB_STATE_PRIORITY))
+        entry = by_number.get(num)
+        if entry is None:
+            by_number[num] = {"row": row, "rank": rank, "version_count": 1}
+        else:
+            entry["version_count"] += 1
+            if rank < entry["rank"]:
+                entry["row"] = row
+                entry["rank"] = rank
+    return by_number
+
+
+def _format_deduped_kb_row(number: str, info: Dict[str, Any]) -> Dict[str, Any]:
+    """Render a de-duplicated KB row in the public response shape."""
+    row = info["row"]
+    return {
+        "number": number,
+        "sys_id": row.get("sys_id"),
+        "short_description": row.get("short_description"),
+        "current_state": (row.get("workflow_state") or "").strip().lower(),
+        "version_count": info["version_count"],
+        "kb_category": row.get("kb_category"),
+        "sys_updated_on": row.get("sys_updated_on"),
+    }
+
+
+async def get_kb_articles_by_state(
+    workflow_state: Optional[str] = None,
+    category: Optional[str] = None,
+    kb_base: Optional[str] = None,
+    max_results: int = 100,
+) -> Dict[str, Any]:
+    """List kb_knowledge articles de-duplicated by article number.
+
+    ServiceNow KB versioning surfaces the same article number across several
+    workflow states (publish creates a new sys_id and leaves the prior row as
+    `outdated`). The generic `filter_records` tool exposes this raw — useful
+    for some callers, painful for bulk state assessment. This tool collapses
+    the raw rows: one entry per number, with `current_state` set to the
+    highest-priority row found and `version_count` reflecting how many raw
+    rows exist for that number.
+
+    Priority order (highest first): published > draft > review > outdated > retired.
+
+    Args:
+        workflow_state: Optional canonical-state filter applied AFTER de-duplication.
+            E.g. `workflow_state="published"` returns only numbers whose live
+            version is currently published.
+        category: Optional kb_category filter (applied server-side).
+        kb_base: Optional kb_knowledge_base filter (applied server-side).
+        max_results: Max raw rows fetched from ServiceNow (default 100, max 1000).
+            De-duplicated output can be smaller; `truncated` reflects the raw fetch.
+
+    Returns:
+        {"result": [{"number", "sys_id", "short_description", "current_state",
+                     "version_count", "kb_category", "sys_updated_on"}, ...],
+         "returned_count": N, "truncated": bool}
+    """
+    filters: Dict[str, str] = {}
+    if category:
+        filters["kb_category"] = category
+    if kb_base:
+        filters["kb_knowledge_base"] = kb_base
+
+    params = TableFilterParams(
+        filters=filters or None,
+        fields=_KB_DEDUP_FIELDS,
+        max_results=max_results,
+    )
+    raw = await query_table_with_filters("kb_knowledge", params)
+    rows = raw.get("result", []) or []
+
+    by_number = _pick_canonical_kb_row(rows)
+
+    target_state = workflow_state.strip().lower() if workflow_state else None
+    deduped = []
+    for num, info in by_number.items():
+        formatted = _format_deduped_kb_row(num, info)
+        if target_state and formatted["current_state"] != target_state:
+            continue
+        deduped.append(formatted)
+
+    if not deduped:
+        return {
+            "result": [],
+            "message": "No matching KB articles.",
+            "returned_count": 0,
+            "truncated": raw.get("truncated", False),
+        }
+
+    return {
+        "result": deduped,
+        "returned_count": len(deduped),
+        "truncated": raw.get("truncated", False),
+    }
+
+
 # ---------------------------------------------------------------------------
 # SLA tools — v4.0 consolidation (10 -> 5)
 # ---------------------------------------------------------------------------
