@@ -591,6 +591,45 @@ class TestAsyncTableOperations:
 
             assert result["result"] == []
             assert "message" in result
+            assert result["returned_count"] == 0
+            assert result["truncated"] is False
+            assert result["max_results"] == 100
+
+    @pytest.mark.asyncio
+    async def test_query_table_with_filters_truncated_when_cap_hit(self):
+        """When _make_paginated_request returns exactly max_results, truncated=True."""
+        with patch("Table_Tools.generic_table_tools._make_paginated_request") as mock_request, \
+             patch("Table_Tools.generic_table_tools.validate_query_filters") as mock_validate, \
+             patch("Table_Tools.generic_table_tools.validate_result_count") as mock_count:
+
+            mock_request.return_value = [{"number": f"INC{i}"} for i in range(5)]
+            mock_validate.return_value = MagicMock(has_issues=lambda: False)
+            mock_count.return_value = MagicMock(has_issues=lambda: False)
+
+            params = TableFilterParams(filters={"priority": "1"}, max_results=5)
+            result = await query_table_with_filters("incident", params)
+
+            assert result["returned_count"] == 5
+            assert result["truncated"] is True
+            assert result["max_results"] == 5
+
+    @pytest.mark.asyncio
+    async def test_query_table_with_filters_not_truncated_when_under_cap(self):
+        """When _make_paginated_request returns fewer than max_results, truncated=False."""
+        with patch("Table_Tools.generic_table_tools._make_paginated_request") as mock_request, \
+             patch("Table_Tools.generic_table_tools.validate_query_filters") as mock_validate, \
+             patch("Table_Tools.generic_table_tools.validate_result_count") as mock_count:
+
+            mock_request.return_value = [{"number": "INC001"}, {"number": "INC002"}]
+            mock_validate.return_value = MagicMock(has_issues=lambda: False)
+            mock_count.return_value = MagicMock(has_issues=lambda: False)
+
+            params = TableFilterParams(filters={"priority": "1"}, max_results=100)
+            result = await query_table_with_filters("incident", params)
+
+            assert result["returned_count"] == 2
+            assert result["truncated"] is False
+            assert result["max_results"] == 100
 
     @pytest.mark.asyncio
     async def test_get_records_by_priority_success(self):

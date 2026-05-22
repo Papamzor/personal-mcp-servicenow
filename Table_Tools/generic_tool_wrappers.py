@@ -115,6 +115,7 @@ async def filter_records(
     table: str,
     filters: Dict[str, str],
     fields: Optional[List[str]] = None,
+    max_results: int = 100,
 ) -> Dict[str, Any]:
     """Query a ServiceNow table with field-value filters.
 
@@ -129,12 +130,15 @@ async def filter_records(
         table: ServiceNow table name
         filters: Dict of field-value filter pairs
         fields: Optional list of fields to return (defaults to ESSENTIAL_FIELDS)
+        max_results: Hard cap on rows returned (default 100, max 1000). The
+            response carries truncated=True when this cap is hit so callers
+            can detect partial result sets.
 
     Returns:
-        {"result": [...]}
+        {"result": [...], "returned_count": N, "truncated": bool, "max_results": N}
     """
     error = _validate_table(table)
     if error:
         return error
-    params = TableFilterParams(filters=filters, fields=fields)
+    params = TableFilterParams(filters=filters, fields=fields, max_results=max_results)
     return await query_table_with_filters(table, params)

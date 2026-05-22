@@ -13,6 +13,12 @@ class TableFilterParams(BaseModel):
         None, description="Field-value pairs for filtering"
     )
     fields: Optional[List[str]] = Field(None, description="Fields to return")
+    max_results: int = Field(
+        100,
+        description="Hard cap on rows returned. Response includes truncated=true when this cap is hit.",
+        ge=1,
+        le=1000,
+    )
 
 
 class SmartQueryParams(BaseModel):

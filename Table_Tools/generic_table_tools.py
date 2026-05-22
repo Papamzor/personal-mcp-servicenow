@@ -649,25 +649,30 @@ async def _make_paginated_request(
 
 async def query_table_with_filters(table_name: str, params: TableFilterParams) -> dict[str, Any]:
     """Generic function to query table with custom filters and fields.
-    
+
     Supports multiple date filtering formats:
     - Standard dates: "2024-01-01" or "2024-01-01 12:00:00"
     - ServiceNow JavaScript: ">=javascript:gs.daysAgoStart(14)"
     - Relative operators: field_gte, field_lte, field_gt, field_lt
-    
+
     Examples:
     - sys_created_on_gte: "2024-01-01"
     - sys_created_on: ">=javascript:gs.daysAgoStart(14)"
+
+    Response always includes returned_count + truncated + max_results so the
+    caller can detect silent caps. truncated=True is a heuristic — it fires when
+    returned_count == max_results (may be a false positive on exact-boundary
+    result sets, but never a false negative).
     """
     fields = params.fields or ESSENTIAL_FIELDS.get(table_name, ["number", "short_description"])
-    
+
     # Validate filters before making request
     if params.filters:
         validation_result = validate_query_filters(params.filters)
         if validation_result.has_issues():
             # Log warnings but continue with query
             print(f"Query validation warnings: {validation_result.warnings}")
-    
+
     query_string = _build_query_string(params.filters)
     # Apply category filtering for incidents
     query_string = _apply_incident_category_filter(table_name, query_string)
@@ -679,21 +684,32 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
 
     if encoded_query:
         base_url += f"&sysparm_query={encoded_query}"
-    
-    # Use pagination for potentially large result sets
-    all_results = await _make_paginated_request(base_url)
-    
+
+    max_results = params.max_results
+    all_results = await _make_paginated_request(base_url, max_results=max_results)
+    returned_count = len(all_results)
+    truncated = returned_count >= max_results
+
     if all_results:
         # Validate result completeness
-        result_validation = validate_result_count(table_name, params.filters or {}, len(all_results))
+        result_validation = validate_result_count(table_name, params.filters or {}, returned_count)
         if result_validation.has_issues():
             print(f"Result validation warnings: {result_validation.warnings}")
-        
-        # Return in ServiceNow API format
-        return {"result": all_results}
 
-    # Return consistent dict format for no results
-    return {"result": [], "message": NO_RECORDS_FOUND}
+        return {
+            "result": all_results,
+            "returned_count": returned_count,
+            "truncated": truncated,
+            "max_results": max_results,
+        }
+
+    return {
+        "result": [],
+        "message": NO_RECORDS_FOUND,
+        "returned_count": 0,
+        "truncated": False,
+        "max_results": max_results,
+    }
 
 
 def _determine_filter_sources(
