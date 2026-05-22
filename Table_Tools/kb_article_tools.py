@@ -1,5 +1,6 @@
+import asyncio
 from service_now_api_oauth import make_nws_request, NWS_API_BASE
-from typing import Any, Dict
+from typing import Any, Dict, List
 import httpx
 from constants import (
     ERROR_KB_NO_UPDATE_DATA,
@@ -11,6 +12,7 @@ from constants import (
     ERROR_KB_ARTICLE_NOT_FOUND,
     ERROR_KB_ARTICLE_SERVER_ERROR,
     KB_WRITE_RESPONSE_FIELDS,
+    KB_DUPLICATE_IGNORED_STATES,
 )
 
 
@@ -75,11 +77,13 @@ async def _get_kb_article_meta(article_number: str) -> Dict[str, Any] | None:
 
 
 async def _check_kb_duplicates(short_description: str, exclude_number: str) -> list:
-    """Return KB articles matching short_description exactly across ALL workflow states.
+    """Return KB articles matching short_description exactly across live workflow states.
 
     Queries with CONTAINS then exact-matches in Python so the check catches
-    drafts, published, and retired articles — not just active ones.
-    Excludes the article being published (exclude_number) from results.
+    drafts, review, and published articles. Retired + outdated articles are
+    skipped — retired = explicitly killed, outdated = prior version after a newer
+    publish (ServiceNow versioning artefact). Excludes the article being published
+    (exclude_number) from results.
     """
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
@@ -94,6 +98,7 @@ async def _check_kb_duplicates(short_description: str, exclude_number: str) -> l
         r for r in data['result']
         if r.get('short_description', '').strip().lower() == needle
         and r.get('number') != exclude_number
+        and r.get('workflow_state', '').strip().lower() not in KB_DUPLICATE_IGNORED_STATES
     ]
 
 
@@ -152,6 +157,109 @@ async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str
         }
 
     return await _call_kb_workflow(meta['sys_id'], "publish")
+
+
+async def _check_single_kb_duplicate(article_number: str) -> Dict[str, Any]:
+    """Lookup meta then check duplicates for one article. Used by check_kb_duplicates fan-out."""
+    meta = await _get_kb_article_meta(article_number)
+    if not meta:
+        return {
+            "number": article_number,
+            "has_duplicate": False,
+            "duplicates": [],
+            "error": ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number),
+        }
+    duplicates = await _check_kb_duplicates(meta["short_description"], article_number)
+    return {
+        "number": article_number,
+        "has_duplicate": bool(duplicates),
+        "duplicates": [
+            {"number": d.get("number"), "workflow_state": d.get("workflow_state")}
+            for d in duplicates
+        ],
+    }
+
+
+async def check_kb_duplicates(
+    article_numbers: List[str],
+    concurrency: int = 5,
+) -> Dict[str, Any]:
+    """Check for duplicate KB articles without publishing.
+
+    For each number: looks up short_description, then finds matching live KB
+    articles (draft / review / published). Retired + outdated states are
+    skipped. Lets the caller resolve all conflicts upfront before running a
+    publish loop.
+
+    Args:
+        article_numbers: List of KB article numbers (e.g. ["KB0001234", ...]).
+            Capped at 50 per call to keep response size bounded.
+        concurrency: Max concurrent ServiceNow round-trips. Default 5.
+
+    Returns:
+        {"result": [{"number", "has_duplicate", "duplicates": [{"number", "workflow_state"}], "error"?}, ...]}
+    """
+    if not article_numbers:
+        return {"result": []}
+    if len(article_numbers) > 50:
+        return {"error": "check_kb_duplicates accepts at most 50 article numbers per call."}
+
+    semaphore = asyncio.Semaphore(max(1, concurrency))
+
+    async def _bounded(num: str) -> Dict[str, Any]:
+        async with semaphore:
+            return await _check_single_kb_duplicate(num)
+
+    results = await asyncio.gather(*(_bounded(n) for n in article_numbers))
+    return {"result": results}
+
+
+def _normalize_publish_result(article_number: str, result: Dict[str, Any] | str) -> Dict[str, Any]:
+    """Normalize publish_knowledge_article output into a flat batch-result row."""
+    if isinstance(result, str):
+        return {"number": article_number, "status": "error", "message": result}
+    if isinstance(result, dict) and result.get("success") is False:
+        return {
+            "number": article_number,
+            "status": "blocked",
+            "message": result.get("message"),
+            "blockers": result.get("duplicates", []),
+        }
+    workflow_state = result.get("workflow_state") if isinstance(result, dict) else None
+    return {"number": article_number, "status": "published", "workflow_state": workflow_state}
+
+
+async def publish_knowledge_articles(
+    article_numbers: List[str],
+    concurrency: int = 5,
+) -> Dict[str, Any]:
+    """Publish multiple KB articles in one tool call.
+
+    Runs full publish flow per article (meta lookup → duplicate check →
+    ServiceNow workflow POST). Returns a flat status row per article so
+    failures and duplicate blocks do not abort the rest of the batch.
+
+    Args:
+        article_numbers: KB numbers to publish. Capped at 20 per call.
+        concurrency: Max concurrent ServiceNow round-trips. Default 5.
+
+    Returns:
+        {"result": [{"number", "status": "published"|"blocked"|"error", ...}, ...]}
+    """
+    if not article_numbers:
+        return {"result": []}
+    if len(article_numbers) > 20:
+        return {"error": "publish_knowledge_articles accepts at most 20 article numbers per call."}
+
+    semaphore = asyncio.Semaphore(max(1, concurrency))
+
+    async def _bounded(num: str) -> Dict[str, Any]:
+        async with semaphore:
+            outcome = await publish_knowledge_article(num)
+            return _normalize_publish_result(num, outcome)
+
+    results = await asyncio.gather(*(_bounded(n) for n in article_numbers))
+    return {"result": results}
 
 
 async def retire_knowledge_article(article_number: str) -> Dict[str, Any] | str:

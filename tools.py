@@ -11,13 +11,20 @@ from Table_Tools.consolidated_tools import (
     get_priority_incidents,
     # Knowledge-specific tools
     similar_knowledge_for_text, get_knowledge_by_category, get_active_knowledge_articles,
+    get_kb_articles_by_state,
     # SLA tools (v4.0: 10 -> 5 consolidated)
     similar_slas_for_text, get_sla_details,
     query_slas_by_task, query_slas_by_status, query_slas_custom,
 )
 from Table_Tools.table_tools import nowtestauth, nowtest_auth_input
 from Table_Tools.vtb_task_tools import create_private_task, update_private_task
-from Table_Tools.kb_article_tools import update_knowledge_article, publish_knowledge_article, retire_knowledge_article
+from Table_Tools.kb_article_tools import (
+    update_knowledge_article,
+    publish_knowledge_article,
+    publish_knowledge_articles,
+    retire_knowledge_article,
+    check_kb_duplicates,
+)
 from Table_Tools.cmdb_tools import (
     find_cis_by_type, search_cis_by_attributes, get_ci_details, similar_cis_for_ci, get_all_ci_types, quick_ci_search
 )
@@ -42,12 +49,14 @@ tools = [
 
     # Knowledge-specific tools (unique params)
     similar_knowledge_for_text, get_knowledge_by_category, get_active_knowledge_articles,
+    get_kb_articles_by_state,
 
     # Private Task CRUD
     create_private_task, update_private_task,
 
-    # KB Article write tools (update content, publish, retire)
-    update_knowledge_article, publish_knowledge_article, retire_knowledge_article,
+    # KB Article write tools (update content, publish, batch publish, retire, dup-check)
+    update_knowledge_article, publish_knowledge_article, publish_knowledge_articles,
+    retire_knowledge_article, check_kb_duplicates,
 
     # SLA tools (v4.0: 10 -> 5 consolidated; presets exposed via query_slas_by_status)
     similar_slas_for_text, get_sla_details,

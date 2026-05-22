@@ -119,6 +119,11 @@ DETAILED_VTB_TASK_FIELDS = COMMON_VTB_TASK_FIELDS + [
 
 KB_WRITE_RESPONSE_FIELDS = {"number", "sys_id", "short_description", "workflow_state"}
 
+# Workflow states that should NOT block a publish on duplicate check.
+# Retired = explicitly killed; outdated = prior version after a newer publish (ServiceNow versioning artefact).
+# Draft / review / published remain blockers because they represent live or pending content.
+KB_DUPLICATE_IGNORED_STATES = {"retired", "outdated"}
+
 # ServiceNow Query Patterns and Validation
 SERVICENOW_OR_SYNTAX_EXAMPLE = "1^ORpriority=2"
 SERVICENOW_DATE_RANGE_EXAMPLE = ">=2024-01-01 00:00:00^<=2024-01-31 23:59:59"

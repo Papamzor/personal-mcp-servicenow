@@ -60,11 +60,12 @@ class TestToolRegistry:
 
     def test_expected_tool_count(self):
         import tools
-        # v4.1: KB article write tools added (+3: update/publish/retire = 35 total).
-        # (5 server/auth + 5 generic + 1 priority + 3 knowledge read +
-        #  2 vtb CRUD + 3 KB write + 5 SLA + 6 CMDB + 5 intelligent).
-        assert len(tools.tools) == 35, (
-            f"Expected 35 registered tools, got {len(tools.tools)}. "
+        # v4.1: KB write expansion + KB de-dup read. 35 + check_kb_duplicates +
+        # publish_knowledge_articles + get_kb_articles_by_state = 38.
+        # (5 server/auth + 5 generic + 1 priority + 4 knowledge read +
+        #  2 vtb CRUD + 5 KB write + 5 SLA + 6 CMDB + 5 intelligent).
+        assert len(tools.tools) == 38, (
+            f"Expected 38 registered tools, got {len(tools.tools)}. "
             "If tool count changed intentionally, update this test and CLAUDE.md."
         )
 

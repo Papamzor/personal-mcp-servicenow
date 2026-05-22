@@ -3,6 +3,7 @@ Tests for kb_article_tools.py — KB article write path (update / publish / reti
 Target: 90%+ line coverage, 75%+ branch coverage.
 """
 
+import asyncio
 import pytest
 from unittest.mock import patch, MagicMock
 import httpx
@@ -14,9 +15,12 @@ from Table_Tools.kb_article_tools import (
     _get_kb_article_sys_id,
     _get_kb_article_meta,
     _check_kb_duplicates,
+    _normalize_publish_result,
     update_knowledge_article,
     publish_knowledge_article,
+    publish_knowledge_articles,
     retire_knowledge_article,
+    check_kb_duplicates,
 )
 
 
@@ -263,6 +267,51 @@ class TestCheckKbDuplicates:
 
             assert await _check_kb_duplicates("Test", "KB0001234") == []
 
+    @pytest.mark.asyncio
+    async def test_retired_duplicate_skipped(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [
+                {"number": "KB0009999", "short_description": "Account self-registration", "workflow_state": "retired"}
+            ]}
+
+            result = await _check_kb_duplicates("Account self-registration", "KB0001234")
+            assert result == []
+
+    @pytest.mark.asyncio
+    async def test_outdated_duplicate_skipped(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [
+                {"number": "KB0009998", "short_description": "Account self-registration", "workflow_state": "outdated"}
+            ]}
+
+            result = await _check_kb_duplicates("Account self-registration", "KB0001234")
+            assert result == []
+
+    @pytest.mark.asyncio
+    async def test_mixed_states_only_live_returned(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [
+                {"number": "KB1000001", "short_description": "Account self-registration", "workflow_state": "draft"},
+                {"number": "KB1000002", "short_description": "Account self-registration", "workflow_state": "review"},
+                {"number": "KB1000003", "short_description": "Account self-registration", "workflow_state": "published"},
+                {"number": "KB1000004", "short_description": "Account self-registration", "workflow_state": "retired"},
+                {"number": "KB1000005", "short_description": "Account self-registration", "workflow_state": "outdated"},
+            ]}
+
+            result = await _check_kb_duplicates("Account self-registration", "KB0001234")
+            numbers = {r["number"] for r in result}
+            assert numbers == {"KB1000001", "KB1000002", "KB1000003"}
+
+    @pytest.mark.asyncio
+    async def test_workflow_state_case_insensitive(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [
+                {"number": "KB0009999", "short_description": "Account self-registration", "workflow_state": "RETIRED"}
+            ]}
+
+            result = await _check_kb_duplicates("Account self-registration", "KB0001234")
+            assert result == []
+
 
 class TestPublishKnowledgeArticle:
 
@@ -329,6 +378,163 @@ class TestRetireKnowledgeArticle:
             call_kwargs = mock_request.call_args.kwargs
             assert "/api/qonv/mateco_knowledge/articles/abc123/retire" in call_url
             assert call_kwargs["method"] == "POST"
+
+
+class TestCheckKbDuplicatesTool:
+
+    @pytest.mark.asyncio
+    async def test_empty_list_returns_empty_result(self):
+        result = await check_kb_duplicates([])
+        assert result == {"result": []}
+
+    @pytest.mark.asyncio
+    async def test_over_50_returns_error(self):
+        result = await check_kb_duplicates([f"KB{i:07d}" for i in range(51)])
+        assert "error" in result
+        assert "50" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_single_article_no_duplicates(self):
+        with patch('Table_Tools.kb_article_tools._get_kb_article_meta') as mock_meta, \
+             patch('Table_Tools.kb_article_tools._check_kb_duplicates') as mock_dupes:
+            mock_meta.return_value = {"sys_id": "abc", "short_description": "Onboarding"}
+            mock_dupes.return_value = []
+
+            result = await check_kb_duplicates(["KB0001234"])
+
+            assert len(result["result"]) == 1
+            assert result["result"][0] == {
+                "number": "KB0001234",
+                "has_duplicate": False,
+                "duplicates": [],
+            }
+
+    @pytest.mark.asyncio
+    async def test_single_article_with_duplicates(self):
+        with patch('Table_Tools.kb_article_tools._get_kb_article_meta') as mock_meta, \
+             patch('Table_Tools.kb_article_tools._check_kb_duplicates') as mock_dupes:
+            mock_meta.return_value = {"sys_id": "abc", "short_description": "Onboarding"}
+            mock_dupes.return_value = [
+                {"number": "KB0009999", "workflow_state": "published", "short_description": "Onboarding", "kb_category": "x"},
+            ]
+
+            result = await check_kb_duplicates(["KB0001234"])
+
+            entry = result["result"][0]
+            assert entry["has_duplicate"] is True
+            # Response is slimmed to number + workflow_state only
+            assert entry["duplicates"] == [{"number": "KB0009999", "workflow_state": "published"}]
+
+    @pytest.mark.asyncio
+    async def test_missing_article_reports_error_entry(self):
+        with patch('Table_Tools.kb_article_tools._get_kb_article_meta') as mock_meta:
+            mock_meta.return_value = None
+
+            result = await check_kb_duplicates(["KB9999999"])
+
+            entry = result["result"][0]
+            assert entry["number"] == "KB9999999"
+            assert entry["has_duplicate"] is False
+            assert "error" in entry
+
+    @pytest.mark.asyncio
+    async def test_mixed_batch_returns_per_article_status(self):
+        async def fake_meta(num):
+            if num == "KB_MISSING":
+                return None
+            return {"sys_id": f"sysid_{num}", "short_description": f"desc_{num}"}
+
+        async def fake_dupes(short_desc, exclude_number):
+            if exclude_number == "KB_DUP":
+                return [{"number": "KB_OTHER", "workflow_state": "draft"}]
+            return []
+
+        with patch('Table_Tools.kb_article_tools._get_kb_article_meta', side_effect=fake_meta), \
+             patch('Table_Tools.kb_article_tools._check_kb_duplicates', side_effect=fake_dupes):
+
+            result = await check_kb_duplicates(["KB_CLEAN", "KB_DUP", "KB_MISSING"])
+
+            by_num = {r["number"]: r for r in result["result"]}
+            assert by_num["KB_CLEAN"]["has_duplicate"] is False
+            assert by_num["KB_DUP"]["has_duplicate"] is True
+            assert "error" in by_num["KB_MISSING"]
+
+
+class TestNormalizePublishResult:
+
+    def test_error_string_becomes_error_row(self):
+        row = _normalize_publish_result("KB001", "Authentication failed during publish")
+        assert row == {
+            "number": "KB001",
+            "status": "error",
+            "message": "Authentication failed during publish",
+        }
+
+    def test_duplicate_block_becomes_blocked_row(self):
+        row = _normalize_publish_result(
+            "KB001",
+            {"success": False, "message": "Duplicate KB article(s) found.", "duplicates": [{"number": "KB999"}]},
+        )
+        assert row["status"] == "blocked"
+        assert row["blockers"] == [{"number": "KB999"}]
+
+    def test_success_record_becomes_published_row(self):
+        row = _normalize_publish_result(
+            "KB001",
+            {"number": "KB001", "sys_id": "abc", "workflow_state": "published", "short_description": "x"},
+        )
+        assert row == {"number": "KB001", "status": "published", "workflow_state": "published"}
+
+
+class TestPublishKnowledgeArticles:
+
+    @pytest.mark.asyncio
+    async def test_empty_list_returns_empty_result(self):
+        result = await publish_knowledge_articles([])
+        assert result == {"result": []}
+
+    @pytest.mark.asyncio
+    async def test_over_20_returns_error(self):
+        result = await publish_knowledge_articles([f"KB{i:07d}" for i in range(21)])
+        assert "error" in result
+        assert "20" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_mixed_batch_yields_per_article_status(self):
+        async def fake_publish(num):
+            if num == "KB_OK":
+                return {"number": num, "workflow_state": "published", "sys_id": "s", "short_description": "x"}
+            if num == "KB_DUP":
+                return {"success": False, "message": "Duplicate KB article(s) found.", "duplicates": [{"number": "KB_OTHER", "workflow_state": "draft"}]}
+            return "Authentication failed during publish"
+
+        with patch('Table_Tools.kb_article_tools.publish_knowledge_article', side_effect=fake_publish):
+            result = await publish_knowledge_articles(["KB_OK", "KB_DUP", "KB_ERR"])
+
+        by_num = {r["number"]: r for r in result["result"]}
+        assert by_num["KB_OK"]["status"] == "published"
+        assert by_num["KB_DUP"]["status"] == "blocked"
+        assert by_num["KB_DUP"]["blockers"] == [{"number": "KB_OTHER", "workflow_state": "draft"}]
+        assert by_num["KB_ERR"]["status"] == "error"
+
+    @pytest.mark.asyncio
+    async def test_concurrency_cap_respected(self):
+        """Verify Semaphore prevents more than `concurrency` in-flight publishes."""
+        in_flight = 0
+        max_seen = 0
+
+        async def fake_publish(num):
+            nonlocal in_flight, max_seen
+            in_flight += 1
+            max_seen = max(max_seen, in_flight)
+            await asyncio.sleep(0.01)
+            in_flight -= 1
+            return {"number": num, "workflow_state": "published"}
+
+        with patch('Table_Tools.kb_article_tools.publish_knowledge_article', side_effect=fake_publish):
+            await publish_knowledge_articles([f"KB{i:03d}" for i in range(10)], concurrency=3)
+
+        assert max_seen <= 3
 
 
 class TestRoutesThroughUnifiedPipeline:

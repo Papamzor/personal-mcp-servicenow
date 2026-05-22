@@ -21,6 +21,9 @@ from Table_Tools.consolidated_tools import (
     similar_knowledge_for_text,
     get_knowledge_by_category,
     get_active_knowledge_articles,
+    get_kb_articles_by_state,
+    _pick_canonical_kb_row,
+    _KB_STATE_RANK,
     # SLA tools (v4.0: 10 -> 5 consolidated)
     similar_slas_for_text,
     get_sla_details,
@@ -253,6 +256,117 @@ class TestKnowledgeTools:
             mock_query.return_value = {"result": [{"number": "KB001"}]}
             result = await get_active_knowledge_articles("test")
             mock_query.assert_called_once_with("kb_knowledge", {"workflow_state": "published"})
+
+
+class TestPickCanonicalKbRow:
+    """De-dup helper picks highest-priority workflow_state per number."""
+
+    def test_published_beats_draft(self):
+        rows = [
+            {"number": "KB001", "workflow_state": "draft", "sys_id": "s1"},
+            {"number": "KB001", "workflow_state": "published", "sys_id": "s2"},
+        ]
+        result = _pick_canonical_kb_row(rows)
+        assert result["KB001"]["row"]["sys_id"] == "s2"
+        assert result["KB001"]["version_count"] == 2
+
+    def test_draft_beats_outdated(self):
+        rows = [
+            {"number": "KB001", "workflow_state": "outdated", "sys_id": "s1"},
+            {"number": "KB001", "workflow_state": "draft", "sys_id": "s2"},
+        ]
+        result = _pick_canonical_kb_row(rows)
+        assert result["KB001"]["row"]["sys_id"] == "s2"
+
+    def test_unknown_state_ranks_lowest(self):
+        rows = [
+            {"number": "KB001", "workflow_state": "frobnicated", "sys_id": "s1"},
+            {"number": "KB001", "workflow_state": "retired", "sys_id": "s2"},
+        ]
+        result = _pick_canonical_kb_row(rows)
+        assert result["KB001"]["row"]["sys_id"] == "s2"
+
+    def test_version_count_tracks_all_rows(self):
+        rows = [
+            {"number": "KB001", "workflow_state": "published"},
+            {"number": "KB001", "workflow_state": "outdated"},
+            {"number": "KB001", "workflow_state": "outdated"},
+        ]
+        result = _pick_canonical_kb_row(rows)
+        assert result["KB001"]["version_count"] == 3
+
+    def test_state_rank_order(self):
+        assert _KB_STATE_RANK["published"] < _KB_STATE_RANK["draft"]
+        assert _KB_STATE_RANK["draft"] < _KB_STATE_RANK["review"]
+        assert _KB_STATE_RANK["review"] < _KB_STATE_RANK["outdated"]
+        assert _KB_STATE_RANK["outdated"] < _KB_STATE_RANK["retired"]
+
+
+class TestGetKbArticlesByState:
+
+    @pytest.mark.asyncio
+    async def test_dedups_multiple_versions_to_canonical(self):
+        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
+            mock_query.return_value = {
+                "result": [
+                    {"number": "KB001", "sys_id": "s1", "short_description": "x", "workflow_state": "outdated"},
+                    {"number": "KB001", "sys_id": "s2", "short_description": "x", "workflow_state": "published"},
+                    {"number": "KB002", "sys_id": "s3", "short_description": "y", "workflow_state": "draft"},
+                ],
+                "truncated": False,
+            }
+            result = await get_kb_articles_by_state()
+
+        numbers = {r["number"]: r for r in result["result"]}
+        assert len(numbers) == 2
+        assert numbers["KB001"]["current_state"] == "published"
+        assert numbers["KB001"]["version_count"] == 2
+        assert numbers["KB001"]["sys_id"] == "s2"
+        assert numbers["KB002"]["current_state"] == "draft"
+        assert numbers["KB002"]["version_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_workflow_state_filter_post_dedup(self):
+        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
+            mock_query.return_value = {
+                "result": [
+                    {"number": "KB001", "sys_id": "s1", "workflow_state": "published"},
+                    {"number": "KB002", "sys_id": "s2", "workflow_state": "draft"},
+                ],
+                "truncated": False,
+            }
+            result = await get_kb_articles_by_state(workflow_state="published")
+
+        numbers = [r["number"] for r in result["result"]]
+        assert numbers == ["KB001"]
+
+    @pytest.mark.asyncio
+    async def test_category_passed_to_server_side_filter(self):
+        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
+            mock_query.return_value = {"result": [], "truncated": False}
+            await get_kb_articles_by_state(category="IT", kb_base="IT_KB")
+
+            params = mock_query.call_args[0][1]
+            assert params.filters == {"kb_category": "IT", "kb_knowledge_base": "IT_KB"}
+
+    @pytest.mark.asyncio
+    async def test_propagates_truncated_flag(self):
+        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
+            mock_query.return_value = {
+                "result": [{"number": "KB001", "sys_id": "s1", "workflow_state": "published"}],
+                "truncated": True,
+            }
+            result = await get_kb_articles_by_state()
+            assert result["truncated"] is True
+
+    @pytest.mark.asyncio
+    async def test_empty_result_returns_message(self):
+        with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
+            mock_query.return_value = {"result": [], "truncated": False}
+            result = await get_kb_articles_by_state()
+            assert result["result"] == []
+            assert "message" in result
+            assert result["returned_count"] == 0
 
 
 class TestSLATools:
