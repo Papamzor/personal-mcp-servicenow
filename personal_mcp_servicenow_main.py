@@ -8,6 +8,20 @@ import argparse
 import getpass
 import sys
 
+import structlog
+
+# Configure structlog once at the entry point so every module that calls
+# structlog.get_logger() emits JSON to stderr (Azure Monitor ingests it
+# automatically from Container Apps / ACI stdout/stderr).
+structlog.configure(
+    processors=[
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.JSONRenderer(),
+    ],
+    logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
+)
+
 __version__ = "4.0.0"
 
 

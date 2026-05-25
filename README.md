@@ -321,6 +321,53 @@ To rotate a credential: update the Key Vault secret and create a new Container A
 
 ---
 
+## Audit logging
+
+Every tool call emits one structured JSON line to stderr via the `AuditMiddleware` registered in [tools.py](tools.py). Azure Container Apps automatically ships container stderr to Log Analytics — no extra SDK, no log shipper, no file rotation.
+
+**Log line shape** (one JSON object per `tools/call`):
+
+```json
+{
+  "timestamp": "2026-05-25T10:30:00.123Z",
+  "level": "info",
+  "event": "tool_call",
+  "tool": "search_records",
+  "user": "jonathan.demeulemeester@company.com",
+  "request_id": "req-abc-123",
+  "args": {"table_name": "incident", "limit": 10},
+  "duration_ms": 147.32,
+  "status": "success"
+}
+```
+
+Errors add `"status": "error"`, `"error": "<message>"`, and `"level": "error"`.
+
+**User identity** is parsed from the `Authorization: Bearer <jwt>` header (claim priority: `preferred_username` → `upn` → `email` → `sub`). The JWT signature is NOT verified inside the container — Azure APIM / Front Door / Container Apps ingress must validate the token at the edge before the request reaches the MCP server. Without an Authorization header, `user` is `"unauthenticated"`. Under `stdio` transport (local dev), there is no HTTP context and identity tracking is unavailable.
+
+**Sensitive arguments** matching `password`, `secret`, `token`, `key`, `auth`, or `credential` (case-insensitive substring in the parameter name) are written as `"[REDACTED]"`. Adjust the set in [audit_middleware.py](audit_middleware.py).
+
+**Query audit logs in Azure**
+
+In the Log Analytics workspace attached to the Container Apps environment:
+
+```kql
+ContainerAppConsoleLogs_CL
+| where ContainerAppName_s == "mcp-servicenow"
+| where Log_s contains '"event":"tool_call"'
+| extend payload = parse_json(Log_s)
+| project TimeGenerated, user=payload.user, tool=payload.tool,
+          status=payload.status, duration_ms=payload.duration_ms,
+          request_id=payload.request_id, args=payload.args, error=payload.error
+| order by TimeGenerated desc
+```
+
+For long-term retention or compliance reporting, route the table to a dedicated Log Analytics workspace with a multi-year retention policy, or export to an immutable Storage account via a Diagnostic Setting.
+
+**Dockerfile note**: ensure `PYTHONUNBUFFERED=1` so log lines flush to stderr immediately and are not buffered across container restarts.
+
+---
+
 ## Transport modes
 
 | `MCP_TRANSPORT` | How it runs | Use case |

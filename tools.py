@@ -2,7 +2,8 @@
 import sys
 print("Personal ServiceNow MCP Server started.", file=sys.stderr)
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
+from audit_middleware import AuditMiddleware
 from Table_Tools.generic_tool_wrappers import (
     search_records, get_record_summary, get_record, find_similar, filter_records
 )
@@ -34,7 +35,35 @@ from Table_Tools.intelligent_query_tools import (
     get_servicenow_filter_templates, get_query_examples
 )
 
+from typing import Any, Dict, List, Optional
+
+
+# fastmcp v3 rejects functions with **kwargs as tools. get_priority_incidents
+# uses **deprecated_kwargs for backwards-compat warnings; expose a clean
+# signature to MCP that forwards to the real implementation. Don't use
+# functools.wraps — it sets __wrapped__, which fastmcp follows back to the
+# original signature.
+async def _mcp_get_priority_incidents(
+    priorities: List[str],
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    additional_filters: Optional[Dict[str, Any]] = None,
+    include_metadata: bool = False,
+) -> Dict[str, Any]:
+    return await get_priority_incidents(
+        priorities,
+        start_date=start_date,
+        end_date=end_date,
+        additional_filters=additional_filters,
+        include_metadata=include_metadata,
+    )
+
+_mcp_get_priority_incidents.__name__ = "get_priority_incidents"
+_mcp_get_priority_incidents.__doc__ = get_priority_incidents.__doc__
+
+
 mcp = FastMCP("personalmcpservicenow")
+mcp.add_middleware(AuditMiddleware())
 
 # Register tools — consolidated from 55 -> 37 (v3.0) -> 32 (v4.0) -> 35 (v4.1 KB write)
 tools = [
@@ -44,8 +73,8 @@ tools = [
     # Generic table tools (replace 24 table-specific wrappers)
     search_records, get_record_summary, get_record, find_similar, filter_records,
 
-    # Priority incidents (unique date logic)
-    get_priority_incidents,
+    # Priority incidents (unique date logic) — wrapper strips **deprecated_kwargs for fastmcp v3
+    _mcp_get_priority_incidents,
 
     # Knowledge-specific tools (unique params)
     similar_knowledge_for_text, get_knowledge_by_category, get_active_knowledge_articles,
