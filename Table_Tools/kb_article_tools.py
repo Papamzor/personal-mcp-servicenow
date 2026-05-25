@@ -55,20 +55,26 @@ async def _write_kb_article(
     return _unwrap_kb_write_response(result, operation)
 
 
-async def _get_kb_article_sys_id(article_number: str) -> str | None:
-    url = f"{NWS_API_BASE}/api/now/table/kb_knowledge?sysparm_fields=sys_id&sysparm_query=number={article_number}"
+async def _get_kb_article_sys_id(article_number: str, workflow_state: str | None = None) -> str | None:
+    query = f"number={article_number}"
+    if workflow_state:
+        query += f"^workflow_state={workflow_state}"
+    url = f"{NWS_API_BASE}/api/now/table/kb_knowledge?sysparm_fields=sys_id&sysparm_query={query}"
     data = await make_nws_request(url)
     if not data or not data.get('result') or not data['result']:
         return None
     return data['result'][0]['sys_id']
 
 
-async def _get_kb_article_meta(article_number: str) -> Dict[str, Any] | None:
+async def _get_kb_article_meta(article_number: str, workflow_state: str | None = None) -> Dict[str, Any] | None:
     """Fetch sys_id + short_description in one GET — avoids a second round-trip in publish."""
+    query = f"number={article_number}"
+    if workflow_state:
+        query += f"^workflow_state={workflow_state}"
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
         f"?sysparm_fields=sys_id,short_description"
-        f"&sysparm_query=number={article_number}"
+        f"&sysparm_query={query}"
     )
     data = await make_nws_request(url)
     if not data or not data.get('result') or not data['result']:
@@ -124,7 +130,7 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
     """
     if not update_data:
         return ERROR_KB_NO_UPDATE_DATA
-    sys_id = await _get_kb_article_sys_id(article_number)
+    sys_id = await _get_kb_article_sys_id(article_number, workflow_state="draft")
     if not sys_id:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
     fields = ",".join(KB_WRITE_RESPONSE_FIELDS)
@@ -144,7 +150,7 @@ async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str
     Returns:
         Updated article record dict, duplicate warning dict, or error string on failure.
     """
-    meta = await _get_kb_article_meta(article_number)
+    meta = await _get_kb_article_meta(article_number, workflow_state="draft")
     if not meta:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
 
@@ -271,7 +277,7 @@ async def retire_knowledge_article(article_number: str) -> Dict[str, Any] | str:
     Returns:
         Updated article record dict, or error string on failure.
     """
-    sys_id = await _get_kb_article_sys_id(article_number)
+    sys_id = await _get_kb_article_sys_id(article_number, workflow_state="published")
     if not sys_id:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
     return await _call_kb_workflow(sys_id, "retire")
