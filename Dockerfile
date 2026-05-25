@@ -45,6 +45,10 @@ ENV MCP_TRANSPORT=sse
 ENV MCP_HOST=0.0.0.0
 ENV MCP_PORT=8000
 
+# Flush stdout/stderr immediately so audit log lines reach Azure Monitor
+# without buffering across container restarts.
+ENV PYTHONUNBUFFERED=1
+
 # Health check against the SSE endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/sse || exit 1
