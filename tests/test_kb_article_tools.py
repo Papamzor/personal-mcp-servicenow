@@ -151,6 +151,27 @@ class TestGetKbArticleSysId:
 
             assert await _get_kb_article_sys_id("KB0001234") is None
 
+    @pytest.mark.asyncio
+    async def test_workflow_state_appended_to_query_when_provided(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [{"sys_id": "abc123"}]}
+
+            await _get_kb_article_sys_id("KB0001234", workflow_state="draft")
+
+            url = mock_request.call_args.args[0]
+            assert "workflow_state=draft" in url
+            assert "number=KB0001234" in url
+
+    @pytest.mark.asyncio
+    async def test_no_workflow_state_filter_when_none(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [{"sys_id": "abc123"}]}
+
+            await _get_kb_article_sys_id("KB0001234")
+
+            url = mock_request.call_args.args[0]
+            assert "workflow_state" not in url
+
 
 class TestUpdateKnowledgeArticle:
 
@@ -182,6 +203,16 @@ class TestUpdateKnowledgeArticle:
             assert kwargs["method"] == "PATCH"
             assert kwargs["json_data"] == {"short_description": "Updated"}
 
+    @pytest.mark.asyncio
+    async def test_update_targets_draft_workflow_state(self):
+        with patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_sys_id, \
+             patch('Table_Tools.kb_article_tools.make_nws_request'):
+            mock_sys_id.return_value = "abc123"
+
+            await update_knowledge_article("KB0001234", {"short_description": "x"})
+
+            mock_sys_id.assert_called_once_with("KB0001234", workflow_state="draft")
+
 
 class TestGetKbArticleMeta:
 
@@ -208,6 +239,17 @@ class TestGetKbArticleMeta:
             mock_request.return_value = None
 
             assert await _get_kb_article_meta("KB0001234") is None
+
+    @pytest.mark.asyncio
+    async def test_workflow_state_appended_to_query_when_provided(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": [{"sys_id": "abc123", "short_description": "x"}]}
+
+            await _get_kb_article_meta("KB0001234", workflow_state="draft")
+
+            url = mock_request.call_args.args[0]
+            assert "workflow_state=draft" in url
+            assert "number=KB0001234" in url
 
 
 class TestCheckKbDuplicates:
@@ -353,6 +395,15 @@ class TestPublishKnowledgeArticle:
             assert "/api/qonv/mateco_knowledge/articles/abc123/publish" in call_url
             assert call_kwargs["method"] == "POST"
 
+    @pytest.mark.asyncio
+    async def test_publish_targets_draft_workflow_state(self):
+        with patch('Table_Tools.kb_article_tools._get_kb_article_meta') as mock_meta:
+            mock_meta.return_value = None  # stops early — we only care about the call args
+
+            await publish_knowledge_article("KB0001234")
+
+            mock_meta.assert_called_once_with("KB0001234", workflow_state="draft")
+
 
 class TestRetireKnowledgeArticle:
 
@@ -378,6 +429,15 @@ class TestRetireKnowledgeArticle:
             call_kwargs = mock_request.call_args.kwargs
             assert "/api/qonv/mateco_knowledge/articles/abc123/retire" in call_url
             assert call_kwargs["method"] == "POST"
+
+    @pytest.mark.asyncio
+    async def test_retire_targets_published_workflow_state(self):
+        with patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_sys_id:
+            mock_sys_id.return_value = None  # stops early — we only care about the call args
+
+            await retire_knowledge_article("KB0001234")
+
+            mock_sys_id.assert_called_once_with("KB0001234", workflow_state="published")
 
 
 class TestCheckKbDuplicatesTool:

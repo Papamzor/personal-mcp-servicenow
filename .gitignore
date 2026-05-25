@@ -44,5 +44,4 @@ v4.0/
 settings.json
 
 # graphify knowledge graph artifacts
-graphify-out/
 .graphify_*
