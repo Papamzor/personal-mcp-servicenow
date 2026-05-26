@@ -11,8 +11,14 @@ from constants import (
     ERROR_KB_ARTICLE_INVALID_REQUEST,
     ERROR_KB_ARTICLE_NOT_FOUND,
     ERROR_KB_ARTICLE_SERVER_ERROR,
+    ERROR_KB_PUBLISH_NOT_CONFIRMED,
     KB_WRITE_RESPONSE_FIELDS,
     KB_DUPLICATE_IGNORED_STATES,
+    KB_PUBLISH_TIMEOUT_SECONDS,
+    KB_VERIFY_DELAY_SECONDS,
+    KB_PUBLISH_MAX_RETRIES,
+    KB_PUBLISH_BATCH_CONCURRENCY,
+    KB_PUBLISHED_STATE,
 )
 
 
@@ -118,6 +124,75 @@ async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any] | str:
     return result
 
 
+async def _call_kb_publish_workflow(sys_id: str) -> Dict[str, Any] | None:
+    # Variant of _call_kb_workflow that propagates httpx exceptions instead
+    # of mapping them to strings. _publish_with_verify needs the raw
+    # TimeoutException / HTTPStatusError types to decide retry behaviour.
+    url = f"{NWS_API_BASE}/api/qonv/mateco_knowledge/articles/{sys_id}/publish"
+    return await make_nws_request(
+        url,
+        method="POST",
+        json_data={},
+        timeout=KB_PUBLISH_TIMEOUT_SECONDS,
+    )
+
+
+async def _verify_kb_published(article_number: str) -> Dict[str, Any] | None:
+    """Return the published row for *article_number*, or None if not yet published.
+
+    ServiceNow KB versioning produces (draft, published) row pairs after a
+    successful publish. Any row in the Published state confirms the workflow
+    committed — that is the only authoritative success signal.
+    """
+    query = f"number={article_number}^workflow_state={KB_PUBLISHED_STATE}"
+    url = (
+        f"{NWS_API_BASE}/api/now/table/kb_knowledge"
+        f"?sysparm_fields=sys_id,number,workflow_state,short_description"
+        f"&sysparm_query={query}"
+    )
+    data = await make_nws_request(url)
+    if not data or not data.get("result"):
+        return None
+    return data["result"][0]
+
+
+async def _fire_publish(sys_id: str) -> str | None:
+    """Fire the publish workflow. Returns None on success, error string on fire-time failure."""
+    try:
+        await _call_kb_publish_workflow(sys_id)
+        return None
+    except httpx.TimeoutException:
+        return "fire timeout"
+    except httpx.HTTPStatusError as e:
+        return _handle_kb_error(e, "publish")
+
+
+async def _publish_with_verify(sys_id: str, article_number: str) -> Dict[str, Any] | str:
+    """Fire the publish workflow then verify by polling for a Published row.
+
+    Treats verify as the source of truth — a fire-time TimeoutException or
+    HTTPStatusError is recoverable if the article ends up Published. Only
+    retries when verify confirms still-draft. Caps at KB_PUBLISH_MAX_RETRIES.
+    """
+    current_sys_id = sys_id
+    last_fire_error: str | None = None
+
+    for attempt in range(KB_PUBLISH_MAX_RETRIES + 1):
+        last_fire_error = await _fire_publish(current_sys_id)
+
+        await asyncio.sleep(KB_VERIFY_DELAY_SECONDS)
+        published = await _verify_kb_published(article_number)
+        if published:
+            return published
+
+        if attempt < KB_PUBLISH_MAX_RETRIES:
+            refreshed = await _get_kb_article_sys_id(article_number, workflow_state="draft")
+            if refreshed:
+                current_sys_id = refreshed
+
+    return last_fire_error or ERROR_KB_PUBLISH_NOT_CONFIRMED.format(number=article_number)
+
+
 async def update_knowledge_article(article_number: str, update_data: Dict[str, Any]) -> Dict[str, Any] | str:
     """Update fields on a knowledge article by article number (e.g. KB0001234).
 
@@ -162,7 +237,7 @@ async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str
             "duplicates": duplicates,
         }
 
-    return await _call_kb_workflow(meta['sys_id'], "publish")
+    return await _publish_with_verify(meta['sys_id'], article_number)
 
 
 async def _check_single_kb_duplicate(article_number: str) -> Dict[str, Any]:
@@ -237,7 +312,7 @@ def _normalize_publish_result(article_number: str, result: Dict[str, Any] | str)
 
 async def publish_knowledge_articles(
     article_numbers: List[str],
-    concurrency: int = 5,
+    concurrency: int = KB_PUBLISH_BATCH_CONCURRENCY,
 ) -> Dict[str, Any]:
     """Publish multiple KB articles in one tool call.
 
