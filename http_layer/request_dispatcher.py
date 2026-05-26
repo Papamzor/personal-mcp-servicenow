@@ -84,7 +84,7 @@ async def make_nws_request(
             result = await make_oauth_request(url)
             return extract_display_values(result) if result and display_value else result
         except Exception as e:  # noqa: BLE001
-            print(f"OAuth request failed: {e}")
+            print(f"[http_layer] OAuth request failed: {e}", file=sys.stderr)
             return None
 
     # Write path: bypass read-only params + display flattening, raise

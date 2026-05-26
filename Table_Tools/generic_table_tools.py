@@ -1,3 +1,4 @@
+import sys
 from service_now_api_oauth import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
@@ -671,7 +672,7 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
         validation_result = validate_query_filters(params.filters)
         if validation_result.has_issues():
             # Log warnings but continue with query
-            print(f"Query validation warnings: {validation_result.warnings}")
+            print(f"[generic_table_tools] Query validation warnings: {validation_result.warnings}", file=sys.stderr)
 
     query_string = _build_query_string(params.filters)
     # Apply category filtering for incidents
@@ -694,7 +695,7 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
         # Validate result completeness
         result_validation = validate_result_count(table_name, params.filters or {}, returned_count)
         if result_validation.has_issues():
-            print(f"Result validation warnings: {result_validation.warnings}")
+            print(f"[generic_table_tools] Result validation warnings: {result_validation.warnings}", file=sys.stderr)
 
         return {
             "result": all_results,
