@@ -39,14 +39,21 @@ class RequestExecutor:
         method: str,
         url: str,
         raise_for_status: bool = False,
+        timeout: float = 30.0,
         **kwargs,
     ) -> Optional[Dict[str, Any]]:
         """Make an authenticated request to ServiceNow API.
 
-        When ``raise_for_status=True``, propagates ``httpx.HTTPStatusError`` so
-        the caller can map status codes to domain-specific error messages
-        (used by write operations like vtb_task CRUD). Read operations keep
-        the default permissive behaviour and return ``None`` on failure.
+        When ``raise_for_status=True``, propagates ``httpx.HTTPStatusError``
+        and ``httpx.TimeoutException`` so the caller can map status codes
+        and transport failures to domain-specific error messages (used by
+        write operations like vtb_task CRUD and KB workflow). Read
+        operations keep the default permissive behaviour and return
+        ``None`` on failure.
+
+        The ``timeout`` kwarg controls the per-request httpx timeout in
+        seconds. Defaults to 30.0; long-running endpoints (e.g. KB
+        publish workflow) should opt in to a higher value.
         """
         headers = await self._get_auth_headers()
 
@@ -58,7 +65,7 @@ class RequestExecutor:
 
         async with httpx.AsyncClient(verify=True) as client:
             try:
-                response = await client.request(method, url, timeout=30.0, **kwargs)
+                response = await client.request(method, url, timeout=timeout, **kwargs)
                 response.raise_for_status()
                 return self._process_response(response)
             except httpx.HTTPStatusError as e:
@@ -66,12 +73,17 @@ class RequestExecutor:
                     return await self._retry_with_fresh_token(
                         client, method, url,
                         raise_for_status=raise_for_status,
+                        timeout=timeout,
                         **kwargs,
                     )
                 if raise_for_status:
                     raise
                 return None
-            except (httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
+            except httpx.TimeoutException:
+                if raise_for_status:
+                    raise
+                return None
+            except (httpx.RequestError, json.JSONDecodeError):
                 return None
 
     def _process_response(self, response: httpx.Response) -> Dict[str, Any]:
@@ -84,6 +96,7 @@ class RequestExecutor:
         method: str,
         url: str,
         raise_for_status: bool = False,
+        timeout: float = 30.0,
         **kwargs,
     ) -> Optional[Dict[str, Any]]:
         """Drop the cached token, re-authenticate, retry once."""
@@ -93,12 +106,16 @@ class RequestExecutor:
         kwargs["headers"] = headers
 
         try:
-            response = await client.request(method, url, timeout=30.0, **kwargs)
+            response = await client.request(method, url, timeout=timeout, **kwargs)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError:
             if raise_for_status:
                 raise
             return None
-        except (httpx.RequestError, httpx.TimeoutException, json.JSONDecodeError):
+        except httpx.TimeoutException:
+            if raise_for_status:
+                raise
+            return None
+        except (httpx.RequestError, json.JSONDecodeError):
             return None

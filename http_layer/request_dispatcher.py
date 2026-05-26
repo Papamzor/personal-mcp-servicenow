@@ -59,6 +59,7 @@ async def make_nws_request(
     display_value: bool = True,
     method: str = "GET",
     json_data: Optional[dict[str, Any]] = None,
+    timeout: Optional[float] = None,
 ) -> dict[str, Any] | None:
     """Make a request to the ServiceNow API using OAuth 2.0 authentication.
 
@@ -67,8 +68,13 @@ async def make_nws_request(
     and display-value extraction.
 
     For non-GET requests (POST, PATCH, DELETE), bypasses read-only param
-    injection and propagates ``httpx.HTTPStatusError`` so callers can map
-    status codes to domain-specific error messages.
+    injection and propagates ``httpx.HTTPStatusError`` +
+    ``httpx.TimeoutException`` so callers can map them to domain-specific
+    error messages.
+
+    ``timeout`` (write path only) overrides the executor's default httpx
+    timeout. Use for endpoints whose server-side processing exceeds 30s
+    (e.g. KB publish workflow). GET ignores it — reads use the default.
     """
     if method == "GET":
         url = ensure_query_encoded(url)
@@ -85,8 +91,11 @@ async def make_nws_request(
     # for status so callers can map HTTP errors to domain errors.
     get_oauth_client = _resolve_oauth_binding("get_oauth_client")
     client = get_oauth_client()
+    write_kwargs: dict[str, Any] = {"json": json_data}
+    if timeout is not None:
+        write_kwargs["timeout"] = timeout
     return await client.make_authenticated_request(
-        method, url, raise_for_status=True, json=json_data
+        method, url, raise_for_status=True, **write_kwargs
     )
 
 

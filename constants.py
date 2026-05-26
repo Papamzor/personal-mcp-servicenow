@@ -59,6 +59,11 @@ ERROR_KB_ARTICLE_ACCESS_DENIED = "Error during knowledge article {operation}: Ac
 ERROR_KB_ARTICLE_INVALID_REQUEST = "Error during knowledge article {operation}: Invalid request data"
 ERROR_KB_ARTICLE_NOT_FOUND = "Error during knowledge article {operation}: Article not found"
 ERROR_KB_ARTICLE_SERVER_ERROR = "Error during knowledge article {operation}: Server error"
+ERROR_KB_PUBLISH_NOT_CONFIRMED = (
+    "Publish for {number} could not be confirmed (workflow endpoint may have "
+    "failed, or ServiceNow has not yet committed the state change). Re-check "
+    "with check_kb_duplicates or get_kb_articles_by_state before retrying."
+)
 
 # Table-specific error messages
 TABLE_ERROR_MESSAGES = {
@@ -123,6 +128,16 @@ KB_WRITE_RESPONSE_FIELDS = {"number", "sys_id", "short_description", "workflow_s
 # Retired = explicitly killed; outdated = prior version after a newer publish (ServiceNow versioning artefact).
 # Draft / review / published remain blockers because they represent live or pending content.
 KB_DUPLICATE_IGNORED_STATES = {"retired", "outdated"}
+
+# KB publish workflow tuning — the SN /qonv/.../publish endpoint runs duplicate
+# check + state transition + reindex synchronously and routinely takes 60-90s.
+# Fire-and-verify pattern: POST with extended timeout, then poll for the
+# Published row to confirm. Treat verify as source of truth.
+KB_PUBLISH_TIMEOUT_SECONDS = 180.0
+KB_VERIFY_DELAY_SECONDS = 12
+KB_PUBLISH_MAX_RETRIES = 1
+KB_PUBLISH_BATCH_CONCURRENCY = 2
+KB_PUBLISHED_STATE = "published"
 
 # ServiceNow Query Patterns and Validation
 SERVICENOW_OR_SYNTAX_EXAMPLE = "1^ORpriority=2"

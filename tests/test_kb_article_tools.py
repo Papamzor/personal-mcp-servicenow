@@ -5,7 +5,7 @@ Target: 90%+ line coverage, 75%+ branch coverage.
 
 import asyncio
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 import httpx
 
 from Table_Tools.kb_article_tools import (
@@ -16,6 +16,8 @@ from Table_Tools.kb_article_tools import (
     _get_kb_article_meta,
     _check_kb_duplicates,
     _normalize_publish_result,
+    _verify_kb_published,
+    _publish_with_verify,
     update_knowledge_article,
     publish_knowledge_article,
     publish_knowledge_articles,
@@ -380,20 +382,26 @@ class TestPublishKnowledgeArticle:
 
     @pytest.mark.asyncio
     async def test_success_posts_to_scripted_rest_publish(self):
+        # Fire-and-verify: POST publish then GET kb_knowledge (verify). Mock both.
+        post_url = {}
+
+        async def fake_request(url, **kwargs):
+            if kwargs.get("method") == "POST":
+                post_url["url"] = url
+                return {"result": {}}
+            return {"result": [{"number": "KB0001234", "workflow_state": "Published"}]}
+
         with patch('Table_Tools.kb_article_tools._get_kb_article_meta') as mock_meta, \
              patch('Table_Tools.kb_article_tools._check_kb_duplicates') as mock_dupes, \
-             patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+             patch('Table_Tools.kb_article_tools.make_nws_request', side_effect=fake_request), \
+             patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock):
             mock_meta.return_value = {"sys_id": "abc123", "short_description": "Test article"}
             mock_dupes.return_value = []
-            mock_request.return_value = {"result": {"number": "KB0001234", "workflow_state": "published"}}
 
             result = await publish_knowledge_article("KB0001234")
 
-            assert result["workflow_state"] == "published"
-            call_url = mock_request.call_args.args[0]
-            call_kwargs = mock_request.call_args.kwargs
-            assert "/api/qonv/mateco_knowledge/articles/abc123/publish" in call_url
-            assert call_kwargs["method"] == "POST"
+            assert result["workflow_state"] == "Published"
+            assert "/api/qonv/mateco_knowledge/articles/abc123/publish" in post_url["url"]
 
     @pytest.mark.asyncio
     async def test_publish_targets_draft_workflow_state(self):
@@ -602,19 +610,29 @@ class TestRoutesThroughUnifiedPipeline:
 
     @pytest.mark.asyncio
     async def test_publish_routes_through_make_nws_request(self):
+        post_calls = []
+
+        async def fake_request(url, **kwargs):
+            if kwargs.get("method") == "POST":
+                post_calls.append((url, kwargs))
+                return {"result": {}}
+            return {"result": [{"number": "KB0001234", "workflow_state": "Published"}]}
+
         with patch('Table_Tools.kb_article_tools._get_kb_article_meta') as mock_meta, \
              patch('Table_Tools.kb_article_tools._check_kb_duplicates') as mock_dupes, \
-             patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+             patch('Table_Tools.kb_article_tools.make_nws_request', side_effect=fake_request), \
+             patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock):
             mock_meta.return_value = {"sys_id": "abc123", "short_description": "Test"}
             mock_dupes.return_value = []
-            mock_request.return_value = {"result": {"number": "KB0001234"}}
 
             await publish_knowledge_article("KB0001234")
 
-            mock_request.assert_called_once()
-            call_kwargs = mock_request.call_args.kwargs
-            assert call_kwargs["method"] == "POST"
-            assert "/api/qonv/mateco_knowledge/articles/" in mock_request.call_args.args[0]
+            assert len(post_calls) == 1
+            url, kwargs = post_calls[0]
+            assert kwargs["method"] == "POST"
+            assert "/api/qonv/mateco_knowledge/articles/abc123/publish" in url
+            # KB-publish opts in to a longer timeout than the executor default.
+            assert kwargs["timeout"] > 30.0
 
     @pytest.mark.asyncio
     async def test_retire_routes_through_make_nws_request(self):
@@ -629,3 +647,219 @@ class TestRoutesThroughUnifiedPipeline:
             call_kwargs = mock_request.call_args.kwargs
             assert call_kwargs["method"] == "POST"
             assert "/api/qonv/mateco_knowledge/articles/" in mock_request.call_args.args[0]
+
+
+class TestVerifyKbPublished:
+    """_verify_kb_published is the source of truth for publish success."""
+
+    @pytest.mark.asyncio
+    async def test_returns_published_row_when_present(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {
+                "result": [{"sys_id": "abc", "number": "KB0001234", "workflow_state": "Published"}]
+            }
+            row = await _verify_kb_published("KB0001234")
+            assert row["number"] == "KB0001234"
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_no_published_row(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": []}
+            row = await _verify_kb_published("KB0001234")
+            assert row is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_request_fails(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = None
+            row = await _verify_kb_published("KB0001234")
+            assert row is None
+
+    @pytest.mark.asyncio
+    async def test_query_filters_by_published_state(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_request.return_value = {"result": []}
+            await _verify_kb_published("KB0001234")
+            url = mock_request.call_args.args[0]
+            assert "workflow_state=published" in url
+            assert "number=KB0001234" in url
+
+
+class TestPublishWithVerify:
+    """Fire-and-verify orchestrator — verify is the only success signal."""
+
+    @pytest.mark.asyncio
+    async def test_fire_success_verify_finds_published(self):
+        async def fake_request(url, **kwargs):
+            if kwargs.get("method") == "POST":
+                return {"result": {}}
+            return {"result": [{"number": "KB0001234", "workflow_state": "Published"}]}
+
+        with patch('Table_Tools.kb_article_tools.make_nws_request', side_effect=fake_request), \
+             patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock):
+            result = await _publish_with_verify("abc123", "KB0001234")
+            assert isinstance(result, dict)
+            assert result["number"] == "KB0001234"
+
+    @pytest.mark.asyncio
+    async def test_fire_timeout_but_verify_finds_published(self):
+        """The main bug class: POST times out, SN still committed the publish."""
+        async def fake_request(url, **kwargs):
+            if kwargs.get("method") == "POST":
+                raise httpx.TimeoutException("timed out")
+            return {"result": [{"number": "KB0001234", "workflow_state": "Published"}]}
+
+        with patch('Table_Tools.kb_article_tools.make_nws_request', side_effect=fake_request), \
+             patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock):
+            result = await _publish_with_verify("abc123", "KB0001234")
+            assert isinstance(result, dict)
+            assert result["number"] == "KB0001234"
+
+    @pytest.mark.asyncio
+    async def test_fire_http_error_but_verify_finds_published(self):
+        async def fake_request(url, **kwargs):
+            if kwargs.get("method") == "POST":
+                raise _make_http_status_error(500)
+            return {"result": [{"number": "KB0001234", "workflow_state": "Published"}]}
+
+        with patch('Table_Tools.kb_article_tools.make_nws_request', side_effect=fake_request), \
+             patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock):
+            result = await _publish_with_verify("abc123", "KB0001234")
+            assert isinstance(result, dict)
+
+    @pytest.mark.asyncio
+    async def test_retry_when_verify_says_still_draft(self):
+        get_count = 0
+
+        async def fake_request(url, **kwargs):
+            nonlocal get_count
+            if kwargs.get("method") == "POST":
+                return {"result": {}}
+            get_count += 1
+            if get_count == 1:
+                return {"result": []}  # first verify: still draft
+            return {"result": [{"number": "KB0001234", "workflow_state": "Published"}]}
+
+        with patch('Table_Tools.kb_article_tools.make_nws_request', side_effect=fake_request), \
+             patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock), \
+             patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_refresh:
+            mock_refresh.return_value = "abc123"
+            result = await _publish_with_verify("abc123", "KB0001234")
+            assert isinstance(result, dict)
+            assert get_count == 2  # confirms retry happened
+
+    @pytest.mark.asyncio
+    async def test_returns_not_confirmed_when_verify_never_finds_published(self):
+        async def fake_request(url, **kwargs):
+            if kwargs.get("method") == "POST":
+                return {"result": {}}
+            return {"result": []}  # verify never finds it
+
+        with patch('Table_Tools.kb_article_tools.make_nws_request', side_effect=fake_request), \
+             patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock), \
+             patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_refresh:
+            mock_refresh.return_value = "abc123"
+            result = await _publish_with_verify("abc123", "KB0001234")
+            assert isinstance(result, str)
+            assert "could not be confirmed" in result
+
+    @pytest.mark.asyncio
+    async def test_returns_http_error_string_when_both_attempts_fail(self):
+        """When fire keeps raising HTTPStatusError and verify never finds Published,
+        the last fire-time error wins over the generic not-confirmed message."""
+        async def fake_request(url, **kwargs):
+            if kwargs.get("method") == "POST":
+                raise _make_http_status_error(401)
+            return {"result": []}
+
+        with patch('Table_Tools.kb_article_tools.make_nws_request', side_effect=fake_request), \
+             patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock), \
+             patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_refresh:
+            mock_refresh.return_value = "abc123"
+            result = await _publish_with_verify("abc123", "KB0001234")
+            assert isinstance(result, str)
+            assert "Authentication failed" in result
+
+
+class TestWritePathTimeoutPropagation:
+    """Lock in the bug fix: write path must re-raise TimeoutException,
+    not silently return None and let callers report fake success."""
+
+    @pytest.mark.asyncio
+    async def test_executor_re_raises_timeout_when_raise_for_status_true(self):
+        from oauth.request_executor import RequestExecutor
+        from oauth.token_store import TokenStore
+
+        async def headers():
+            return {"Authorization": "Bearer test"}
+
+        token_store = MagicMock(spec=TokenStore)
+        token_store.clear = AsyncMock()
+        executor = RequestExecutor(get_auth_headers=headers, token_store=token_store)
+
+        with patch("oauth.request_executor.httpx.AsyncClient") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.request = AsyncMock(side_effect=httpx.TimeoutException("Timed out"))
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            with pytest.raises(httpx.TimeoutException):
+                await executor.make_authenticated_request(
+                    "POST", "https://x/api", raise_for_status=True
+                )
+
+    @pytest.mark.asyncio
+    async def test_executor_swallows_timeout_when_raise_for_status_false(self):
+        """Read-path behaviour preserved."""
+        from oauth.request_executor import RequestExecutor
+        from oauth.token_store import TokenStore
+
+        async def headers():
+            return {"Authorization": "Bearer test"}
+
+        token_store = MagicMock(spec=TokenStore)
+        token_store.clear = AsyncMock()
+        executor = RequestExecutor(get_auth_headers=headers, token_store=token_store)
+
+        with patch("oauth.request_executor.httpx.AsyncClient") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.request = AsyncMock(side_effect=httpx.TimeoutException("Timed out"))
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            result = await executor.make_authenticated_request("GET", "https://x/api")
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_executor_passes_custom_timeout_to_httpx(self):
+        from oauth.request_executor import RequestExecutor
+        from oauth.token_store import TokenStore
+
+        async def headers():
+            return {"Authorization": "Bearer test"}
+
+        token_store = MagicMock(spec=TokenStore)
+        token_store.clear = AsyncMock()
+        executor = RequestExecutor(get_auth_headers=headers, token_store=token_store)
+
+        captured = {}
+
+        async def fake_request(method, url, **kwargs):
+            captured.update(kwargs)
+            resp = MagicMock()
+            resp.status_code = 200
+            resp.json.return_value = {"ok": True}
+            resp.raise_for_status = MagicMock()
+            return resp
+
+        with patch("oauth.request_executor.httpx.AsyncClient") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.request = AsyncMock(side_effect=fake_request)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            await executor.make_authenticated_request("POST", "https://x/api", timeout=180.0)
+            assert captured["timeout"] == 180.0
