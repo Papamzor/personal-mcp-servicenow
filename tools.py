@@ -2,6 +2,22 @@
 import sys
 print("Personal ServiceNow MCP Server started.", file=sys.stderr)
 
+# Configure structlog before any module-level structlog.get_logger() call.
+# The MCP stdio transport reserves stdout for JSON-RPC frames, so every log
+# line must go to stderr. personal_mcp_servicenow_main.py configures this
+# too, but MCP launchers that invoke tools.py directly bypass that entry
+# point and would otherwise inherit structlog's stdout default — corrupting
+# the frame stream on every audit log line.
+import structlog
+structlog.configure(
+    processors=[
+        structlog.stdlib.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.JSONRenderer(),
+    ],
+    logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
+)
+
 from fastmcp import FastMCP
 from audit_middleware import AuditMiddleware
 from Table_Tools.generic_tool_wrappers import (
