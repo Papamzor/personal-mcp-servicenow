@@ -91,7 +91,7 @@ ESSENTIAL_FIELDS = {
 
 DETAIL_FIELDS = {
     "incident": ["number", "short_description", "description", "priority", "state", "category", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id", "major_incident_state"],
-    "change_request": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci"],
+    "change_request": ["number", "short_description", "description", "priority", "state", "type", "risk", "sys_created_on", "start_date", "end_date", "assigned_to", "assignment_group", "work_notes", "comments", "implementation_plan", "backout_plan", "test_plan", "u_communication", "u_reference_1", "company", "cmdb_ci"],
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "u_reference_1", "company", "cmdb_ci"],
     "kb_knowledge": ["number", "short_description", "text", "kb_category", "workflow_state", "sys_created_on", "assigned_to"],
     "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
