@@ -69,9 +69,17 @@ async def get_record_summary(table: str, number: str) -> Dict[str, Any]:
 
 
 async def get_record(table: str, number: str) -> Dict[str, Any]:
-    """Get full detail fields for a single record.
+    """Get full detail fields for a single known record by number.
 
-    Returns all DETAIL_FIELDS configured for the table.
+    Use this tool when you already know the record number and need complete
+    field coverage (description, assigned_to, assignment_group, work_notes,
+    comments, company, cmdb_ci, etc.). Returns all DETAIL_FIELDS for the
+    table — significantly more fields than search_records or filter_records.
+
+    TOKEN COST: Higher than filter_records (DETAIL_FIELDS vs ESSENTIAL_FIELDS).
+    Do NOT use this for list views or when only basic fields are needed.
+    Use filter_records for multi-record queries; use get_record only when
+    full detail on one specific record is required.
 
     Supported tables: incident, change_request, sc_req_item, sc_task,
     universal_request, kb_knowledge, vtb_task, task_sla.
@@ -81,7 +89,7 @@ async def get_record(table: str, number: str) -> Dict[str, Any]:
         number: Record number (e.g. "CHG0054321")
 
     Returns:
-        {"result": [{...record fields...}]}
+        {"result": [{...all DETAIL_FIELDS for the table...}]}
     """
     error = _validate_table(table)
     if error:
@@ -123,13 +131,21 @@ async def filter_records(
     text operators (CONTAINS, LIKE, STARTSWITH, etc.), date ranges,
     priority lists, and OR filters.
 
+    TOKEN COST: Low by default — returns only ESSENTIAL_FIELDS (number,
+    short_description, priority, state, sys_created_on) unless you pass
+    explicit fields. This is intentional for token budget efficiency on
+    list queries. If you need full field coverage for a single known
+    record, use get_record instead.
+
     Supported tables: incident, change_request, sc_req_item, sc_task,
     universal_request, kb_knowledge, vtb_task, task_sla.
 
     Args:
         table: ServiceNow table name
         filters: Dict of field-value filter pairs
-        fields: Optional list of fields to return (defaults to ESSENTIAL_FIELDS)
+        fields: Optional list of fields to return. Defaults to ESSENTIAL_FIELDS
+            (basic fields only). Pass an explicit list for additional fields,
+            or use get_record for the full DETAIL_FIELDS set on a single record.
         max_results: Hard cap on rows returned (default 100, max 1000). The
             response carries truncated=True when this cap is hit so callers
             can detect partial result sets.
