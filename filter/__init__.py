@@ -1,11 +1,13 @@
 """Filter pipeline — ServiceNow query construction, validation, NL parsing, explanation.
 
 v4.0 Sprint 1 consolidated `query_validation.py`, `query_intelligence.py`,
-and the `TableFilterParams` / `SmartQueryParams` models that previously
-lived in `Table_Tools/generic_table_tools.py` into one cohesive package.
+and the `TableFilterParams` model that previously lived in
+`Table_Tools/generic_table_tools.py` into one cohesive package.
+(`SmartQueryParams` was removed in v4.1 — dead code; the NL boundary
+uses `IntelligentQueryParams` in `Table_Tools/intelligent_query_tools.py`.)
 
 Public API:
-    Models:        TableFilterParams, SmartQueryParams, QueryValidationResult
+    Models:        TableFilterParams, QueryValidationResult
     Construction:  ServiceNowQueryBuilder
     Validation:    validate_query_filters, validate_priority_filter,
                    validate_date_range_filter, validate_result_count,
@@ -16,7 +18,6 @@ Public API:
 """
 from filter.models import (
     QueryValidationResult,
-    SmartQueryParams,
     TableFilterParams,
 )
 from filter.builder import ServiceNowQueryBuilder
@@ -43,7 +44,6 @@ from filter.explainer import (
 __all__ = [
     # Models
     "QueryValidationResult",
-    "SmartQueryParams",
     "TableFilterParams",
     # Construction
     "ServiceNowQueryBuilder",

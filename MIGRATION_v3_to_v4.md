@@ -54,20 +54,20 @@ All v3 import paths continue to work via backwards-compat shims. Updating to the
 |---|---|
 | `from query_validation import ServiceNowQueryBuilder, validate_query_filters` | `from filter import ServiceNowQueryBuilder, validate_query_filters` |
 | `from query_intelligence import QueryIntelligence, explain_existing_filter` | `from filter import QueryIntelligence, explain_existing_filter` |
-| `from Table_Tools.generic_table_tools import TableFilterParams, SmartQueryParams` | `from filter import TableFilterParams, SmartQueryParams` |
+| `from Table_Tools.generic_table_tools import TableFilterParams, SmartQueryParams` | `from filter import TableFilterParams` (`SmartQueryParams` removed in v4.1 — never instantiated; use `IntelligentQueryParams` from `Table_Tools/intelligent_query_tools.py` for the NL boundary) |
 | `from service_now_api_oauth import make_nws_request` | `from http_layer import make_nws_request` |
 | `from oauth_client import ServiceNowOAuthClient` | `from oauth import ServiceNowOAuthClient` |
 | `from oauth_client import ServiceNowAuthenticationError` | `from oauth import ServiceNowAuthenticationError` |
 
-### Module-level singleton stays in `oauth_client`
+### Module-level singleton — `oauth_client` in v4.0, `oauth/singleton.py` from v4.1
 
-`get_oauth_client()`, `make_oauth_request()`, and the `_oauth_client` module attribute remain in `oauth_client.py` even after v4.1. The class moved to `oauth/client.py`; the singleton stays where existing test fixtures expect it.
+In v4.0 `get_oauth_client()`, `make_oauth_request()`, and the `_oauth_client` module attribute stayed in `oauth_client.py` so existing test fixtures kept working. **v4.1 deleted that shim**: the singleton now lives in `oauth/singleton.py` (re-exported via `from oauth import get_oauth_client, make_oauth_request`).
 
 ## 3. Tests — patch targets
 
-All v3 test-patch targets continue to resolve in v4.0. You do not need to rewrite test fixtures.
+All v3 test-patch targets continue to resolve in v4.0. You do not need to rewrite test fixtures for v4.0.
 
-The following patch patterns are explicitly supported:
+The following patch patterns are explicitly supported in v4.0:
 
 ```python
 @patch("oauth_client.httpx.AsyncClient")
@@ -83,6 +83,20 @@ oauth_client._oauth_client = None
 
 @patch("query_intelligence.extract_keywords")
 @patch("query_validation.validate_query_filters")
+```
+
+**v4.1**: the shim modules are deleted, so the targets above no longer resolve. Migrate to:
+
+```python
+@patch("oauth.singleton.httpx.AsyncClient")
+@patch("oauth.ServiceNowOAuthClient")
+oauth.singleton._oauth_client = None
+
+@patch("http_layer.request_dispatcher.make_oauth_request")
+@patch("http_layer.request_dispatcher.get_oauth_client")
+
+@patch("filter.intelligence.extract_keywords")
+@patch("filter.validator.validate_query_filters")
 ```
 
 If you are rewriting tests against the new packages, the equivalents are:

@@ -11,7 +11,7 @@ import httpx
 import json
 
 # Import classes and functions to test
-from oauth_client import (
+from oauth import (
     ServiceNowOAuthClient,
     ServiceNowOAuthError,
     ServiceNowAuthenticationError,
@@ -19,8 +19,8 @@ from oauth_client import (
     ServiceNowAuthorizationError,
     get_oauth_client,
     make_oauth_request,
-    _oauth_client
 )
+from oauth.singleton import _oauth_client
 
 
 class TestServiceNowOAuthExceptions:
@@ -124,7 +124,7 @@ class TestTokenRequest:
     @pytest.mark.asyncio
     async def test_request_access_token_success(self):
         """Test successful token request."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
@@ -152,7 +152,7 @@ class TestTokenRequest:
     @pytest.mark.asyncio
     async def test_request_access_token_401_error(self):
         """Test token request with 401 authentication error."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 401
 
@@ -181,7 +181,7 @@ class TestTokenRequest:
     @pytest.mark.asyncio
     async def test_request_access_token_403_error(self):
         """Test token request with 403 authorization error."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 403
 
@@ -210,7 +210,7 @@ class TestTokenRequest:
     @pytest.mark.asyncio
     async def test_request_access_token_500_error(self):
         """Test token request with 500 server error."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 500
 
@@ -240,7 +240,7 @@ class TestTokenRequest:
     @pytest.mark.asyncio
     async def test_request_access_token_connection_error(self):
         """Test token request with connection error."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_client = MagicMock()
             mock_client.post = AsyncMock(side_effect=httpx.RequestError("Connection failed"))
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -260,7 +260,7 @@ class TestTokenRequest:
     @pytest.mark.asyncio
     async def test_request_access_token_timeout_error(self):
         """Test token request with timeout error."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_client = MagicMock()
             mock_client.post = AsyncMock(side_effect=httpx.TimeoutException("Request timeout"))
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -280,7 +280,7 @@ class TestTokenRequest:
     @pytest.mark.asyncio
     async def test_request_access_token_json_decode_error(self):
         """Test token request with JSON decode error."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
@@ -406,7 +406,7 @@ class TestAuthenticatedRequests:
     @pytest.mark.asyncio
     async def test_make_authenticated_request_success(self):
         """Test successful authenticated request."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"result": "success"}
@@ -433,7 +433,7 @@ class TestAuthenticatedRequests:
     @pytest.mark.asyncio
     async def test_make_authenticated_request_with_retry_success(self):
         """Test authenticated request with 401 and successful retry."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             # First response: 401
             mock_response_401 = MagicMock()
             mock_response_401.status_code = 401
@@ -467,7 +467,7 @@ class TestAuthenticatedRequests:
     @pytest.mark.asyncio
     async def test_make_authenticated_request_non_401_error(self):
         """Test authenticated request with non-401 HTTP error."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 500
             mock_error = httpx.HTTPStatusError("500", request=MagicMock(), response=mock_response)
@@ -494,7 +494,7 @@ class TestAuthenticatedRequests:
     @pytest.mark.asyncio
     async def test_make_authenticated_request_connection_error(self):
         """Test authenticated request with connection error."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_client = MagicMock()
             mock_client.request = AsyncMock(side_effect=httpx.RequestError("Connection failed"))
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -517,7 +517,7 @@ class TestAuthenticatedRequests:
     @pytest.mark.asyncio
     async def test_make_authenticated_request_timeout_error(self):
         """Test authenticated request with timeout."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_client = MagicMock()
             mock_client.request = AsyncMock(side_effect=httpx.TimeoutException("Timeout"))
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -540,7 +540,7 @@ class TestAuthenticatedRequests:
     @pytest.mark.asyncio
     async def test_make_authenticated_request_json_decode_error(self):
         """Test authenticated request with JSON decode error."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
@@ -613,8 +613,8 @@ class TestGlobalClientInstance:
     def test_get_oauth_client_creates_instance(self):
         """Test that get_oauth_client creates instance."""
         # Reset global client
-        import oauth_client
-        oauth_client._oauth_client = None
+        import oauth.singleton
+        oauth.singleton._oauth_client = None
 
         client = get_oauth_client()
         assert client is not None
@@ -627,8 +627,8 @@ class TestGlobalClientInstance:
     })
     def test_get_oauth_client_returns_same_instance(self):
         """Test that get_oauth_client returns same instance."""
-        import oauth_client
-        oauth_client._oauth_client = None
+        import oauth.singleton
+        oauth.singleton._oauth_client = None
 
         client1 = get_oauth_client()
         client2 = get_oauth_client()
@@ -642,10 +642,10 @@ class TestGlobalClientInstance:
     @pytest.mark.asyncio
     async def test_make_oauth_request(self):
         """Test convenience make_oauth_request function."""
-        import oauth_client
-        oauth_client._oauth_client = None
+        import oauth.singleton
+        oauth.singleton._oauth_client = None
 
-        with patch("oauth_client.ServiceNowOAuthClient.make_authenticated_request") as mock_request:
+        with patch("oauth.client.ServiceNowOAuthClient.make_authenticated_request") as mock_request:
             mock_request.return_value = {"result": "success"}
 
             result = await make_oauth_request("https://test.service-now.com/api/test")
@@ -665,7 +665,7 @@ class TestRetryWithFreshToken:
     @pytest.mark.asyncio
     async def test_retry_with_fresh_token_success(self):
         """Test successful retry with fresh token."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"result": "success"}
@@ -697,7 +697,7 @@ class TestRetryWithFreshToken:
     @pytest.mark.asyncio
     async def test_retry_with_fresh_token_failure(self):
         """Test retry with fresh token that fails."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 401
             mock_error = httpx.HTTPStatusError("401", request=MagicMock(), response=mock_response)
@@ -729,7 +729,7 @@ class TestRetryWithFreshToken:
     @pytest.mark.asyncio
     async def test_retry_with_fresh_token_raise_propagates(self):
         """retry_with_fresh_token re-raises HTTPStatusError when raise_for_status=True."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 500
             mock_error = httpx.HTTPStatusError("500", request=MagicMock(), response=mock_response)
@@ -765,7 +765,7 @@ class TestRaiseForStatusPropagation:
     @pytest.mark.asyncio
     async def test_make_authenticated_request_raises_on_non_401(self):
         """raise_for_status=True propagates 4xx/5xx errors instead of returning None."""
-        with patch("oauth_client.httpx.AsyncClient") as mock_client_class:
+        with patch("oauth.singleton.httpx.AsyncClient") as mock_client_class:
             mock_response = MagicMock()
             mock_response.status_code = 404
             mock_error = httpx.HTTPStatusError("404", request=MagicMock(), response=mock_response)

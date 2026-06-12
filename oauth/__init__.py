@@ -14,10 +14,9 @@ Public API:
     ServiceNowConnectionError
     ServiceNowAuthorizationError
 
-The module-level singleton ``get_oauth_client`` and
-``make_oauth_request`` continue to live in ``oauth_client.py`` (now a
-shim) so existing test patches like
-``patch("oauth_client._oauth_client")`` keep working.
+The module-level singleton ``get_oauth_client`` / ``make_oauth_request``
+lives in ``oauth/singleton.py`` (v4.1 — was the ``oauth_client.py`` shim,
+now deleted).
 """
 from oauth.client import ServiceNowOAuthClient
 from oauth.exceptions import (
@@ -26,6 +25,7 @@ from oauth.exceptions import (
     ServiceNowConnectionError,
     ServiceNowOAuthError,
 )
+from oauth.singleton import get_oauth_client, make_oauth_request
 
 __all__ = [
     "ServiceNowOAuthClient",
@@ -33,4 +33,6 @@ __all__ = [
     "ServiceNowAuthenticationError",
     "ServiceNowConnectionError",
     "ServiceNowAuthorizationError",
+    "get_oauth_client",
+    "make_oauth_request",
 ]

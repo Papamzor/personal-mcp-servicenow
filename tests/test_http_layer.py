@@ -109,7 +109,7 @@ class TestMakeNwsRequestReadPath:
             captured_urls.append(url)
             return {"result": [{"number": {"display_value": "INC0001", "value": "INC0001"}}]}
 
-        with patch("service_now_api_oauth.make_oauth_request", new=fake_oauth):
+        with patch("http_layer.request_dispatcher.make_oauth_request", new=fake_oauth):
             result = await make_nws_request(
                 "https://x/api/now/table/incident?sysparm_query=active=true"
             )
@@ -147,7 +147,7 @@ class TestMakeNwsRequestWritePath:
         mock_client.make_authenticated_request = fake_authenticated
 
         original_url = "https://x/api/now/table/vtb_task"
-        with patch("service_now_api_oauth.get_oauth_client", return_value=mock_client):
+        with patch("http_layer.request_dispatcher.get_oauth_client", return_value=mock_client):
             await make_nws_request(
                 original_url,
                 method="POST",
@@ -183,7 +183,7 @@ class TestMakeNwsRequestWritePath:
         mock_client = MagicMock()
         mock_client.make_authenticated_request = AsyncMock(return_value=write_response)
 
-        with patch("service_now_api_oauth.get_oauth_client", return_value=mock_client):
+        with patch("http_layer.request_dispatcher.get_oauth_client", return_value=mock_client):
             result = await make_nws_request(
                 "https://x/api/now/table/vtb_task/sys123",
                 method="PATCH",
@@ -209,7 +209,7 @@ class TestMakeNwsRequestWritePath:
         mock_client = MagicMock()
         mock_client.make_authenticated_request = fake_authenticated
 
-        with patch("service_now_api_oauth.get_oauth_client", return_value=mock_client):
+        with patch("http_layer.request_dispatcher.get_oauth_client", return_value=mock_client):
             await make_nws_request(
                 "https://x/api/now/table/vtb_task",
                 method="POST",

@@ -45,14 +45,13 @@ class TestModuleImports:
         assert date_utils is not None
 
     def test_core_modules_import(self):
-        import service_now_api_oauth
-        import oauth_client
-        import query_intelligence
-        import query_validation
+        import http_layer
+        import oauth
+        import filter
         import config_loader
         import constants
-        assert service_now_api_oauth.make_nws_request is not None
-        assert oauth_client.ServiceNowOAuthClient is not None
+        assert http_layer.make_nws_request is not None
+        assert oauth.ServiceNowOAuthClient is not None
 
 
 class TestToolRegistry:
@@ -106,7 +105,7 @@ class TestReadPipelineEndToEnd:
             captured["url"] = url
             return {"result": [{"number": "INC0001", "short_description": "server down"}]}
 
-        with patch("service_now_api_oauth.make_oauth_request", new=fake_oauth_request):
+        with patch("http_layer.request_dispatcher.make_oauth_request", new=fake_oauth_request):
             result = await search_records("incident", "server down")
 
         assert result["result"][0]["number"] == "INC0001"
@@ -146,7 +145,7 @@ class TestReadPipelineEndToEnd:
             captured["url"] = url
             return {"result": []}
 
-        with patch("service_now_api_oauth.make_oauth_request", new=fake_oauth_request):
+        with patch("http_layer.request_dispatcher.make_oauth_request", new=fake_oauth_request):
             await filter_records("sc_req_item", {"state": "1"})
 
         url = captured["url"]
@@ -167,7 +166,7 @@ class TestReadPipelineEndToEnd:
             captured["url"] = url
             return {"result": []}
 
-        with patch("service_now_api_oauth.make_oauth_request", new=fake_oauth_request), \
+        with patch("http_layer.request_dispatcher.make_oauth_request", new=fake_oauth_request), \
              patch("Table_Tools.generic_table_tools.ENABLE_INCIDENT_CATEGORY_FILTERING", True):
             await filter_records("incident", {"priority": "1"})
 
@@ -186,7 +185,7 @@ class TestWritePipelineEndToEnd:
     async def test_create_private_task_routes_through_unified_pipeline(self):
         from Table_Tools.vtb_task_tools import create_private_task
 
-        with patch("service_now_api_oauth.get_oauth_client") as mock_get_client:
+        with patch("http_layer.request_dispatcher.get_oauth_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.make_authenticated_request = AsyncMock(
                 return_value={"result": {"number": "VTB0001234"}}
@@ -211,8 +210,8 @@ class TestWritePipelineEndToEnd:
             assert "sysparm_query=number=VTB0001234" in url
             return {"result": [{"sys_id": "abc123"}]}
 
-        with patch("service_now_api_oauth.make_oauth_request", new=fake_oauth_get), \
-             patch("service_now_api_oauth.get_oauth_client") as mock_get_client:
+        with patch("http_layer.request_dispatcher.make_oauth_request", new=fake_oauth_get), \
+             patch("http_layer.request_dispatcher.get_oauth_client") as mock_get_client:
 
             mock_client = MagicMock()
             mock_client.make_authenticated_request = AsyncMock(
@@ -252,7 +251,7 @@ class TestErrorPropagationEndToEnd:
         response.status_code = status_code
         error = httpx.HTTPStatusError(str(status_code), request=MagicMock(), response=response)
 
-        with patch("service_now_api_oauth.get_oauth_client") as mock_get_client:
+        with patch("http_layer.request_dispatcher.get_oauth_client") as mock_get_client:
             mock_client = MagicMock()
             mock_client.make_authenticated_request = AsyncMock(side_effect=error)
             mock_get_client.return_value = mock_client

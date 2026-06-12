@@ -108,7 +108,7 @@ def check_test_environment():
     
     # Check if project modules are importable
     test_imports = [
-        "query_validation",
+        "filter",
         "Table_Tools.generic_table_tools"
     ]
     

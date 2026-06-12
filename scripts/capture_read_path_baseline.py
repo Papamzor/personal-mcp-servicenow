@@ -70,8 +70,9 @@ async def measure(
     """Run `call`, capture outgoing URL and response payload."""
     captured_urls: list[str] = []
 
-    # Lazy import — service_now_api_oauth uses module-level make_oauth_request.
-    import service_now_api_oauth as svc
+    # Lazy import — the dispatcher resolves make_oauth_request from its own
+    # module namespace, so patch it there (not on the deleted shim).
+    import http_layer.request_dispatcher as svc
 
     original = svc.make_oauth_request
 

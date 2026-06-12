@@ -10,7 +10,7 @@ from Table_Tools.generic_table_tools import (
     explain_filter_query, 
     build_and_validate_smart_filter
 )
-from query_intelligence import get_filter_templates
+from filter import get_filter_templates
 
 
 class IntelligentQueryParams(BaseModel):
