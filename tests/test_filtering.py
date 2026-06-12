@@ -23,7 +23,7 @@ from unittest.mock import patch, MagicMock
 # Add the project root to the path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from query_validation import ServiceNowQueryBuilder, QueryValidationResult
+from filter import ServiceNowQueryBuilder, QueryValidationResult
 from Table_Tools.generic_table_tools import (
     TableFilterParams, _encode_query_string,
     _parse_date_range_from_text, _parse_priority_list, _parse_caller_exclusions
@@ -125,7 +125,7 @@ class TestServiceNowFiltering(unittest.TestCase):
         """Test ServiceNowQueryBuilder query validation."""
         # Test valid query using validate_query_filters instead
         valid_filters = {"priority": "1", "sys_created_on": ">2025-01-01"}
-        from query_validation import validate_query_filters
+        from filter import validate_query_filters
         result = validate_query_filters(valid_filters)
 
         self.assertIsInstance(result, QueryValidationResult)

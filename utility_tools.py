@@ -1,4 +1,4 @@
-from service_now_api_oauth import test_oauth_connection, get_auth_info
+from http_layer import test_oauth_connection, get_auth_info
 
 def nowtest():
     """Test function to verify mcp is running."""

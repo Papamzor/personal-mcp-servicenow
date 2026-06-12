@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 class TestOAuthClientExtended(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         try:
-            from oauth_client import ServiceNowOAuthClient, ServiceNowAuthenticationError, ServiceNowConnectionError
+            from oauth import ServiceNowOAuthClient, ServiceNowAuthenticationError, ServiceNowConnectionError
             self.oauth_available = True
             self.ServiceNowOAuthClient = ServiceNowOAuthClient
             self.ServiceNowAuthenticationError = ServiceNowAuthenticationError
@@ -27,7 +27,7 @@ class TestOAuthClientExtended(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(client.instance_url, "https://test.service-now.com")
 
     @patch.dict("os.environ", {"SERVICENOW_INSTANCE": "https://test.service-now.com", "SERVICENOW_CLIENT_ID": "test_id", "SERVICENOW_CLIENT_SECRET": "test_secret"})
-    @patch("oauth_client.httpx.AsyncClient")
+    @patch("oauth.singleton.httpx.AsyncClient")
     async def test_token_request_with_errors(self, mock_client_class):
         if not self.oauth_available:
             self.skipTest(f"OAuth client not available: {self.import_error}")
@@ -47,7 +47,7 @@ class TestOAuthClientExtended(unittest.IsolatedAsyncioTestCase):
             await client._request_access_token()
 
     @patch.dict("os.environ", {"SERVICENOW_INSTANCE": "https://test.service-now.com", "SERVICENOW_CLIENT_ID": "test_id", "SERVICENOW_CLIENT_SECRET": "test_secret"})
-    @patch("oauth_client.httpx.AsyncClient")
+    @patch("oauth.singleton.httpx.AsyncClient")
     async def test_connection_error(self, mock_client_class):
         if not self.oauth_available:
             self.skipTest(f"OAuth client not available: {self.import_error}")

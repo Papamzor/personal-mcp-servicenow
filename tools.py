@@ -81,7 +81,7 @@ _mcp_get_priority_incidents.__doc__ = get_priority_incidents.__doc__
 mcp = FastMCP("personalmcpservicenow")
 mcp.add_middleware(AuditMiddleware())
 
-# Register tools — consolidated from 55 -> 37 (v3.0) -> 32 (v4.0) -> 35 (v4.1 KB write)
+# Register tools — consolidated from 55 -> 37 (v3.0) -> 32 (v4.0) -> 38 (v4.1 KB expansion)
 tools = [
     # Server & Authentication tools
     nowtest, now_test_oauth, now_auth_info, nowtestauth, nowtest_auth_input,

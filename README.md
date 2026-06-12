@@ -189,7 +189,7 @@ Work across all supported tables: `incident`, `change_request`, `sc_req_item`, `
 ```
 MCP Client (Claude)
   ↓ stdio / sse
-tools.py (FastMCP — 32 tools)
+tools.py (FastMCP — 38 tools)
   ↓
 generic_tool_wrappers.py   consolidated_tools.py   vtb_task_tools.py
 cmdb_tools.py              intelligent_query_tools.py
@@ -201,7 +201,7 @@ filter/                     (v4.0 Sprint 1)
   validator.py              — validate_query_filters, validate_and_correct_filters
   intelligence.py           — QueryIntelligence (NL → filter; no backref to builder)
   explainer.py              — QueryExplainer
-  models.py                 — TableFilterParams, SmartQueryParams
+  models.py                 — TableFilterParams, QueryValidationResult
   ↓
 http_layer/                 (v4.0 Sprint 3)
   url_builder.py            — ensure_query_encoded, add_default_params (GET-only)

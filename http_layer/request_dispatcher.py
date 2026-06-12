@@ -29,29 +29,11 @@ from dotenv import load_dotenv
 
 from http_layer.response_parser import extract_display_values
 from http_layer.url_builder import add_default_params, ensure_query_encoded
+from oauth.singleton import get_oauth_client, make_oauth_request
 
 load_dotenv()
 SERVICENOW_INSTANCE = os.getenv("SERVICENOW_INSTANCE")
 NWS_API_BASE = SERVICENOW_INSTANCE
-
-
-def _resolve_oauth_binding(name: str):
-    """Look up ``name`` via the service_now_api_oauth shim if loaded.
-
-    Existing tests patch ``service_now_api_oauth.make_oauth_request`` and
-    ``service_now_api_oauth.get_oauth_client``. The dispatcher reads
-    through that module so those patches take effect at call time. Falls
-    back to ``oauth_client`` (the singleton's canonical home) when the
-    shim isn't loaded.
-    """
-    shim = sys.modules.get("service_now_api_oauth")
-    if shim is not None:
-        try:
-            return getattr(shim, name)
-        except AttributeError:
-            pass
-    import oauth_client
-    return getattr(oauth_client, name)
 
 
 async def make_nws_request(
@@ -80,7 +62,6 @@ async def make_nws_request(
         url = ensure_query_encoded(url)
         url = add_default_params(url, display_value)
         try:
-            make_oauth_request = _resolve_oauth_binding("make_oauth_request")
             result = await make_oauth_request(url)
             return extract_display_values(result) if result and display_value else result
         except Exception as e:  # noqa: BLE001
@@ -89,7 +70,6 @@ async def make_nws_request(
 
     # Write path: bypass read-only params + display flattening, raise
     # for status so callers can map HTTP errors to domain errors.
-    get_oauth_client = _resolve_oauth_binding("get_oauth_client")
     client = get_oauth_client()
     write_kwargs: dict[str, Any] = {"json": json_data}
     if timeout is not None:
@@ -102,7 +82,6 @@ async def make_nws_request(
 async def test_oauth_connection() -> dict[str, Any]:
     """Test OAuth connection and return status."""
     try:
-        get_oauth_client = _resolve_oauth_binding("get_oauth_client")
         client = get_oauth_client()
         return await client.test_connection()
     except Exception as e:  # noqa: BLE001

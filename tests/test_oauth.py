@@ -75,7 +75,7 @@ class TestOAuthClientCreation(unittest.TestCase):
     def test_oauth_client_creation_success(self):
         """Test successful OAuth client creation."""
         try:
-            from oauth_client import ServiceNowOAuthClient
+            from oauth import ServiceNowOAuthClient
             
             client = ServiceNowOAuthClient()
             self.assertIsInstance(client, ServiceNowOAuthClient)
@@ -95,7 +95,7 @@ class TestOAuthClientCreation(unittest.TestCase):
     def test_oauth_client_configuration(self):
         """Test OAuth client configuration properties."""
         try:
-            from oauth_client import ServiceNowOAuthClient
+            from oauth import ServiceNowOAuthClient
             
             client = ServiceNowOAuthClient()
             
@@ -111,7 +111,7 @@ class TestOAuthClientCreation(unittest.TestCase):
         """Test OAuth client creation fails with missing environment variables."""
         with patch.dict(os.environ, {}, clear=True):
             try:
-                from oauth_client import ServiceNowOAuthClient
+                from oauth import ServiceNowOAuthClient
                 with self.assertRaises(Exception):
                     ServiceNowOAuthClient()
             except ImportError:
@@ -129,7 +129,7 @@ class TestAPIIntegration(unittest.IsolatedAsyncioTestCase):
     async def test_get_auth_info_oauth_enabled(self):
         """Test that get_auth_info correctly detects OAuth configuration."""
         try:
-            from service_now_api_oauth import get_auth_info
+            from http_layer import get_auth_info
 
             # get_auth_info is not async, so don't await it
             auth_info = get_auth_info()
@@ -152,7 +152,7 @@ class TestAPIIntegration(unittest.IsolatedAsyncioTestCase):
     async def test_get_auth_info_oauth_disabled(self):
         """Test get_auth_info when OAuth credentials are not available."""
         try:
-            from service_now_api_oauth import get_auth_info
+            from http_layer import get_auth_info
 
             # get_auth_info is not async, so don't await it
             auth_info = get_auth_info()
@@ -168,7 +168,7 @@ class TestAPIIntegration(unittest.IsolatedAsyncioTestCase):
         except ImportError:
             self.skipTest("service_now_api_oauth module not available")
 
-    @patch('oauth_client.ServiceNowOAuthClient')
+    @patch('oauth.ServiceNowOAuthClient')
     async def test_oauth_token_retrieval_mock(self, mock_oauth_client):
         """Test OAuth token retrieval with mocked client."""
         # Mock the OAuth client
@@ -181,7 +181,7 @@ class TestAPIIntegration(unittest.IsolatedAsyncioTestCase):
         mock_oauth_client.return_value = mock_client_instance
         
         try:
-            from oauth_client import ServiceNowOAuthClient
+            from oauth import ServiceNowOAuthClient
             
             client = ServiceNowOAuthClient()
             token_response = client.get_token()
@@ -241,7 +241,7 @@ class TestOAuthTokenHandling(unittest.TestCase):
 class TestOAuthErrorHandling(unittest.TestCase):
     """Test OAuth error handling scenarios."""
 
-    @patch('oauth_client.ServiceNowOAuthClient')
+    @patch('oauth.ServiceNowOAuthClient')
     def test_oauth_network_error_handling(self, mock_oauth_client):
         """Test handling of network errors during OAuth."""
         mock_client_instance = MagicMock()
@@ -249,7 +249,7 @@ class TestOAuthErrorHandling(unittest.TestCase):
         mock_oauth_client.return_value = mock_client_instance
         
         try:
-            from oauth_client import ServiceNowOAuthClient
+            from oauth import ServiceNowOAuthClient
             
             client = ServiceNowOAuthClient()
             
@@ -269,7 +269,7 @@ class TestOAuthErrorHandling(unittest.TestCase):
     def test_oauth_invalid_credentials(self):
         """Test OAuth behavior with invalid credentials."""
         try:
-            from oauth_client import ServiceNowOAuthClient
+            from oauth import ServiceNowOAuthClient
             
             # Should create client but fail on token request
             client = ServiceNowOAuthClient()
