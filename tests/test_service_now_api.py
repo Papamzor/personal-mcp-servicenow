@@ -21,10 +21,16 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         """Set up test fixtures for async tests."""
         try:
-            from service_now_api_oauth import (
-                _extract_field_value, _process_item_dict, _extract_display_values,
-                _ensure_query_encoded, _add_default_params, make_nws_request, NWS_API_BASE
+            from http_layer.response_parser import (
+                extract_field_value as _extract_field_value,
+                process_item_dict as _process_item_dict,
+                extract_display_values as _extract_display_values,
             )
+            from http_layer.url_builder import (
+                ensure_query_encoded as _ensure_query_encoded,
+                add_default_params as _add_default_params,
+            )
+            from http_layer import make_nws_request, NWS_API_BASE
             self.api_available = True
             self._extract_field_value = _extract_field_value
             self._process_item_dict = _process_item_dict
@@ -247,7 +253,7 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
 
     # --- make_nws_request tests ---
 
-    @patch('service_now_api_oauth.make_oauth_request')
+    @patch('http_layer.request_dispatcher.make_oauth_request')
     async def test_make_nws_request_success(self, mock_oauth_request):
         """Test successful API request includes all default params."""
         if not self.api_available:
@@ -277,7 +283,7 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         }
         self.assertEqual(result, expected)
 
-    @patch('service_now_api_oauth.make_oauth_request')
+    @patch('http_layer.request_dispatcher.make_oauth_request')
     async def test_make_nws_request_encodes_query(self, mock_oauth_request):
         """Test that make_nws_request encodes sysparm_query before sending."""
         if not self.api_available:
@@ -292,7 +298,7 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         self.assertIn("server%20down", called_url)
         self.assertNotIn("server down", called_url)
 
-    @patch('service_now_api_oauth.make_oauth_request')
+    @patch('http_layer.request_dispatcher.make_oauth_request')
     async def test_make_nws_request_http_error(self, mock_oauth_request):
         """Test API request with error returns None."""
         if not self.api_available:
@@ -305,7 +311,7 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
 
         self.assertIsNone(result)
 
-    @patch('service_now_api_oauth.get_oauth_client')
+    @patch('http_layer.request_dispatcher.get_oauth_client')
     async def test_make_nws_request_write_delegates_to_oauth_client(self, mock_get_client):
         """POST/PATCH route through oauth_client with raise_for_status=True."""
         if not self.api_available:
@@ -327,7 +333,7 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
             "POST", url, raise_for_status=True, json=payload
         )
 
-    @patch('service_now_api_oauth.get_oauth_client')
+    @patch('http_layer.request_dispatcher.get_oauth_client')
     async def test_make_nws_request_patch_propagates_status_error(self, mock_get_client):
         """PATCH bubbling HTTPStatusError reaches the caller intact."""
         if not self.api_available:

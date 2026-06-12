@@ -1,7 +1,7 @@
 """Pydantic models and result containers for the filter pipeline."""
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,21 +18,6 @@ class TableFilterParams(BaseModel):
         description="Hard cap on rows returned. Response includes truncated=true when this cap is hit.",
         ge=1,
         le=1000,
-    )
-
-
-class SmartQueryParams(BaseModel):
-    """Parameters for intelligent (NL-parsed) queries."""
-
-    natural_language: str = Field(
-        description="Natural language description of what to find"
-    )
-    table_name: str = Field(description="ServiceNow table to search")
-    context: Optional[Dict[str, Any]] = Field(
-        None, description="Additional context for the query"
-    )
-    include_explanation: bool = Field(
-        True, description="Whether to include explanation in results"
     )
 
 

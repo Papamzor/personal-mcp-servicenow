@@ -1,5 +1,5 @@
 import sys
-from service_now_api_oauth import make_nws_request, NWS_API_BASE
+from http_layer import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 import re
@@ -27,7 +27,6 @@ from constants import (
 from filter import (
     QueryExplainer,
     QueryIntelligence,
-    SmartQueryParams,
     TableFilterParams,
     build_pagination_params,
     build_smart_filter,
@@ -182,9 +181,9 @@ async def find_similar_records(table_name: str, record_number: str) -> dict[str,
     except Exception:
         return {"result": [], "message": CONNECTION_ERROR}
 
-# TableFilterParams + SmartQueryParams moved to filter/models.py in v4.0
-# Sprint 1. Re-exported above via `from filter import ...` so existing
-# imports of these names from this module continue to work.
+# TableFilterParams moved to filter/models.py in v4.0 Sprint 1.
+# Re-exported above via `from filter import ...` so existing imports of
+# the name from this module continue to work.
 
 def _has_operator_in_value(value: str) -> bool:
     """Check if value already contains a comparison operator or ServiceNow text operator."""
@@ -814,7 +813,7 @@ async def query_table_intelligently(
     intelligence_result = build_smart_filter(natural_language_query, table_name, context)
 
     # Separate filters by source for debugging
-    from query_intelligence import QueryIntelligence
+    from filter import QueryIntelligence
     filters_from_nl = QueryIntelligence.parse_natural_language(natural_language_query, table_name).get("filters", {})
     filters_from_context = QueryIntelligence._apply_context_filters(context, table_name) if context else {}
 
@@ -873,9 +872,6 @@ def explain_filter_query(
             "complexity": "Simple" if len(filters) <= 2 else "Complex"
         }
     }
-
-
-# SmartQueryParams moved to filter/models.py (see TableFilterParams note).
 
 
 def build_and_validate_smart_filter(

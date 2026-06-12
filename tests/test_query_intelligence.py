@@ -6,14 +6,14 @@ Target: 85%+ line coverage, 60%+ branch coverage
 import pytest
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
-from query_intelligence import (
+from filter import (
     QueryIntelligence,
     QueryExplainer,
     build_smart_filter,
     explain_existing_filter,
-    get_filter_templates
+    get_filter_templates,
+    QueryValidationResult,
 )
-from query_validation import QueryValidationResult
 
 
 class TestQueryIntelligenceTemplates:
@@ -306,7 +306,7 @@ class TestExclusionPatternParsing:
 class TestNaturalLanguageParsing:
     """Test complete natural language parsing."""
 
-    @patch('query_intelligence.QueryIntelligence._validate_and_improve_filters')
+    @patch('filter.intelligence.QueryIntelligence._validate_and_improve_filters')
     def test_parse_natural_language_with_template(self, mock_validate):
         """Test parsing that matches a template."""
         mock_validate.return_value = QueryValidationResult(is_valid=True)
@@ -322,7 +322,7 @@ class TestNaturalLanguageParsing:
         assert "template_used" in result
         assert result["template_used"] is not None
 
-    @patch('query_intelligence.QueryIntelligence._validate_and_improve_filters')
+    @patch('filter.intelligence.QueryIntelligence._validate_and_improve_filters')
     def test_parse_natural_language_without_template(self, mock_validate):
         """Test parsing without template match."""
         mock_validate.return_value = QueryValidationResult(is_valid=True)
@@ -336,8 +336,8 @@ class TestNaturalLanguageParsing:
         assert "priority" in result["filters"]
         assert result["confidence"] > 0
 
-    @patch('query_intelligence.QueryIntelligence._validate_and_improve_filters')
-    @patch('query_intelligence.extract_keywords')
+    @patch('filter.intelligence.QueryIntelligence._validate_and_improve_filters')
+    @patch('filter.intelligence.extract_keywords')
     def test_parse_natural_language_keyword_fallback(self, mock_keywords, mock_validate):
         """Test keyword fallback when no patterns match."""
         mock_keywords.return_value = ["database"]
@@ -351,7 +351,7 @@ class TestNaturalLanguageParsing:
         assert "filters" in result
         # Should use keyword search as fallback
 
-    @patch('query_intelligence.QueryIntelligence._validate_and_improve_filters')
+    @patch('filter.intelligence.QueryIntelligence._validate_and_improve_filters')
     @patch('Table_Tools.generic_table_tools._parse_date_range_from_text')
     def test_parse_natural_language_with_date_range(self, mock_date_parse, mock_validate):
         """Test parsing with date range."""
@@ -365,7 +365,7 @@ class TestNaturalLanguageParsing:
 
         assert "filters" in result
 
-    @patch('query_intelligence.QueryIntelligence._validate_and_improve_filters')
+    @patch('filter.intelligence.QueryIntelligence._validate_and_improve_filters')
     def test_parse_natural_language_with_exclusion(self, mock_validate):
         """Test parsing with exclusion patterns."""
         mock_validate.return_value = QueryValidationResult(is_valid=True)
@@ -381,7 +381,7 @@ class TestNaturalLanguageParsing:
 class TestFilterValidationAndImprovement:
     """Test filter validation and auto-correction."""
 
-    @patch('query_validation.validate_query_filters')
+    @patch('filter.validator.validate_query_filters')
     def test_validate_priority_comma_correction(self, mock_validate):
         """Test that comma-separated priorities are corrected to OR syntax."""
         mock_validate.return_value = QueryValidationResult(is_valid=True)
@@ -392,7 +392,7 @@ class TestFilterValidationAndImprovement:
         assert result.corrected_filters is not None
         assert "^OR" in result.corrected_filters.get("priority", "")
 
-    @patch('query_validation.validate_query_filters')
+    @patch('filter.validator.validate_query_filters')
     def test_validate_date_time_component_addition(self, mock_validate):
         """Test that time components are added to dates."""
         mock_validate.return_value = QueryValidationResult(is_valid=True)
@@ -403,7 +403,7 @@ class TestFilterValidationAndImprovement:
         # Should add time component
         assert result.corrected_filters is not None
 
-    @patch('query_validation.validate_query_filters')
+    @patch('filter.validator.validate_query_filters')
     def test_validate_correct_filters_unchanged(self, mock_validate):
         """Test that correct filters are not changed."""
         mock_validate.return_value = QueryValidationResult(is_valid=True)
@@ -581,7 +581,7 @@ class TestSQLGeneration:
 class TestIntelligentFilterBuilding:
     """Test the main intelligent filter building function."""
 
-    @patch('query_intelligence.QueryIntelligence._validate_and_improve_filters')
+    @patch('filter.intelligence.QueryIntelligence._validate_and_improve_filters')
     def test_build_intelligent_filter_basic(self, mock_validate):
         """Test basic intelligent filter building."""
         mock_validate.return_value = QueryValidationResult(is_valid=True)
@@ -597,7 +597,7 @@ class TestIntelligentFilterBuilding:
         assert "suggestions" in result
         assert "sql_equivalent" in result
 
-    @patch('query_intelligence.QueryIntelligence._validate_and_improve_filters')
+    @patch('filter.intelligence.QueryIntelligence._validate_and_improve_filters')
     def test_build_intelligent_filter_with_context(self, mock_validate):
         """Test intelligent filter building with context."""
         mock_validate.return_value = QueryValidationResult(is_valid=True)
@@ -753,7 +753,7 @@ class TestResultSizeEstimation:
 class TestConvenienceFunctions:
     """Test convenience wrapper functions."""
 
-    @patch('query_intelligence.QueryIntelligence.build_intelligent_filter')
+    @patch('filter.intelligence.QueryIntelligence.build_intelligent_filter')
     def test_build_smart_filter_wrapper(self, mock_build):
         """Test build_smart_filter convenience function."""
         mock_build.return_value = {"filters": {}, "confidence": 0.8}
@@ -764,7 +764,7 @@ class TestConvenienceFunctions:
         assert mock_build.call_args[0][0] == "test query"
         assert mock_build.call_args[0][1] == "incident"
 
-    @patch('query_intelligence.QueryIntelligence.build_intelligent_filter')
+    @patch('filter.intelligence.QueryIntelligence.build_intelligent_filter')
     def test_build_smart_filter_with_context(self, mock_build):
         """Test build_smart_filter with context."""
         mock_build.return_value = {"filters": {}, "confidence": 0.8}
@@ -775,7 +775,7 @@ class TestConvenienceFunctions:
         assert mock_build.called
         assert mock_build.call_args[0][2] == context
 
-    @patch('query_intelligence.QueryExplainer.explain_filter')
+    @patch('filter.explainer.QueryExplainer.explain_filter')
     def test_explain_existing_filter_wrapper(self, mock_explain):
         """Test explain_existing_filter convenience function."""
         mock_explain.return_value = {"explanation": "test"}
@@ -791,7 +791,7 @@ class TestConvenienceFunctions:
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
-    @patch('query_intelligence.QueryIntelligence._validate_and_improve_filters')
+    @patch('filter.intelligence.QueryIntelligence._validate_and_improve_filters')
     def test_empty_query(self, mock_validate):
         """Test handling of empty query."""
         mock_validate.return_value = QueryValidationResult(is_valid=True)
@@ -799,7 +799,7 @@ class TestEdgeCases:
         result = QueryIntelligence.parse_natural_language("", "incident")
         assert "filters" in result
 
-    @patch('query_intelligence.QueryIntelligence._validate_and_improve_filters')
+    @patch('filter.intelligence.QueryIntelligence._validate_and_improve_filters')
     def test_whitespace_only_query(self, mock_validate):
         """Test handling of whitespace-only query."""
         mock_validate.return_value = QueryValidationResult(is_valid=True)
@@ -807,8 +807,8 @@ class TestEdgeCases:
         result = QueryIntelligence.parse_natural_language("   ", "incident")
         assert "filters" in result
 
-    @patch('query_intelligence.QueryIntelligence._validate_and_improve_filters')
-    @patch('query_intelligence.extract_keywords')
+    @patch('filter.intelligence.QueryIntelligence._validate_and_improve_filters')
+    @patch('filter.intelligence.extract_keywords')
     def test_no_keywords_extracted(self, mock_keywords, mock_validate):
         """Test handling when no keywords can be extracted."""
         mock_keywords.return_value = []

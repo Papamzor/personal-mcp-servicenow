@@ -5,6 +5,44 @@ All notable changes to the Personal MCP ServiceNow project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-06-11
+
+### BREAKING CHANGES
+
+#### v4.0 backwards-compat shims deleted
+
+The four re-export shim modules left in place for one release cycle are now removed:
+`service_now_api_oauth.py`, `oauth_client.py`, `query_validation.py`, `query_intelligence.py`.
+
+**Migration — import from the canonical packages directly:**
+- `from service_now_api_oauth import make_nws_request, NWS_API_BASE, test_oauth_connection, get_auth_info` → `from http_layer import ...`
+- `from oauth_client import ServiceNowOAuthClient, get_oauth_client, make_oauth_request` → `from oauth import ...`
+- `from query_validation import ServiceNowQueryBuilder, validate_query_filters, ...` → `from filter import ...`
+- `from query_intelligence import QueryIntelligence, get_filter_templates, ...` → `from filter import ...`
+
+The process-wide OAuth singleton (`_oauth_client`, `get_oauth_client`, `make_oauth_request`) moved
+from the deleted `oauth_client.py` to `oauth/singleton.py` (re-exported via `oauth/__init__.py`).
+`http_layer/request_dispatcher.py` now imports the singleton at module level; the `sys.modules`-based
+`_resolve_oauth_binding` indirection was removed.
+
+**Test patch-target migration:**
+- `patch("service_now_api_oauth.make_oauth_request")` → `patch("http_layer.request_dispatcher.make_oauth_request")`
+- `patch("service_now_api_oauth.get_oauth_client")` → `patch("http_layer.request_dispatcher.get_oauth_client")`
+- `patch("oauth_client.httpx.AsyncClient")` → `patch("oauth.singleton.httpx.AsyncClient")`
+- `oauth_client._oauth_client = None` → `oauth.singleton._oauth_client = None`
+- `patch("query_intelligence.*")` / `patch("query_validation.*")` → `patch("filter.intelligence.*")` / `patch("filter.validator.*")`
+
+No production behaviour change: the GET read path (encoding + perf params + display flattening) and the
+write path (bypass + `raise_for_status`) are unchanged. Full suite: 662 passed, 5 skipped (pre-existing).
+
+#### SmartQueryParams removed (Sprint 1b)
+
+`filter.SmartQueryParams` deleted — dead code. Defined and exported since v4.0 Sprint 1 but never
+instantiated anywhere (zero call sites, zero tests). The NL query boundary is served by
+`IntelligentQueryParams` in `Table_Tools/intelligent_query_tools.py`; the field-value boundary by
+`filter.TableFilterParams`. The Sprint 1b "merge vs keep" question resolved to neither — the two
+models address different concerns, and the NL one was simply unused.
+
 ## [4.0.0] - 2026-05-20
 
 ### BREAKING CHANGES

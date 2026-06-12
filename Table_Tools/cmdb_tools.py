@@ -5,7 +5,7 @@ ServiceNow CMDB (Configuration Management Database) Tools
 Provides CI discovery, search, and analysis functionality.
 """
 
-from service_now_api_oauth import make_nws_request, NWS_API_BASE
+from http_layer import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 from constants import (

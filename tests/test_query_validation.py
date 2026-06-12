@@ -14,7 +14,7 @@ import pytest
 from typing import Dict, List
 
 # Import the modules under test
-from query_validation import (
+from filter import (
     ServiceNowQueryBuilder,
     QueryValidationResult,
     validate_priority_filter,
