@@ -45,3 +45,4 @@ settings.json
 
 # graphify knowledge graph artifacts
 .graphify_*
+graphify-out/cache/
