@@ -205,11 +205,11 @@ async def search_cis_by_attributes(
     # Build query conditions
     query_parts = []
     if name:
-        query_parts.append(f"nameCONTAINS{name}")
+        query_parts.append(f"nameLIKE{name}")
     if ip_address:
         query_parts.append(f"ip_address={ip_address}")
     if location:
-        query_parts.append(f"locationCONTAINS{location}")
+        query_parts.append(f"locationLIKE{location}")
     if status:
         query_parts.append(f"operational_status={status}")
     
@@ -396,7 +396,7 @@ async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
     try:
         # Try multiple search approaches
         query_parts = [
-            f"nameCONTAINS{search_term}",
+            f"nameLIKE{search_term}",
             f"ip_address={search_term}",
             f"number={search_term}"
         ]

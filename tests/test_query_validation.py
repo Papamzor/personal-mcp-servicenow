@@ -20,12 +20,44 @@ from filter import (
     validate_priority_filter,
     validate_date_range_filter,
     validate_query_filters,
+    validate_reference_field,
     validate_result_count,
     cross_verify_critical_incidents,
     build_pagination_params,
     suggest_query_improvements,
     debug_query_construction
 )
+
+
+class TestReferenceFieldValidation(unittest.TestCase):
+    """validate_reference_field flags bare reference-field display values."""
+
+    def test_bare_reference_value_warns(self):
+        result = validate_reference_field("assignment_group", "SN_FLEET")
+        self.assertTrue(result.has_issues())
+        self.assertTrue(any("assignment_group" in s for s in result.suggestions))
+
+    def test_sys_id_value_is_clean(self):
+        sys_id = "1727339e47d99190c43d3171e36d43ad"
+        result = validate_reference_field("assignment_group", sys_id)
+        self.assertFalse(result.has_issues())
+
+    def test_dotwalked_key_not_flagged(self):
+        # dot-walked keys are not in REFERENCE_FIELDS, so no warning
+        result = validate_reference_field("assignment_group.name", "Fleet")
+        self.assertEqual(result.suggestions, [])
+
+    def test_operator_value_not_flagged(self):
+        result = validate_reference_field("assigned_to", "ISEMPTY")
+        self.assertEqual(result.suggestions, [])
+
+    def test_non_reference_field_ignored(self):
+        result = validate_reference_field("short_description", "anything")
+        self.assertEqual(result.suggestions, [])
+
+    def test_wired_into_validate_query_filters(self):
+        result = validate_query_filters({"assignment_group": "SN_FLEET"})
+        self.assertTrue(any("dot-walk" in s or "sys_id" in s for s in result.suggestions))
 
 
 class TestServiceNowQueryBuilder(unittest.TestCase):
@@ -331,15 +363,15 @@ class TestQueryFiltersValidation(unittest.TestCase):
         self.assertGreaterEqual(len(result.suggestions), 2)
     
     def test_validate_query_filters_other_fields_ignored(self):
-        """Test that validation ignores other fields gracefully."""
+        """Test that validation ignores other (non-validated, non-reference) fields gracefully."""
         filters = {
             "state": "New",
-            "assignment_group": "IT Support",
-            "caller_id": "some_sys_id"
+            "category": "Hardware",
+            "subcategory": "Laptop"
         }
         result = validate_query_filters(filters)
-        
-        # Should not produce warnings for non-validated fields
+
+        # Should not produce warnings for non-validated, non-reference fields
         self.assertEqual(len(result.warnings), 0)
         self.assertTrue(result.is_valid)
 

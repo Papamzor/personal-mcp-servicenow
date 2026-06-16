@@ -128,8 +128,14 @@ async def filter_records(
     """Query a ServiceNow table with field-value filters.
 
     Supports operators via suffix (_gte, _lte, _gt, _lt), ServiceNow
-    text operators (CONTAINS, LIKE, STARTSWITH, etc.), date ranges,
-    priority lists, and OR filters.
+    encoded-query text operators (LIKE, NOT LIKE, STARTSWITH, ENDSWITH,
+    IN, ISEMPTY, BETWEEN, ...), date ranges, priority lists, and OR
+    filters. Use LIKE for substring/"contains" matches — CONTAINS is a
+    GlideRecord-script-only operator and is auto-normalized to LIKE here.
+    Reference fields (assignment_group, assigned_to, caller_id, ...) store
+    sys_ids: filter by sys_id or dot-walk (assignment_group.nameLIKEFleet);
+    a bare display value returns zero rows (the response includes a hint).
+    See get_query_syntax_help for the full operator reference.
 
     TOKEN COST: Low by default — returns only ESSENTIAL_FIELDS (number,
     short_description, priority, state, sys_created_on) unless you pass

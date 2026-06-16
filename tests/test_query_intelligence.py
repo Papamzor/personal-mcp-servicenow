@@ -349,7 +349,12 @@ class TestNaturalLanguageParsing:
         )
 
         assert "filters" in result
-        # Should use keyword search as fallback
+        # Should use keyword search as fallback — value is the operator only
+        # (LIKE = encoded-query "contains"), field supplied by the dict key.
+        # No embedded field prefix, and never the invalid CONTAINS operator.
+        assert result["filters"]["short_description"] == "LIKEdatabase"
+        assert "CONTAINS" not in result["filters"]["short_description"]
+        assert "short_descriptionshort_description" not in result["filters"]["short_description"]
 
     @patch('filter.intelligence.QueryIntelligence._validate_and_improve_filters')
     @patch('Table_Tools.generic_table_tools._parse_date_range_from_text')

@@ -107,7 +107,10 @@ async def query_table_by_text(table_name: str, input_text: str, detailed: bool =
     keywords = extract_keywords(input_text)
 
     for keyword in keywords:
-        query = f"short_descriptionCONTAINS{keyword}"
+        # LIKE is ServiceNow's encoded-query "contains" operator. CONTAINS is a
+        # GlideRecord scripting-only operator and is silently ignored in
+        # sysparm_query strings (returns zero rows), so it must never appear here.
+        query = f"short_descriptionLIKE{keyword}"
         # Apply category filtering for incidents
         query = _apply_incident_category_filter(table_name, query)
         # Apply catalog filtering for service catalog tables
@@ -185,6 +188,41 @@ async def find_similar_records(table_name: str, record_number: str) -> dict[str,
 # Re-exported above via `from filter import ...` so existing imports of
 # the name from this module continue to work.
 
+# ServiceNow encoded-query text/date operators written as a prefix on the value
+# (e.g. "LIKEfoo", "ONLast week", "BETWEENa@b"). These are the operators that are
+# VALID inside a sysparm_query string. CONTAINS / NOTCONTAINS are deliberately
+# absent: they are GlideRecord *scripting* operators, silently ignored in encoded
+# queries, and are rewritten to LIKE / NOT LIKE by `_normalize_operator` before
+# this check runs.
+_SN_PREFIX_OPERATORS = (
+    'NOT LIKE', 'NOTLIKE', 'LIKE', 'STARTSWITH', 'ENDSWITH',
+    'ISNOTEMPTY', 'ISEMPTY', 'BETWEEN', 'SAMEAS', 'NSAMEAS',
+    'INSTANCEOF', 'NOT IN', 'NOTIN', 'ONLAST', 'ONTODAY', 'ON',
+)
+# 'IN' collides with ordinary words ("INTERNAL"). Treat it as an operator only
+# when not followed by another letter, so "IN1,2" and bare "IN" match but
+# "INTERNAL" does not. ('ON' stays a plain prefix above — it legitimately
+# precedes date keywords like "ONToday"/"ONLast week".)
+_SN_AMBIGUOUS_OPERATORS = ('IN',)
+
+
+def _normalize_operator(value: str) -> str:
+    """Rewrite GlideRecord-only operators to their encoded-query equivalents.
+
+    ``CONTAINS`` / ``NOTCONTAINS`` are valid in GlideRecord scripting but NOT in
+    encoded query strings (sysparm_query), where they are silently ignored and
+    return zero rows. The encoded-query equivalents are ``LIKE`` / ``NOT LIKE``.
+    Applied before condition building so a caller-supplied ``"CONTAINSfoo"`` (as
+    the public docstring historically advertised) still works.
+    """
+    if not isinstance(value, str):
+        return value
+    for bad, good in (('NOTCONTAINS', 'NOT LIKE'), ('NOT CONTAINS', 'NOT LIKE'), ('CONTAINS', 'LIKE')):
+        if value.startswith(bad):
+            return good + value[len(bad):]
+    return value
+
+
 def _has_operator_in_value(value: str) -> bool:
     """Check if value already contains a comparison operator or ServiceNow text operator."""
     if not isinstance(value, str):
@@ -193,9 +231,14 @@ def _has_operator_in_value(value: str) -> bool:
     if any(op in value for op in ['>=', '<=', '>', '<', '=', '!=']):
         return True
     # ServiceNow text/date operators that prefix the value (e.g., "ONLast week", "LIKEfoo")
-    sn_operators = ['BETWEEN', 'ONLAST', 'ONTODAY', 'ON', 'LIKE', 'STARTSWITH',
-                    'ENDSWITH', 'ISEMPTY', 'ISNOTEMPTY', 'NOTIN', 'IN', 'NOT IN']
-    return any(value.startswith(op) for op in sn_operators)
+    if any(value.startswith(op) for op in _SN_PREFIX_OPERATORS):
+        return True
+    # Ambiguous 2-letter operators: require the next char to not be a letter so
+    # ordinary words ("INTERNAL", "ONLINE") are not misread as operators.
+    return any(
+        value.startswith(op) and (len(value) == len(op) or not value[len(op)].isalpha())
+        for op in _SN_AMBIGUOUS_OPERATORS
+    )
 
 def _is_complete_servicenow_filter(value: str) -> bool:
     """Check if value is already a complete ServiceNow filter (e.g., priority=1^ORpriority=2).
@@ -534,13 +577,10 @@ _SUFFIX_OPERATORS = (
 
 
 def _handle_suffix_operator_condition(field: str, value: str) -> Optional[str]:
-    """Handle suffix-based operators (foo_gte=5 -> foo>=5) and CONTAINS shorthand."""
+    """Handle suffix-based operators (foo_gte=5 -> foo>=5)."""
     for suffix, operator in _SUFFIX_OPERATORS:
         if field.endswith(suffix):
             return f"{field[:-len(suffix)]}{operator}{value}"
-
-    if 'CONTAINS' in field.upper():
-        return f"{field}"
     return None
 
 
@@ -556,6 +596,10 @@ def _build_query_condition(field: str, value: str) -> str:
         return _handle_complete_query_condition(value)
     if field == "_complete_caller_exclusion":
         return value  # Already in complete ServiceNow format
+
+    # Rewrite GlideRecord-only operators (CONTAINS/NOTCONTAINS) to their
+    # encoded-query equivalents (LIKE/NOT LIKE) before any handler runs.
+    value = _normalize_operator(value)
 
     # Condition handler registry ordered by specificity
     condition_handlers = [
@@ -667,6 +711,7 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
     fields = params.fields or ESSENTIAL_FIELDS.get(table_name, ["number", "short_description"])
 
     # Validate filters before making request
+    validation_result = None
     if params.filters:
         validation_result = validate_query_filters(params.filters)
         if validation_result.has_issues():
@@ -703,13 +748,19 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
             "max_results": max_results,
         }
 
-    return {
+    empty_response = {
         "result": [],
         "message": NO_RECORDS_FOUND,
         "returned_count": 0,
         "truncated": False,
         "max_results": max_results,
     }
+    # Surface validation suggestions (e.g. reference-field dot-walk hint) on an
+    # empty result so the caller can tell a genuine no-match from a silent
+    # query-syntax mistake. Warnings here previously only went to stderr.
+    if validation_result and validation_result.suggestions:
+        empty_response["suggestions"] = validation_result.suggestions
+    return empty_response
 
 
 def _determine_filter_sources(
@@ -779,11 +830,11 @@ def _build_fallback_response(
             "confidence": 0.3,
             "suggestions": ["Try being more specific with priorities, dates, or states"],
             "template_used": None,
-            "sql_equivalent": f"SELECT * FROM {table_name} WHERE short_description CONTAINS '{natural_language_query}'",
-            "filters_used": {"short_description": f"short_descriptionCONTAINS{natural_language_query}"},
+            "sql_equivalent": f"SELECT * FROM {table_name} WHERE short_description LIKE '%{natural_language_query}%'",
+            "filters_used": {"short_description": f"short_descriptionLIKE{natural_language_query}"},
             "filter_sources": {"short_description": "fallback"},
             "debug": {
-                "encoded_query_sent_to_servicenow": f"short_descriptionCONTAINS{natural_language_query}",
+                "encoded_query_sent_to_servicenow": f"short_descriptionLIKE{natural_language_query}",
                 "context_received": context,
                 "filters_from_context": {},
                 "filters_from_nl": {},

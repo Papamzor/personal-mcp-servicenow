@@ -9,6 +9,7 @@ each ``print`` call is explicitly routed to ``sys.stderr``.
 Excluded paths:
 - ``.venv/``, ``graphify-out/``, ``docs/``, ``tests/`` — not in the server runtime
 - ``scripts/`` — local benchmarking/utility scripts
+- hidden/cache files (name starts with ``.``, e.g. ``.graphify_*.py``) — generated artifacts, not runtime modules
 - ``nuitka_build.py`` — build harness
 - ``personal_mcp_servicenow_main.py`` — CLI setup wizard, runs before stdio takeover
 """
@@ -67,6 +68,9 @@ def _iter_runtime_modules() -> List[Path]:
     for path in REPO_ROOT.rglob("*.py"):
         rel = path.relative_to(REPO_ROOT)
         if any(part in EXCLUDED_DIRS for part in rel.parts):
+            continue
+        # Hidden / generated cache files (e.g. .graphify_*.py) are not runtime modules.
+        if any(part.startswith(".") for part in rel.parts):
             continue
         if rel.name in EXCLUDED_FILES:
             continue
