@@ -194,8 +194,9 @@ async def find_similar_records(table_name: str, record_number: str) -> dict[str,
 # absent: they are GlideRecord *scripting* operators, silently ignored in encoded
 # queries, and are rewritten to LIKE / NOT LIKE by `_normalize_operator` before
 # this check runs.
+_OP_NOT_LIKE = 'NOT LIKE'
 _SN_PREFIX_OPERATORS = (
-    'NOT LIKE', 'NOTLIKE', 'LIKE', 'STARTSWITH', 'ENDSWITH',
+    _OP_NOT_LIKE, 'NOTLIKE', 'LIKE', 'STARTSWITH', 'ENDSWITH',
     'ISNOTEMPTY', 'ISEMPTY', 'BETWEEN', 'SAMEAS', 'NSAMEAS',
     'INSTANCEOF', 'NOT IN', 'NOTIN', 'ONLAST', 'ONTODAY', 'ON',
 )
@@ -217,7 +218,7 @@ def _normalize_operator(value: str) -> str:
     """
     if not isinstance(value, str):
         return value
-    for bad, good in (('NOTCONTAINS', 'NOT LIKE'), ('NOT CONTAINS', 'NOT LIKE'), ('CONTAINS', 'LIKE')):
+    for bad, good in (('NOTCONTAINS', _OP_NOT_LIKE), ('NOT CONTAINS', _OP_NOT_LIKE), ('CONTAINS', 'LIKE')):
         if value.startswith(bad):
             return good + value[len(bad):]
     return value
