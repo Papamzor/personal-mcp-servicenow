@@ -88,6 +88,18 @@ def _apply_sc_catalog_filter(table_name: str, existing_query: str = "") -> str:
     return _append_to_query(existing_query, "^".join(exclusion_filters))
 
 
+def _apply_domain_filters(table_name: str, query: str) -> str:
+    """Apply both category (incident) and catalog (sc_*) exclusion filters.
+
+    Single entry point for the table-specific exclusion policy so query paths
+    don't repeat the incident-then-catalog pair. Each underlying filter is a
+    no-op for tables it doesn't apply to.
+    """
+    query = _apply_incident_category_filter(table_name, query)
+    query = _apply_sc_catalog_filter(table_name, query)
+    return query
+
+
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any]:
     """Generic function to query any ServiceNow table by text similarity.
 
@@ -109,8 +121,7 @@ async def query_table_by_text(table_name: str, input_text: str, detailed: bool =
     # "(descLIKEa OR descLIKEb) AND category!=X" — match any keyword while
     # still excluding sensitive categories.
     query = "^OR".join(f"short_descriptionLIKE{keyword}" for keyword in keywords)
-    query = _apply_incident_category_filter(table_name, query)
-    query = _apply_sc_catalog_filter(table_name, query)
+    query = _apply_domain_filters(table_name, query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}"
     # Single paginated request; text searches capped at 50 results.
     all_results = await _make_paginated_request(base_url, max_results=50)
@@ -128,10 +139,7 @@ async def query_table_by_text(table_name: str, input_text: str, detailed: bool =
 async def get_record_description(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get short_description for any record."""
     query = f"number={record_number}"
-    # Apply category filtering for incidents
-    query = _apply_incident_category_filter(table_name, query)
-    # Apply catalog filtering for service catalog tables
-    query = _apply_sc_catalog_filter(table_name, query)
+    query = _apply_domain_filters(table_name, query)
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query={query}"
     data = await make_nws_request(url)
     return data if data else {"result": [], "message": RECORD_NOT_FOUND}
@@ -140,10 +148,7 @@ async def get_record_details(table_name: str, record_number: str) -> dict[str, A
     """Generic function to get detailed information for any record."""
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
     query = f"number={record_number}"
-    # Apply category filtering for incidents
-    query = _apply_incident_category_filter(table_name, query)
-    # Apply catalog filtering for service catalog tables
-    query = _apply_sc_catalog_filter(table_name, query)
+    query = _apply_domain_filters(table_name, query)
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}&sysparm_display_value=true"
     data = await make_nws_request(url)
     return data if data else {"result": [], "message": RECORD_NOT_FOUND}
@@ -709,10 +714,7 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
             print(f"[generic_table_tools] Query validation warnings: {validation_result.warnings}", file=sys.stderr)
 
     query_string = _build_query_string(params.filters)
-    # Apply category filtering for incidents
-    query_string = _apply_incident_category_filter(table_name, query_string)
-    # Apply catalog filtering for service catalog tables
-    query_string = _apply_sc_catalog_filter(table_name, query_string)
+    query_string = _apply_domain_filters(table_name, query_string)
     encoded_query = _encode_query_string(query_string)
 
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
@@ -1045,8 +1047,7 @@ async def get_records_by_priority(
     filters = [priority_filter] + _build_additional_filters(additional_filters)
 
     final_query = "^".join(filters)
-    final_query = _apply_incident_category_filter(table_name, final_query)
-    final_query = _apply_sc_catalog_filter(table_name, final_query)
+    final_query = _apply_domain_filters(table_name, final_query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
 
     if final_query:
@@ -1075,10 +1076,7 @@ async def query_table_with_generic_filters(
         filter_parts.append(_build_query_condition(field, value))
 
     query = "^".join(filter_parts)
-    # Apply category filtering for incidents
-    query = _apply_incident_category_filter(table_name, query)
-    # Apply catalog filtering for service catalog tables
-    query = _apply_sc_catalog_filter(table_name, query)
+    query = _apply_domain_filters(table_name, query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
 
     if query:

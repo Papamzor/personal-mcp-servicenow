@@ -14,6 +14,9 @@ from constants import (
     ERROR_KB_ARTICLE_SERVER_ERROR,
     ERROR_KB_PUBLISH_NOT_CONFIRMED,
     KB_WRITE_RESPONSE_FIELDS,
+    KB_META_FIELDS,
+    KB_DEDUP_FIELDS,
+    KB_VERIFY_FIELDS,
     KB_DUPLICATE_IGNORED_STATES,
     KB_PUBLISH_TIMEOUT_SECONDS,
     KB_VERIFY_DELAY_SECONDS,
@@ -81,7 +84,7 @@ async def _get_kb_article_meta(article_number: str, workflow_state: str | None =
         query += f"^workflow_state={workflow_state}"
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
-        f"?sysparm_fields=sys_id,short_description"
+        f"?sysparm_fields={','.join(KB_META_FIELDS)}"
         f"&sysparm_query={query}"
     )
     data = await make_nws_request(url)
@@ -101,7 +104,7 @@ async def _check_kb_duplicates(short_description: str, exclude_number: str) -> l
     """
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
-        f"?sysparm_fields=number,short_description,workflow_state,sys_created_on,kb_category"
+        f"?sysparm_fields={','.join(KB_DEDUP_FIELDS)}"
         f"&sysparm_query=short_descriptionLIKE{short_description}"
     )
     data = await make_nws_request(url)
@@ -149,7 +152,7 @@ async def _verify_kb_published(article_number: str) -> Dict[str, Any] | None:
     query = f"number={article_number}^workflow_state={KB_PUBLISHED_STATE}"
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
-        f"?sysparm_fields=sys_id,number,workflow_state,short_description"
+        f"?sysparm_fields={','.join(KB_VERIFY_FIELDS)}"
         f"&sysparm_query={query}"
     )
     data = await make_nws_request(url)
