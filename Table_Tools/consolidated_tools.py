@@ -2,7 +2,7 @@
 Consolidated tools with unique logic that cannot be replaced by generic wrappers.
 
 Kept:
-- Priority incidents (complex date logic, metadata, convenience helpers)
+- Priority incidents (complex date logic, metadata)
 - Knowledge-specific tools (category/kb_base filtering, active articles)
 - SLA tools (each has specialised query patterns)
 - Helper functions used by the above
@@ -21,11 +21,6 @@ from .date_utils import (
     validate_date_format,
     build_date_filter,
     build_last_n_days_filter,
-    get_current_month_range,
-    get_last_n_days_range,
-    get_this_week_range,
-    get_today_range,
-    get_yesterday_range
 )
 from typing import Any, Dict, Optional, List
 from constants import TABLE_ERROR_MESSAGES, TASK_NUMBER_FIELD
@@ -183,72 +178,6 @@ def _build_priority_result_message(
 
 
 # Convenience helper functions for common date range queries
-
-async def get_priority_incidents_current_month(
-    priorities: List[str],
-    additional_filters: Optional[Dict[str, Any]] = None,
-    include_metadata: bool = False
-) -> Dict[str, Any]:
-    """Get priority incidents for the current calendar month."""
-    start_date, end_date = get_current_month_range()
-    return await get_priority_incidents(
-        priorities, start_date=start_date, end_date=end_date,
-        additional_filters=additional_filters, include_metadata=include_metadata
-    )
-
-
-async def get_priority_incidents_last_n_days(
-    priorities: List[str],
-    days: int = 7,
-    additional_filters: Optional[Dict[str, Any]] = None,
-    include_metadata: bool = False
-) -> Dict[str, Any]:
-    """Get priority incidents from the last N days (including today)."""
-    start_date, end_date = get_last_n_days_range(days)
-    return await get_priority_incidents(
-        priorities, start_date=start_date, end_date=end_date,
-        additional_filters=additional_filters, include_metadata=include_metadata
-    )
-
-
-async def get_priority_incidents_this_week(
-    priorities: List[str],
-    additional_filters: Optional[Dict[str, Any]] = None,
-    include_metadata: bool = False
-) -> Dict[str, Any]:
-    """Get priority incidents for the current week (Monday to Sunday)."""
-    start_date, end_date = get_this_week_range()
-    return await get_priority_incidents(
-        priorities, start_date=start_date, end_date=end_date,
-        additional_filters=additional_filters, include_metadata=include_metadata
-    )
-
-
-async def get_priority_incidents_yesterday(
-    priorities: List[str],
-    additional_filters: Optional[Dict[str, Any]] = None,
-    include_metadata: bool = False
-) -> Dict[str, Any]:
-    """Get priority incidents from yesterday only."""
-    start_date, end_date = get_yesterday_range()
-    return await get_priority_incidents(
-        priorities, start_date=start_date, end_date=end_date,
-        additional_filters=additional_filters, include_metadata=include_metadata
-    )
-
-
-async def get_priority_incidents_today(
-    priorities: List[str],
-    additional_filters: Optional[Dict[str, Any]] = None,
-    include_metadata: bool = False
-) -> Dict[str, Any]:
-    """Get priority incidents from today."""
-    start_date, end_date = get_today_range()
-    return await get_priority_incidents(
-        priorities, start_date=start_date, end_date=end_date,
-        additional_filters=additional_filters, include_metadata=include_metadata
-    )
-
 
 # ---------------------------------------------------------------------------
 # Knowledge-specific tools (unique params / logic)

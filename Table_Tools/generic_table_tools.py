@@ -3,7 +3,6 @@ from http_layer import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 import re
-from contextlib import contextmanager
 from constants import (
     ESSENTIAL_FIELDS,
     DETAIL_FIELDS,
@@ -35,18 +34,6 @@ from filter import (
     validate_query_filters,
     validate_result_count,
 )
-
-
-@contextmanager
-def timeout_protection(seconds=2):
-    """Context manager to protect against long-running regex operations.
-    
-    Windows-compatible version that doesn't use signals.
-    Uses input length validation instead of timeout.
-    """
-    # Simple length check to prevent ReDoS attacks
-    # Most legitimate date strings are under 100 characters
-    yield
 
 
 def _validate_regex_input(text: str) -> bool:
@@ -385,36 +372,26 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
 
     Complexity: 8 (reduced from ~30-35)
     """
-    # Security Fix #1 & #4: Pre-validate input to prevent ReDoS attacks
+    # Pre-validate input length/shape to prevent ReDoS attacks before any regex runs.
     if not _validate_regex_input(text):
         return None
 
     text = text.lower().strip()
 
-    try:
-        # Security Fix #3: Timeout protection for regex operations
-        with timeout_protection(seconds=2):
-            # Date parser registry - try each parser in sequence
-            parsers = [
-                _parse_week_format,
-                _parse_month_range_format,
-                _parse_iso_date_range,
-                _parse_cross_month_range,
-                _parse_between_format,
-                _parse_year_at_end_format
-            ]
-
-            # Try each parser until one succeeds
-            for parser in parsers:
-                result = parser(text)
-                if result:
-                    return result
-
-            return None
-
-    except TimeoutError:
-        # Regex operation timed out - likely ReDoS attack
-        return None
+    # Date parser registry - try each parser in sequence until one succeeds.
+    parsers = [
+        _parse_week_format,
+        _parse_month_range_format,
+        _parse_iso_date_range,
+        _parse_cross_month_range,
+        _parse_between_format,
+        _parse_year_at_end_format,
+    ]
+    for parser in parsers:
+        result = parser(text)
+        if result:
+            return result
+    return None
 
 def _normalize_priority_value(priority: str) -> str:
     """Convert P-notation to number (e.g., 'P1' -> '1', '2' -> '2')."""
