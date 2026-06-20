@@ -6,6 +6,7 @@ Provides CI discovery, search, and analysis functionality.
 """
 
 import asyncio
+from urllib.parse import quote
 from http_layer import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
@@ -203,16 +204,19 @@ async def search_cis_by_attributes(
     table = ci_type if ci_type and ci_type in CI_TABLES else "cmdb_ci"
     fields = DETAILED_CI_FIELDS if detailed else ESSENTIAL_CI_FIELDS
     
-    # Build query conditions
+    # Build query conditions. User values are percent-encoded (safe='') so
+    # structural characters (#, +, %, ?, ...) in a name/location don't corrupt
+    # the sysparm_query. (Operator chars in the locked encode safe-set —
+    # & ^ = etc. — still pass through and remain unsupported inside values.)
     query_parts = []
     if name:
-        query_parts.append(f"nameLIKE{name}")
+        query_parts.append(f"nameLIKE{quote(name, safe='')}")
     if ip_address:
-        query_parts.append(f"ip_address={ip_address}")
+        query_parts.append(f"ip_address={quote(ip_address, safe='')}")
     if location:
-        query_parts.append(f"locationLIKE{location}")
+        query_parts.append(f"locationLIKE{quote(location, safe='')}")
     if status:
-        query_parts.append(f"operational_status={status}")
+        query_parts.append(f"operational_status={quote(status, safe='')}")
     
     query_string = "^".join(query_parts)
     
@@ -412,13 +416,15 @@ async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
         Dictionary with CI results or error string
     """
     try:
-        # Try multiple search approaches
+        # Try multiple search approaches. Percent-encode the term so special
+        # characters in it don't corrupt the sysparm_query structure.
+        safe_term = quote(search_term, safe='')
         query_parts = [
-            f"nameLIKE{search_term}",
-            f"ip_address={search_term}",
-            f"number={search_term}"
+            f"nameLIKE{safe_term}",
+            f"ip_address={safe_term}",
+            f"number={safe_term}"
         ]
-        
+
         query_string = "^OR".join(query_parts)
         url = f"{NWS_API_BASE}/api/now/table/cmdb_ci?sysparm_fields={','.join(ESSENTIAL_CI_FIELDS)}&sysparm_query={query_string}&sysparm_display_value=true&sysparm_limit=50"
         data = await make_nws_request(url)
