@@ -102,29 +102,39 @@ def _apply_sc_catalog_filter(table_name: str, existing_query: str = "") -> str:
 
 
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any]:
-    """Generic function to query any ServiceNow table by text similarity."""
+    """Generic function to query any ServiceNow table by text similarity.
+
+    Builds ONE OR-combined query across every extracted keyword
+    (``short_descriptionLIKEa^ORshort_descriptionLIKEb``) so a single request
+    matches any keyword — replacing the old per-keyword sequential request
+    loop (N round-trips, single-keyword recall). LIKE is ServiceNow's
+    encoded-query "contains" operator; CONTAINS is GlideRecord scripting-only
+    and is silently ignored in sysparm_query strings (returns zero rows), so
+    it must never appear here.
+    """
     fields = DETAIL_FIELDS[table_name] if detailed else ESSENTIAL_FIELDS[table_name]
     keywords = extract_keywords(input_text)
+    if not keywords:
+        return {"result": [], "message": NO_RECORDS_FOUND}
 
-    for keyword in keywords:
-        # LIKE is ServiceNow's encoded-query "contains" operator. CONTAINS is a
-        # GlideRecord scripting-only operator and is silently ignored in
-        # sysparm_query strings (returns zero rows), so it must never appear here.
-        query = f"short_descriptionLIKE{keyword}"
-        # Apply category filtering for incidents
-        query = _apply_incident_category_filter(table_name, query)
-        # Apply catalog filtering for service catalog tables
-        query = _apply_sc_catalog_filter(table_name, query)
-        base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}"
-        # Use pagination to limit results for text searches
-        all_results = await _make_paginated_request(base_url, max_results=50)  # Limit text searches to 50 results
+    # OR-group the keyword conditions first. ServiceNow closes a ^OR run at the
+    # next plain ^, so appending the category/catalog exclusions below yields
+    # "(descLIKEa OR descLIKEb) AND category!=X" — match any keyword while
+    # still excluding sensitive categories.
+    query = "^OR".join(f"short_descriptionLIKE{keyword}" for keyword in keywords)
+    query = _apply_incident_category_filter(table_name, query)
+    query = _apply_sc_catalog_filter(table_name, query)
+    base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}"
+    # Single paginated request; text searches capped at 50 results.
+    all_results = await _make_paginated_request(base_url, max_results=50)
 
-        if all_results:
-            result_count = len(all_results)
-            return {
-                "result": all_results,
-                "message": f"Found {result_count} records matching '{keyword}'" + (" (limited to 50)" if result_count == 50 else "")
-            }
+    if all_results:
+        result_count = len(all_results)
+        limit_note = " (limited to 50)" if result_count == 50 else ""
+        return {
+            "result": all_results,
+            "message": f"Found {result_count} records matching '{input_text}'{limit_note}",
+        }
     # Return consistent dict format for no results
     return {"result": [], "message": NO_RECORDS_FOUND}
 
