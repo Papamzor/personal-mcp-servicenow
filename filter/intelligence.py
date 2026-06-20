@@ -20,6 +20,14 @@ from filter.validator import validate_and_correct_filters
 PRIORITY_P1_P2_OR = "priority=1^ORpriority=2"
 STATE_EXCLUDE_RESOLVED = "state!=6^state!=7^state!=8"
 
+# Standalone patterns compiled once (the dict-keyed LANGUAGE_PATTERNS /
+# template patterns rely on re's internal compile cache instead).
+_EXCLUSION_RE = re.compile(
+    r"\b(exclud(?:e|ing)|not|without)\s+(caller|reporter|assignee|user)\s+([\w\s]+)",
+    re.IGNORECASE,
+)
+_DAYS_AGO_RE = re.compile(r"daysAgoStart\((\d+)\)")
+
 
 class QueryIntelligence:
     """Smart query building and validation for ServiceNow filters."""
@@ -167,8 +175,7 @@ class QueryIntelligence:
     @classmethod
     def _parse_exclusion_patterns(cls, query_lower: str) -> Optional[Dict[str, Any]]:
         """Parse exclusion patterns and return exclusion filters."""
-        exclusion_pattern = r"\b(exclud(?:e|ing)|not|without)\s+(caller|reporter|assignee|user)\s+([\w\s]+)"
-        exclusion_match = re.search(exclusion_pattern, query_lower, re.IGNORECASE)
+        exclusion_match = _EXCLUSION_RE.search(query_lower)
 
         if not exclusion_match:
             return None
@@ -402,7 +409,7 @@ class QueryIntelligence:
         if "Last week" in value:
             return "Created last week"
         if "daysAgoStart" in value:
-            days = re.search(r"daysAgoStart\((\d+)\)", value)
+            days = _DAYS_AGO_RE.search(value)
             if days:
                 return f"Created in last {days.group(1)} days"
             return f"Created: {value}"

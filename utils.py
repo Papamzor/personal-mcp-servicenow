@@ -10,6 +10,9 @@ _SERVICENOW_RECORD_PATTERNS = [
     re.compile(r'\bvtb\d+\b', re.IGNORECASE)
 ]
 
+# Content keywords: words of 4+ letters (compiled once, used on every search).
+_CONTENT_KEYWORD_PATTERN = re.compile(r'\b[a-zA-Z]{4,}\b')
+
 # Common stop words to filter out
 _STOP_WORDS = {
     'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 
@@ -53,8 +56,8 @@ def _extract_record_numbers(text: str) -> List[str]:
 
 def _extract_content_keywords(text: str, max_keywords: int) -> List[str]:
     """Extract content keywords using basic text processing."""
-    # Split into words and filter
-    words = re.findall(r'\b[a-zA-Z]{4,}\b', text)  # Words 4+ chars, letters only
+    # Split into words and filter (4+ chars, letters only)
+    words = _CONTENT_KEYWORD_PATTERN.findall(text)
     
     # Filter out stop words and convert to lowercase
     keywords = [

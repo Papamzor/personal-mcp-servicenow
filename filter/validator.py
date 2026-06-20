@@ -79,7 +79,7 @@ def validate_priority_filter(priority_value: str) -> QueryValidationResult:
             f"Priority filter '{priority_value}' uses comma syntax instead of OR"
         )
         result.add_suggestion(
-            "For multiple priorities, use: 'priority=1^ORpriority=2' instead of comma-separated values"
+            "Use OR syntax: priority=1^ORpriority=2 (not comma-separated)"
         )
 
     if _has_or_format_issue(priority_value, has_or_syntax):
@@ -95,7 +95,7 @@ def validate_priority_filter(priority_value: str) -> QueryValidationResult:
 
     if _should_suggest_numeric_format(has_text_format, has_numeric):
         result.add_suggestion(
-            "Consider using numeric priority format (1, 2, 3) for better compatibility"
+            "Use numeric priority format (1, 2, 3)"
         )
 
     return result
@@ -302,10 +302,8 @@ def suggest_query_improvements(
         suggestions.append("Verify caller_id exclusions are not too restrictive")
 
     if "priority" in filters and result_count < 3:
-        suggestions.append("Consider using OR syntax: 'priority=1^ORpriority=2'")
-        suggestions.append(
-            "Check if priority values are numeric (1, 2) vs text ('1 - Critical')"
-        )
+        suggestions.append("Use OR syntax: priority=1^ORpriority=2")
+        suggestions.append("Use numeric priorities (1, 2), not text like '1 - Critical'")
 
     if result_count > 1000:
         suggestions.append("Consider adding more specific filters to reduce result set")
