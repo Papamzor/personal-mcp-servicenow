@@ -5,6 +5,7 @@ ServiceNow CMDB (Configuration Management Database) Tools
 Provides CI discovery, search, and analysis functionality.
 """
 
+import asyncio
 from http_layer import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
@@ -236,44 +237,61 @@ async def search_cis_by_attributes(
     except Exception:
         return ERROR_SEARCHING_CIS
 
+async def _probe_ci_table(table: str, ci_number: str) -> Optional[Dict[str, Any]]:
+    """Fetch a CI by number from one table; return the first row or None."""
+    url = f"{NWS_API_BASE}/api/now/table/{table}?sysparm_fields={','.join(DETAILED_CI_FIELDS)}&sysparm_query=number={ci_number}&sysparm_display_value=true"
+    try:
+        data = await make_nws_request(url)
+    except Exception:
+        return None
+    if data and data.get('result'):
+        return data['result'][0]
+    return None
+
+
 async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[str, Any] | str:
     """
     Get comprehensive details for a specific Configuration Item.
-    
+
     Args:
         ci_number: CI number (e.g., CI0001000)
         ci_type: Specific CI table to search in (optional, searches all if not provided)
-    
+
     Returns:
         Dictionary with detailed CI information or error string
+
+    When ci_type is not given, the candidate tables are probed concurrently
+    (bounded) instead of one-at-a-time; the most-specific-first priority is
+    preserved by returning the first table (in order) that yields a row.
     """
     if not ci_number:
         return "CI number is required"
-    
+
     # If CI type is specified, search in that table only
     if ci_type and ci_type in CI_TABLES:
         tables_to_search = [ci_type]
     else:
-        # Search in common CI tables, starting with most specific
+        # Search in common CI tables, ordered most-specific first
         tables_to_search = [
             "cmdb_ci_server", "cmdb_ci_computer", "cmdb_ci_database",
             "cmdb_ci_hardware", "cmdb_ci_network_gear", "cmdb_ci_service", "cmdb_ci"
         ]
-    
-    for table in tables_to_search:
-        try:
-            url = f"{NWS_API_BASE}/api/now/table/{table}?sysparm_fields={','.join(DETAILED_CI_FIELDS)}&sysparm_query=number={ci_number}&sysparm_display_value=true"
-            data = await make_nws_request(url)
-            
-            if data and data.get('result') and len(data['result']) > 0:
-                return {
-                    "ci_table": table,
-                    "ci_number": ci_number,
-                    "result": data['result'][0]
-                }
-        except Exception:
-            continue
-    
+
+    semaphore = asyncio.Semaphore(3)
+
+    async def _bounded(table: str) -> Optional[Dict[str, Any]]:
+        async with semaphore:
+            return await _probe_ci_table(table, ci_number)
+
+    rows = await asyncio.gather(*(_bounded(table) for table in tables_to_search))
+    for table, row in zip(tables_to_search, rows):
+        if row:
+            return {
+                "ci_table": table,
+                "ci_number": ci_number,
+                "result": row,
+            }
+
     return CI_NOT_FOUND.format(ci_number=ci_number)
 
 def _extract_ci_search_attributes(ci_data: Dict, ci_table: str) -> Dict[str, str]:
