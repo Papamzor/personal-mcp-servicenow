@@ -25,13 +25,12 @@ import os
 import sys
 from typing import Any, Optional
 
-from dotenv import load_dotenv
-
 from http_layer.response_parser import extract_display_values
 from http_layer.url_builder import add_default_params, ensure_query_encoded
 from oauth.singleton import get_oauth_client, make_oauth_request
 
-load_dotenv()
+# .env is loaded once by oauth/client.py — imported above via oauth.singleton —
+# before this line reads the environment, so no duplicate load_dotenv() here.
 SERVICENOW_INSTANCE = os.getenv("SERVICENOW_INSTANCE")
 NWS_API_BASE = SERVICENOW_INSTANCE
 
