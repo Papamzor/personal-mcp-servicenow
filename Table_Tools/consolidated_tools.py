@@ -119,38 +119,18 @@ async def get_priority_incidents(
     """
     Get incidents by priority with optional date range filtering.
 
-    Uses simple >= and <= operators for date filtering instead of
-    JavaScript-based date functions for improved reliability.
+    Uses simple >= / <= date operators (not JavaScript date functions) for
+    reliability.
 
     Args:
-        priorities: List of priority values (e.g., ["1", "2"] or ["P1", "P2"])
-        start_date: Optional start date (format: "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS")
-        end_date: Optional end date (format: "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS")
-        additional_filters: Optional dict of additional field filters
-        include_metadata: If True, return enhanced response with metadata
-        **deprecated_kwargs: Deprecated - use additional_filters instead
+        priorities: Priority values, e.g. ["1","2"] or ["P1","P2"]
+        start_date: Optional "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS"
+        end_date: Optional, same formats as start_date
+        additional_filters: Optional dict of extra field filters
+        include_metadata: If True, include a metadata block in the response
 
     Returns:
-        Dict with "result" list and optionally "metadata" if include_metadata=True
-
-    Examples:
-        # Basic priority query
-        >>> await get_priority_incidents(["1", "2"])
-
-        # With date range
-        >>> await get_priority_incidents(
-        ...     ["1", "2"],
-        ...     start_date="2026-01-01",
-        ...     end_date="2026-01-28"
-        ... )
-
-        # With additional filters and metadata
-        >>> await get_priority_incidents(
-        ...     ["1", "2"],
-        ...     start_date="2026-01-01",
-        ...     additional_filters={"state": "New"},
-        ...     include_metadata=True
-        ... )
+        Dict with "result" list (+ "metadata" when include_metadata=True)
     """
     query_timestamp = datetime.now(timezone.utc).isoformat()
 
@@ -356,28 +336,23 @@ async def get_kb_articles_by_state(
 ) -> Dict[str, Any]:
     """List kb_knowledge articles de-duplicated by article number.
 
-    ServiceNow KB versioning surfaces the same article number across several
-    workflow states (publish creates a new sys_id and leaves the prior row as
-    `outdated`). The generic `filter_records` tool exposes this raw — useful
-    for some callers, painful for bulk state assessment. This tool collapses
-    the raw rows: one entry per number, with `current_state` set to the
-    highest-priority row found and `version_count` reflecting how many raw
-    rows exist for that number.
-
-    Priority order (highest first): published > draft > review > outdated > retired.
+    ServiceNow KB versioning surfaces one article number across several
+    workflow states (publish creates a new sys_id and marks the prior row
+    `outdated`). This collapses them to one entry per number: `current_state`
+    is the highest-priority state found, `version_count` the raw-row count.
+    Priority (highest first): published > draft > review > outdated > retired.
 
     Args:
-        workflow_state: Optional canonical-state filter applied AFTER de-duplication.
-            E.g. `workflow_state="published"` returns only numbers whose live
-            version is currently published.
-        category: Optional kb_category filter (applied server-side).
-        kb_base: Optional kb_knowledge_base filter (applied server-side).
-        max_results: Max raw rows fetched from ServiceNow (default 100, max 1000).
-            De-duplicated output can be smaller; `truncated` reflects the raw fetch.
+        workflow_state: Optional canonical-state filter applied AFTER dedup
+            (e.g. "published" → numbers whose live version is published).
+        category: Optional kb_category filter (server-side).
+        kb_base: Optional kb_knowledge_base filter (server-side).
+        max_results: Max raw rows fetched (default 100, max 1000); `truncated`
+            reflects the raw fetch, deduped output may be smaller.
 
     Returns:
-        {"result": [{"number", "sys_id", "short_description", "current_state",
-                     "version_count", "kb_category", "sys_updated_on"}, ...],
+        {"result": [{"number","sys_id","short_description","current_state",
+                     "version_count","kb_category","sys_updated_on"}, ...],
          "returned_count": N, "truncated": bool}
     """
     filters: Dict[str, str] = {}
@@ -549,23 +524,19 @@ async def query_slas_by_status(
     """Query SLA records by a named status preset.
 
     Args:
-        status: one of "active", "breached", "breaching", "critical",
-            "by_stage", "performance":
+        status: one of:
             - active:      currently active SLAs.
-            - breached:    SLAs that have already breached. `days` widens the
+            - breached:    already-breached SLAs; `days` widens the
                            sys_created_on window (default 7).
-            - breaching:   active SLAs at risk of breaching within
-                           `threshold_minutes` (default 60).
-            - critical:    high-priority (P1/P2) active SLAs >80% consumed.
-                           Returns a curated 7-field dashboard view.
-            - by_stage:    filter by `stage` (e.g. "in_progress",
-                           "completed"). Requires the `stage` argument.
-            - performance: last-N-days SLA performance metrics with a curated
-                           11-field view (default 30 days).
+            - breaching:   active SLAs breaching within `threshold_minutes`
+                           (default 60).
+            - critical:    P1/P2 active SLAs >80% consumed; curated 7-field view.
+            - by_stage:    filter by `stage` (requires the `stage` arg).
+            - performance: last-N-days metrics, curated 11-field view (default 30d).
         extra_filters: optional dict merged on top of the preset's filters.
 
     Returns:
-        Dict in the same shape as the v3 SLA tools (`{"result": [...]}`).
+        Dict shaped like the v3 SLA tools (`{"result": [...]}`).
     """
     filters, fields = _build_sla_status_filter(
         status,

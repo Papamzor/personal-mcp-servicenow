@@ -71,25 +71,20 @@ async def get_record_summary(table: str, number: str) -> Dict[str, Any]:
 async def get_record(table: str, number: str) -> Dict[str, Any]:
     """Get full detail fields for a single known record by number.
 
-    Use this tool when you already know the record number and need complete
-    field coverage (description, assigned_to, assignment_group, work_notes,
-    comments, company, cmdb_ci, etc.). Returns all DETAIL_FIELDS for the
-    table — significantly more fields than search_records or filter_records.
+    Use when you know the record number and need complete field coverage.
+    Returns all DETAIL_FIELDS — more fields (and tokens) than search_records/
+    filter_records, so prefer filter_records for list views and reserve
+    get_record for full detail on one record.
 
-    TOKEN COST: Higher than filter_records (DETAIL_FIELDS vs ESSENTIAL_FIELDS).
-    Do NOT use this for list views or when only basic fields are needed.
-    Use filter_records for multi-record queries; use get_record only when
-    full detail on one specific record is required.
-
-    Supported tables: incident, change_request, sc_req_item, sc_task,
-    universal_request, kb_knowledge, vtb_task, task_sla.
+    Tables: incident, change_request, sc_req_item, sc_task, universal_request,
+    kb_knowledge, vtb_task, task_sla.
 
     Args:
         table: ServiceNow table name
         number: Record number (e.g. "CHG0054321")
 
     Returns:
-        {"result": [{...all DETAIL_FIELDS for the table...}]}
+        {"result": [{...all DETAIL_FIELDS...}]}
     """
     error = _validate_table(table)
     if error:
@@ -127,34 +122,26 @@ async def filter_records(
 ) -> Dict[str, Any]:
     """Query a ServiceNow table with field-value filters.
 
-    Supports operators via suffix (_gte, _lte, _gt, _lt), ServiceNow
-    encoded-query text operators (LIKE, NOT LIKE, STARTSWITH, ENDSWITH,
-    IN, ISEMPTY, BETWEEN, ...), date ranges, priority lists, and OR
-    filters. Use LIKE for substring/"contains" matches — CONTAINS is a
-    GlideRecord-script-only operator and is auto-normalized to LIKE here.
-    Reference fields (assignment_group, assigned_to, caller_id, ...) store
-    sys_ids: filter by sys_id or dot-walk (assignment_group.nameLIKEFleet);
-    a bare display value returns zero rows (the response includes a hint).
+    Supports suffix operators (_gte, _lte, _gt, _lt), encoded-query text
+    operators (LIKE, NOT LIKE, STARTSWITH, IN, ISEMPTY, BETWEEN, ...), date
+    ranges, priority lists, and OR filters. Use LIKE (not CONTAINS) for
+    substring matches. Reference fields (assignment_group, assigned_to, ...)
+    hold sys_ids — filter by sys_id or dot-walk
+    (assignment_group.nameLIKEFleet); a bare display value returns zero rows.
     See get_query_syntax_help for the full operator reference.
 
-    TOKEN COST: Low by default — returns only ESSENTIAL_FIELDS (number,
-    short_description, priority, state, sys_created_on) unless you pass
-    explicit fields. This is intentional for token budget efficiency on
-    list queries. If you need full field coverage for a single known
-    record, use get_record instead.
+    TOKEN COST: low by default — returns ESSENTIAL_FIELDS only unless `fields`
+    is given; use get_record for full detail on one record.
 
-    Supported tables: incident, change_request, sc_req_item, sc_task,
-    universal_request, kb_knowledge, vtb_task, task_sla.
+    Tables: incident, change_request, sc_req_item, sc_task, universal_request,
+    kb_knowledge, vtb_task, task_sla.
 
     Args:
         table: ServiceNow table name
         filters: Dict of field-value filter pairs
-        fields: Optional list of fields to return. Defaults to ESSENTIAL_FIELDS
-            (basic fields only). Pass an explicit list for additional fields,
-            or use get_record for the full DETAIL_FIELDS set on a single record.
-        max_results: Hard cap on rows returned (default 100, max 1000). The
-            response carries truncated=True when this cap is hit so callers
-            can detect partial result sets.
+        fields: Fields to return; defaults to ESSENTIAL_FIELDS
+        max_results: Row cap (default 100, max 1000); response sets
+            truncated=True when the cap is hit
 
     Returns:
         {"result": [...], "returned_count": N, "truncated": bool, "max_results": N}
