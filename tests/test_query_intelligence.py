@@ -492,8 +492,10 @@ class TestFilterExplanations:
         assert "2" in result
 
     def test_explain_date_filter_last_week(self):
-        """Test explaining last week date filter."""
-        result = QueryIntelligence._explain_date_filter("Last week")
+        """Test explaining last week date filter (real gs.beginningOfLastWeek value)."""
+        result = QueryIntelligence._explain_date_filter(
+            "sys_created_onBETWEENjavascript:gs.beginningOfLastWeek()@javascript:gs.endOfLastWeek()"
+        )
         assert "Created last week" in result
 
     def test_explain_date_filter_days_ago(self):

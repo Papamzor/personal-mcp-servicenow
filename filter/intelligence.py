@@ -405,14 +405,25 @@ class QueryIntelligence:
 
     @classmethod
     def _explain_date_filter(cls, value: str) -> str:
-        """Generate explanation for date-related filters."""
-        if "Last week" in value:
+        """Generate explanation for date-related filters.
+
+        Matches the gs.* helpers the NL templates actually emit — the old
+        "Last week" literal check never fired on a real generated value.
+        """
+        if "beginningOfLastWeek" in value:
             return "Created last week"
+        if "beginningOfThisWeek" in value:
+            return "Created this week"
+        if "beginningOfToday" in value:
+            return "Created today"
+        if "beginningOfLastMonth" in value:
+            return "Created last month"
+        if "beginningOfThisMonth" in value:
+            return "Created this month"
         if "daysAgoStart" in value:
             days = _DAYS_AGO_RE.search(value)
             if days:
                 return f"Created in last {days.group(1)} days"
-            return f"Created: {value}"
         return f"Created: {value}"
 
     @classmethod

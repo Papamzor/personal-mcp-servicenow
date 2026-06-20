@@ -327,7 +327,8 @@ async def publish_knowledge_articles(
 
     Args:
         article_numbers: KB numbers to publish. Capped at 20 per call.
-        concurrency: Max concurrent ServiceNow round-trips. Default 5.
+        concurrency: Max concurrent ServiceNow round-trips
+            (default KB_PUBLISH_BATCH_CONCURRENCY = 2).
 
     Returns:
         {"result": [{"number", "status": "published"|"blocked"|"error", ...}, ...]}
