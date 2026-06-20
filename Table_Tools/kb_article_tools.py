@@ -2,6 +2,7 @@ import asyncio
 from http_layer import make_nws_request, NWS_API_BASE
 from typing import Any, Dict, List
 import httpx
+from .write_helpers import map_http_error, unwrap_write_response
 from constants import (
     ERROR_KB_NO_UPDATE_DATA,
     ERROR_KB_ARTICLE_NOT_FOUND_OP,
@@ -23,27 +24,28 @@ from constants import (
 
 
 def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> str:
-    status_code = error.response.status_code
-    try:
-        detail = error.response.json()
-    except Exception:
-        detail = error.response.text
-    error_messages = {
+    error_map = {
         401: ERROR_KB_ARTICLE_AUTH_FAILED.format(operation=operation),
         403: ERROR_KB_ARTICLE_ACCESS_DENIED.format(operation=operation),
-        400: f"{ERROR_KB_ARTICLE_INVALID_REQUEST.format(operation=operation)}: {detail}",
+        400: ERROR_KB_ARTICLE_INVALID_REQUEST.format(operation=operation),
         404: ERROR_KB_ARTICLE_NOT_FOUND.format(operation=operation),
     }
-    return error_messages.get(status_code, f"{ERROR_KB_ARTICLE_SERVER_ERROR.format(operation=operation)}: {detail}")
+    # KB writes append the response body to 400 and server-error messages.
+    return map_http_error(
+        error,
+        error_map,
+        ERROR_KB_ARTICLE_SERVER_ERROR.format(operation=operation),
+        detail_codes={400},
+        detail_on_default=True,
+    )
 
 
 def _unwrap_kb_write_response(result: Any, operation: str) -> Dict[str, Any] | str:
-    if result and isinstance(result, dict) and result.get('result'):
-        record = result['result']
-        if isinstance(record, dict):
-            return {k: v for k, v in record.items() if k in KB_WRITE_RESPONSE_FIELDS}
-        return record
-    return result if result else f"Knowledge article {operation} successful but no data returned."
+    return unwrap_write_response(
+        result,
+        f"Knowledge article {operation} successful but no data returned.",
+        fields=KB_WRITE_RESPONSE_FIELDS,
+    )
 
 
 async def _write_kb_article(
