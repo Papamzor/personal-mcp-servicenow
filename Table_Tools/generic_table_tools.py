@@ -806,58 +806,83 @@ def _build_debug_info(
         "final_merged_filters": intelligence_result["filters"]
     }
 
+def _build_debug_extras(
+    intelligence_result: Dict,
+    natural_language_query: str,
+    table_name: str,
+    context: Optional[Dict],
+) -> Dict[str, Any]:
+    """Recompute filter-source attribution + encoded-query debug block.
+
+    Only invoked when the caller opts into ``debug`` — this is the extra work
+    (NL re-parse, context re-apply, query re-encode) that previously ran on
+    every intelligent query just to populate the debug payload.
+    """
+    from filter import QueryIntelligence
+    filters_from_nl = QueryIntelligence.parse_natural_language(natural_language_query, table_name).get("filters", {})
+    filters_from_context = QueryIntelligence._apply_context_filters(context, table_name) if context else {}
+    filter_sources = _determine_filter_sources(intelligence_result["filters"], filters_from_nl, filters_from_context)
+    encoded_query = _encode_query_string(_build_query_string(intelligence_result["filters"]))
+    debug_info = _build_debug_info(intelligence_result, context, filters_from_nl, filters_from_context, encoded_query)
+    return {"filter_sources": filter_sources, "debug": debug_info}
+
+
 def _build_intelligence_response(
     query_result: Dict,
     intelligence_result: Dict,
-    filter_sources: Dict,
-    debug_info: Dict
+    debug_extras: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Build successful intelligence response. Complexity: 2"""
+    """Build successful intelligence response. Debug extras attached only on opt-in."""
+    intelligence: Dict[str, Any] = {
+        "explanation": intelligence_result["explanation"],
+        "confidence": intelligence_result["confidence"],
+        "suggestions": intelligence_result["suggestions"],
+        "template_used": intelligence_result.get("template_used"),
+        "sql_equivalent": intelligence_result.get("sql_equivalent"),
+        "filters_used": intelligence_result["filters"],
+    }
+    if debug_extras:
+        intelligence.update(debug_extras)
     return {
         "result": query_result["result"],
-        "intelligence": {
-            "explanation": intelligence_result["explanation"],
-            "confidence": intelligence_result["confidence"],
-            "suggestions": intelligence_result["suggestions"],
-            "template_used": intelligence_result.get("template_used"),
-            "sql_equivalent": intelligence_result.get("sql_equivalent"),
-            "filters_used": intelligence_result["filters"],
-            "filter_sources": filter_sources,
-            "debug": debug_info
-        }
+        "intelligence": intelligence,
     }
 
 def _build_fallback_response(
     fallback_result: Dict,
     natural_language_query: str,
     table_name: str,
-    context: Optional[Dict]
+    context: Optional[Dict],
+    debug: bool = False,
 ) -> Dict[str, Any]:
-    """Build fallback keyword search response. Complexity: 2"""
+    """Build fallback keyword search response. Debug block attached only on opt-in."""
+    intelligence: Dict[str, Any] = {
+        "explanation": f"Fallback keyword search for: {natural_language_query}",
+        "confidence": 0.3,
+        "suggestions": ["Try being more specific with priorities, dates, or states"],
+        "template_used": None,
+        "sql_equivalent": f"SELECT * FROM {table_name} WHERE short_description LIKE '%{natural_language_query}%'",
+        "filters_used": {"short_description": f"short_descriptionLIKE{natural_language_query}"},
+    }
+    if debug:
+        intelligence["filter_sources"] = {"short_description": "fallback"}
+        intelligence["debug"] = {
+            "encoded_query_sent_to_servicenow": f"short_descriptionLIKE{natural_language_query}",
+            "context_received": context,
+            "filters_from_context": {},
+            "filters_from_nl": {},
+            "final_merged_filters": {},
+        }
     return {
         "result": fallback_result.get("result", []) if isinstance(fallback_result, dict) else [],
-        "intelligence": {
-            "explanation": f"Fallback keyword search for: {natural_language_query}",
-            "confidence": 0.3,
-            "suggestions": ["Try being more specific with priorities, dates, or states"],
-            "template_used": None,
-            "sql_equivalent": f"SELECT * FROM {table_name} WHERE short_description LIKE '%{natural_language_query}%'",
-            "filters_used": {"short_description": f"short_descriptionLIKE{natural_language_query}"},
-            "filter_sources": {"short_description": "fallback"},
-            "debug": {
-                "encoded_query_sent_to_servicenow": f"short_descriptionLIKE{natural_language_query}",
-                "context_received": context,
-                "filters_from_context": {},
-                "filters_from_nl": {},
-                "final_merged_filters": {}
-            }
-        }
+        "intelligence": intelligence,
     }
 
 async def query_table_intelligently(
     table_name: str,
     natural_language_query: str,
-    context: Optional[Dict] = None
+    context: Optional[Dict] = None,
+    debug: bool = False,
 ) -> Dict[str, Any]:
     """Query table using natural language with intelligent filter conversion.
 
@@ -865,19 +890,17 @@ async def query_table_intelligently(
         table_name: ServiceNow table to query
         natural_language_query: Natural language description of what to find
         context: Optional context for enhancing the query
+        debug: When True, attach filter-source attribution + the encoded query
+            actually sent. Off by default — building it re-parses the NL query,
+            re-applies context, and re-encodes the filter, all purely for the
+            debug payload, so it is skipped on the normal path.
 
     Returns:
         Dictionary containing query results and intelligence metadata
 
-    Complexity: 10 (reduced from ~18-22)
+    Complexity: 8 (reduced from ~18-22)
     """
-    # Build intelligent filter
     intelligence_result = build_smart_filter(natural_language_query, table_name, context)
-
-    # Separate filters by source for debugging
-    from filter import QueryIntelligence
-    filters_from_nl = QueryIntelligence.parse_natural_language(natural_language_query, table_name).get("filters", {})
-    filters_from_context = QueryIntelligence._apply_context_filters(context, table_name) if context else {}
 
     # If we got filters, execute the query
     if intelligence_result["filters"]:
@@ -886,23 +909,19 @@ async def query_table_intelligently(
             fields=ESSENTIAL_FIELDS.get(table_name, ["number", "short_description"])
         )
 
-        # Build encoded query for debugging
-        query_string = _build_query_string(intelligence_result["filters"])
-        encoded_query = _encode_query_string(query_string)
-
         query_result = await query_table_with_filters(table_name, params)
-
-        # Build response components
-        filter_sources = _determine_filter_sources(intelligence_result["filters"], filters_from_nl, filters_from_context)
-        debug_info = _build_debug_info(intelligence_result, context, filters_from_nl, filters_from_context, encoded_query)
 
         # Return successful response if we got results
         if isinstance(query_result, dict) and query_result.get('result'):
-            return _build_intelligence_response(query_result, intelligence_result, filter_sources, debug_info)
+            debug_extras = (
+                _build_debug_extras(intelligence_result, natural_language_query, table_name, context)
+                if debug else None
+            )
+            return _build_intelligence_response(query_result, intelligence_result, debug_extras)
 
     # Fallback to keyword-based search
     fallback_result = await query_table_by_text(table_name, natural_language_query)
-    return _build_fallback_response(fallback_result, natural_language_query, table_name, context)
+    return _build_fallback_response(fallback_result, natural_language_query, table_name, context, debug=debug)
 
 
 def explain_filter_query(
