@@ -33,6 +33,10 @@ from oauth.exceptions import (
 
 TokenFetcher = Callable[[], Awaitable[Dict[str, Any]]]
 
+# Refresh the token this many minutes before its stated expiry, to absorb
+# clock skew and propagation delay rather than racing the exact expiry instant.
+TOKEN_REFRESH_BUFFER_MINUTES = 5
+
 
 class TokenStore:
     """Caches a single OAuth access token and refreshes it on demand."""
@@ -57,13 +61,19 @@ class TokenStore:
     # ---- public API -----------------------------------------------------
 
     async def get_valid_token(self) -> str:
-        """Return a cached token or refresh if expired (with 5-minute buffer)."""
+        """Return a cached token, refreshing if it is missing or near expiry.
+
+        The lock is held across the refresh fetch so concurrent callers don't
+        each trigger their own token request (cache-miss stampede): one fetches
+        while the rest wait, then all read the freshly cached token. Refresh
+        fires TOKEN_REFRESH_BUFFER_MINUTES before the stated expiry.
+        """
         async with self._token_lock:
             now = datetime.now()
             if (
                 self._access_token
                 and self._token_expires_at
-                and now < (self._token_expires_at - timedelta(minutes=5))
+                and now < (self._token_expires_at - timedelta(minutes=TOKEN_REFRESH_BUFFER_MINUTES))
             ):
                 return self._access_token
 

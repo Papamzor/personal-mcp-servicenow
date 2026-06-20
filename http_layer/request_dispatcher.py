@@ -65,7 +65,8 @@ async def make_nws_request(
             result = await make_oauth_request(url)
             return extract_display_values(result) if result and display_value else result
         except Exception as e:  # noqa: BLE001
-            print(f"[http_layer] OAuth request failed: {e}", file=sys.stderr)
+            # stderr only — stdout is reserved for the MCP JSON-RPC frame stream.
+            print(f"[http_layer] GET request failed for {url} ({type(e).__name__}): {e}", file=sys.stderr)
             return None
 
     # Write path: bypass read-only params + display flattening, raise

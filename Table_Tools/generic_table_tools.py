@@ -577,6 +577,19 @@ def _handle_exact_match_condition(field: str, value: str) -> str:
     return f"{field}={value}"
 
 
+# Condition handler registry, ordered by specificity. Built once at import
+# (mirrors the _SUFFIX_OPERATORS pattern) rather than per _build_query_condition call.
+_CONDITION_HANDLERS = (
+    _handle_date_range_condition,
+    _handle_priority_condition,
+    _handle_caller_exclusion_condition,
+    _handle_bare_or_value_condition,
+    _handle_servicenow_filter_condition,
+    _handle_operator_condition,
+    _handle_suffix_operator_condition,
+)
+
+
 def _build_query_condition(field: str, value: str) -> str:
     """Build a single query condition based on field and value."""
     # Handle special complete query cases first
@@ -589,23 +602,12 @@ def _build_query_condition(field: str, value: str) -> str:
     # encoded-query equivalents (LIKE/NOT LIKE) before any handler runs.
     value = _normalize_operator(value)
 
-    # Condition handler registry ordered by specificity
-    condition_handlers = [
-        _handle_date_range_condition,
-        _handle_priority_condition,
-        _handle_caller_exclusion_condition,
-        _handle_bare_or_value_condition,
-        _handle_servicenow_filter_condition,
-        _handle_operator_condition,
-        _handle_suffix_operator_condition,
-    ]
-    
     # Try each condition handler until one matches
-    for handler in condition_handlers:
+    for handler in _CONDITION_HANDLERS:
         result = handler(field, value)
         if result is not None:
             return result
-    
+
     # Default to exact match if no specialized handler applies
     return _handle_exact_match_condition(field, value)
 
