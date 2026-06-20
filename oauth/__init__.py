@@ -25,6 +25,7 @@ from oauth.exceptions import (
     ServiceNowConnectionError,
     ServiceNowOAuthError,
 )
+from oauth.http_pool import get_pooled_client, shutdown_http_client
 from oauth.singleton import get_oauth_client, make_oauth_request
 
 __all__ = [
@@ -35,4 +36,6 @@ __all__ = [
     "ServiceNowAuthorizationError",
     "get_oauth_client",
     "make_oauth_request",
+    "get_pooled_client",
+    "shutdown_http_client",
 ]

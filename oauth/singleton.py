@@ -7,7 +7,8 @@ now deleted and this is the single source of truth.
 
 ``httpx`` is re-exported so tests can patch
 ``oauth.singleton.httpx.AsyncClient`` (patching the attribute on the
-shared httpx module also affects the executor/token-store call sites).
+shared httpx module also affects the pooled-client construction in
+``oauth/http_pool.py`` that the executor and token-store now share).
 """
 from __future__ import annotations
 

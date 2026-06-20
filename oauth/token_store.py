@@ -22,6 +22,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional
 import httpx
 
 from constants import APPLICATION_JSON
+from oauth.http_pool import get_pooled_client
 from oauth.exceptions import (
     ServiceNowAuthenticationError,
     ServiceNowAuthorizationError,
@@ -107,34 +108,36 @@ class TokenStore:
         }
         data = "grant_type=client_credentials"
 
-        async with httpx.AsyncClient(verify=True) as client:
-            try:
-                response = await client.post(
-                    self.token_endpoint,
-                    headers=headers,
-                    data=data,
-                    timeout=30.0,
+        # Shared pooled client — token refreshes reuse the same keep-alive
+        # connection as API calls instead of opening a fresh one.
+        client = get_pooled_client()
+        try:
+            response = await client.post(
+                self.token_endpoint,
+                headers=headers,
+                data=data,
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code
+            if status == 401:
+                raise ServiceNowAuthenticationError(
+                    "OAuth token request failed: Invalid client credentials"
                 )
-                response.raise_for_status()
-                return response.json()
-            except httpx.HTTPStatusError as e:
-                status = e.response.status_code
-                if status == 401:
-                    raise ServiceNowAuthenticationError(
-                        "OAuth token request failed: Invalid client credentials"
-                    )
-                if status == 403:
-                    raise ServiceNowAuthorizationError(
-                        "OAuth token request failed: Access denied"
-                    )
-                raise ServiceNowOAuthError(
-                    f"OAuth token request failed: Server error (status {status})"
+            if status == 403:
+                raise ServiceNowAuthorizationError(
+                    "OAuth token request failed: Access denied"
                 )
-            except (httpx.RequestError, httpx.TimeoutException) as e:
-                raise ServiceNowConnectionError(
-                    f"OAuth token request error: Connection failed - {e}"
-                )
-            except json.JSONDecodeError as e:
-                raise ServiceNowOAuthError(
-                    f"OAuth token response parsing failed: {e}"
-                )
+            raise ServiceNowOAuthError(
+                f"OAuth token request failed: Server error (status {status})"
+            )
+        except (httpx.RequestError, httpx.TimeoutException) as e:
+            raise ServiceNowConnectionError(
+                f"OAuth token request error: Connection failed - {e}"
+            )
+        except json.JSONDecodeError as e:
+            raise ServiceNowOAuthError(
+                f"OAuth token response parsing failed: {e}"
+            )
