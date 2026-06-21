@@ -1,6 +1,7 @@
 from http_layer import make_nws_request, NWS_API_BASE
 from typing import Any, Dict
 import httpx
+from .write_helpers import map_http_error, unwrap_write_response
 from constants import (
     ERROR_SHORT_DESC_REQUIRED,
     ERROR_NO_UPDATE_DATA,
@@ -15,22 +16,21 @@ from constants import (
 
 def _handle_http_error(error: httpx.HTTPStatusError, operation: str) -> str:
     """Handle HTTP errors consistently."""
-    status_code = error.response.status_code
-
-    error_messages = {
+    error_map = {
         401: ERROR_PRIVATE_TASK_AUTH_FAILED.format(operation=operation),
         403: ERROR_PRIVATE_TASK_ACCESS_DENIED.format(operation=operation),
         400: ERROR_PRIVATE_TASK_INVALID_REQUEST.format(operation=operation),
-        404: ERROR_PRIVATE_TASK_NOT_FOUND.format(operation=operation)
+        404: ERROR_PRIVATE_TASK_NOT_FOUND.format(operation=operation),
     }
-
-    return error_messages.get(status_code, ERROR_PRIVATE_TASK_SERVER_ERROR.format(operation=operation))
+    return map_http_error(
+        error, error_map, ERROR_PRIVATE_TASK_SERVER_ERROR.format(operation=operation)
+    )
 
 def _unwrap_write_response(result: Any, operation: str) -> Dict[str, Any] | str:
     """Extract the inner result payload from a write response."""
-    if result and isinstance(result, dict) and result.get('result'):
-        return result['result']
-    return result if result else f"Private Task {operation} successful but no data returned."
+    return unwrap_write_response(
+        result, f"Private Task {operation} successful but no data returned."
+    )
 
 async def _write_private_task(
     method: str,

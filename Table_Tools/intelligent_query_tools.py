@@ -35,17 +35,11 @@ class SmartFilterParams(BaseModel):
 
 
 async def intelligent_search(params: IntelligentQueryParams) -> Dict[str, Any]:
-    """
-    Search ServiceNow records using natural language queries with intelligent filter conversion.
-    
-    Examples:
-    - "high priority incidents from last week"
-    - "unassigned critical tickets from today"
-    - "resolved P1 incidents this month"
-    - "active changes for database servers"
-    
-    This tool automatically converts natural language to proper ServiceNow filter syntax,
-    validates the query, and provides explanations of what was searched.
+    """Search ServiceNow records using natural-language queries.
+
+    Converts NL (e.g. "high priority incidents from last week", "unassigned
+    P1 changes today") to ServiceNow filter syntax, validates it, and returns
+    results with an explanation of what was searched.
     """
     try:
         result = await query_table_intelligently(

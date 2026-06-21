@@ -17,6 +17,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional
 
 import httpx
 
+from oauth.http_pool import get_pooled_client
 from oauth.token_store import TokenStore
 
 
@@ -63,28 +64,30 @@ class RequestExecutor:
             headers = merged
         kwargs["headers"] = headers
 
-        async with httpx.AsyncClient(verify=True) as client:
-            try:
-                response = await client.request(method, url, timeout=timeout, **kwargs)
-                response.raise_for_status()
-                return self._process_response(response)
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 401:
-                    return await self._retry_with_fresh_token(
-                        client, method, url,
-                        raise_for_status=raise_for_status,
-                        timeout=timeout,
-                        **kwargs,
-                    )
-                if raise_for_status:
-                    raise
-                return None
-            except httpx.TimeoutException:
-                if raise_for_status:
-                    raise
-                return None
-            except (httpx.RequestError, json.JSONDecodeError):
-                return None
+        # Shared pooled client — connections survive between requests (no
+        # per-call TLS handshake). The 401-retry reuses the same client.
+        client = get_pooled_client()
+        try:
+            response = await client.request(method, url, timeout=timeout, **kwargs)
+            response.raise_for_status()
+            return self._process_response(response)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                return await self._retry_with_fresh_token(
+                    client, method, url,
+                    raise_for_status=raise_for_status,
+                    timeout=timeout,
+                    **kwargs,
+                )
+            if raise_for_status:
+                raise
+            return None
+        except httpx.TimeoutException:
+            if raise_for_status:
+                raise
+            return None
+        except (httpx.RequestError, json.JSONDecodeError):
+            return None
 
     def _process_response(self, response: httpx.Response) -> Dict[str, Any]:
         """Decode a successful response payload."""

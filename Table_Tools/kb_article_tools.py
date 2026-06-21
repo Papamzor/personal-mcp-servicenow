@@ -2,6 +2,7 @@ import asyncio
 from http_layer import make_nws_request, NWS_API_BASE
 from typing import Any, Dict, List
 import httpx
+from .write_helpers import map_http_error, unwrap_write_response
 from constants import (
     ERROR_KB_NO_UPDATE_DATA,
     ERROR_KB_ARTICLE_NOT_FOUND_OP,
@@ -13,6 +14,9 @@ from constants import (
     ERROR_KB_ARTICLE_SERVER_ERROR,
     ERROR_KB_PUBLISH_NOT_CONFIRMED,
     KB_WRITE_RESPONSE_FIELDS,
+    KB_META_FIELDS,
+    KB_DEDUP_FIELDS,
+    KB_VERIFY_FIELDS,
     KB_DUPLICATE_IGNORED_STATES,
     KB_PUBLISH_TIMEOUT_SECONDS,
     KB_VERIFY_DELAY_SECONDS,
@@ -23,27 +27,28 @@ from constants import (
 
 
 def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> str:
-    status_code = error.response.status_code
-    try:
-        detail = error.response.json()
-    except Exception:
-        detail = error.response.text
-    error_messages = {
+    error_map = {
         401: ERROR_KB_ARTICLE_AUTH_FAILED.format(operation=operation),
         403: ERROR_KB_ARTICLE_ACCESS_DENIED.format(operation=operation),
-        400: f"{ERROR_KB_ARTICLE_INVALID_REQUEST.format(operation=operation)}: {detail}",
+        400: ERROR_KB_ARTICLE_INVALID_REQUEST.format(operation=operation),
         404: ERROR_KB_ARTICLE_NOT_FOUND.format(operation=operation),
     }
-    return error_messages.get(status_code, f"{ERROR_KB_ARTICLE_SERVER_ERROR.format(operation=operation)}: {detail}")
+    # KB writes append the response body to 400 and server-error messages.
+    return map_http_error(
+        error,
+        error_map,
+        ERROR_KB_ARTICLE_SERVER_ERROR.format(operation=operation),
+        detail_codes={400},
+        detail_on_default=True,
+    )
 
 
 def _unwrap_kb_write_response(result: Any, operation: str) -> Dict[str, Any] | str:
-    if result and isinstance(result, dict) and result.get('result'):
-        record = result['result']
-        if isinstance(record, dict):
-            return {k: v for k, v in record.items() if k in KB_WRITE_RESPONSE_FIELDS}
-        return record
-    return result if result else f"Knowledge article {operation} successful but no data returned."
+    return unwrap_write_response(
+        result,
+        f"Knowledge article {operation} successful but no data returned.",
+        fields=KB_WRITE_RESPONSE_FIELDS,
+    )
 
 
 async def _write_kb_article(
@@ -79,7 +84,7 @@ async def _get_kb_article_meta(article_number: str, workflow_state: str | None =
         query += f"^workflow_state={workflow_state}"
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
-        f"?sysparm_fields=sys_id,short_description"
+        f"?sysparm_fields={','.join(KB_META_FIELDS)}"
         f"&sysparm_query={query}"
     )
     data = await make_nws_request(url)
@@ -99,7 +104,7 @@ async def _check_kb_duplicates(short_description: str, exclude_number: str) -> l
     """
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
-        f"?sysparm_fields=number,short_description,workflow_state,sys_created_on,kb_category"
+        f"?sysparm_fields={','.join(KB_DEDUP_FIELDS)}"
         f"&sysparm_query=short_descriptionLIKE{short_description}"
     )
     data = await make_nws_request(url)
@@ -147,7 +152,7 @@ async def _verify_kb_published(article_number: str) -> Dict[str, Any] | None:
     query = f"number={article_number}^workflow_state={KB_PUBLISHED_STATE}"
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
-        f"?sysparm_fields=sys_id,number,workflow_state,short_description"
+        f"?sysparm_fields={','.join(KB_VERIFY_FIELDS)}"
         f"&sysparm_query={query}"
     )
     data = await make_nws_request(url)
@@ -322,7 +327,8 @@ async def publish_knowledge_articles(
 
     Args:
         article_numbers: KB numbers to publish. Capped at 20 per call.
-        concurrency: Max concurrent ServiceNow round-trips. Default 5.
+        concurrency: Max concurrent ServiceNow round-trips
+            (default KB_PUBLISH_BATCH_CONCURRENCY = 2).
 
     Returns:
         {"result": [{"number", "status": "published"|"blocked"|"error", ...}, ...]}

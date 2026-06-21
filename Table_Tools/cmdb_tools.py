@@ -5,6 +5,8 @@ ServiceNow CMDB (Configuration Management Database) Tools
 Provides CI discovery, search, and analysis functionality.
 """
 
+import asyncio
+from urllib.parse import quote
 from http_layer import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
@@ -145,18 +147,22 @@ DETAILED_CI_FIELDS = [
 async def find_cis_by_type(ci_type: str, detailed: bool = False) -> dict[str, Any] | str:
     """
     Find all Configuration Items of a specific type.
-    
+
     Args:
-        ci_type: CI class name (e.g., 'cmdb_ci_server', 'cmdb_ci_computer')
+        ci_type: CI class/table name (e.g., 'cmdb_ci_server', 'cmdb_ci_computer')
         detailed: If True, returns detailed CI information
-    
+
     Returns:
         Dictionary with CI results or error string
+
+    The ci_type is queried directly instead of being pre-validated against the
+    static CI_TABLES list — that list drifts from a given instance's CI classes
+    and was rejecting valid, common types (e.g. cmdb_ci_server). An unknown
+    table simply yields no results rather than a misleading "invalid type".
     """
-    # Validate CI type
-    if ci_type not in CI_TABLES:
-        return f"Invalid CI type. Supported types: {', '.join(CI_TABLES)}"
-    
+    if not ci_type:
+        return "CI type is required"
+
     fields = DETAILED_CI_FIELDS if detailed else ESSENTIAL_CI_FIELDS
     
     try:
@@ -202,16 +208,19 @@ async def search_cis_by_attributes(
     table = ci_type if ci_type and ci_type in CI_TABLES else "cmdb_ci"
     fields = DETAILED_CI_FIELDS if detailed else ESSENTIAL_CI_FIELDS
     
-    # Build query conditions
+    # Build query conditions. User values are percent-encoded (safe='') so
+    # structural characters (#, +, %, ?, ...) in a name/location don't corrupt
+    # the sysparm_query. (Operator chars in the locked encode safe-set —
+    # & ^ = etc. — still pass through and remain unsupported inside values.)
     query_parts = []
     if name:
-        query_parts.append(f"nameLIKE{name}")
+        query_parts.append(f"nameLIKE{quote(name, safe='')}")
     if ip_address:
-        query_parts.append(f"ip_address={ip_address}")
+        query_parts.append(f"ip_address={quote(ip_address, safe='')}")
     if location:
-        query_parts.append(f"locationLIKE{location}")
+        query_parts.append(f"locationLIKE{quote(location, safe='')}")
     if status:
-        query_parts.append(f"operational_status={status}")
+        query_parts.append(f"operational_status={quote(status, safe='')}")
     
     query_string = "^".join(query_parts)
     
@@ -236,44 +245,61 @@ async def search_cis_by_attributes(
     except Exception:
         return ERROR_SEARCHING_CIS
 
+async def _probe_ci_table(table: str, ci_number: str) -> Optional[Dict[str, Any]]:
+    """Fetch a CI by number from one table; return the first row or None."""
+    url = f"{NWS_API_BASE}/api/now/table/{table}?sysparm_fields={','.join(DETAILED_CI_FIELDS)}&sysparm_query=number={ci_number}&sysparm_display_value=true"
+    try:
+        data = await make_nws_request(url)
+    except Exception:
+        return None
+    if data and data.get('result'):
+        return data['result'][0]
+    return None
+
+
 async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[str, Any] | str:
     """
     Get comprehensive details for a specific Configuration Item.
-    
+
     Args:
         ci_number: CI number (e.g., CI0001000)
         ci_type: Specific CI table to search in (optional, searches all if not provided)
-    
+
     Returns:
         Dictionary with detailed CI information or error string
+
+    When ci_type is not given, the candidate tables are probed concurrently
+    (bounded) instead of one-at-a-time; the most-specific-first priority is
+    preserved by returning the first table (in order) that yields a row.
     """
     if not ci_number:
         return "CI number is required"
-    
+
     # If CI type is specified, search in that table only
     if ci_type and ci_type in CI_TABLES:
         tables_to_search = [ci_type]
     else:
-        # Search in common CI tables, starting with most specific
+        # Search in common CI tables, ordered most-specific first
         tables_to_search = [
             "cmdb_ci_server", "cmdb_ci_computer", "cmdb_ci_database",
             "cmdb_ci_hardware", "cmdb_ci_network_gear", "cmdb_ci_service", "cmdb_ci"
         ]
-    
-    for table in tables_to_search:
-        try:
-            url = f"{NWS_API_BASE}/api/now/table/{table}?sysparm_fields={','.join(DETAILED_CI_FIELDS)}&sysparm_query=number={ci_number}&sysparm_display_value=true"
-            data = await make_nws_request(url)
-            
-            if data and data.get('result') and len(data['result']) > 0:
-                return {
-                    "ci_table": table,
-                    "ci_number": ci_number,
-                    "result": data['result'][0]
-                }
-        except Exception:
-            continue
-    
+
+    semaphore = asyncio.Semaphore(3)
+
+    async def _bounded(table: str) -> Optional[Dict[str, Any]]:
+        async with semaphore:
+            return await _probe_ci_table(table, ci_number)
+
+    rows = await asyncio.gather(*(_bounded(table) for table in tables_to_search))
+    for table, row in zip(tables_to_search, rows):
+        if row:
+            return {
+                "ci_table": table,
+                "ci_number": ci_number,
+                "result": row,
+            }
+
     return CI_NOT_FOUND.format(ci_number=ci_number)
 
 def _extract_ci_search_attributes(ci_data: Dict, ci_table: str) -> Dict[str, str]:
@@ -394,13 +420,15 @@ async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
         Dictionary with CI results or error string
     """
     try:
-        # Try multiple search approaches
+        # Try multiple search approaches. Percent-encode the term so special
+        # characters in it don't corrupt the sysparm_query structure.
+        safe_term = quote(search_term, safe='')
         query_parts = [
-            f"nameLIKE{search_term}",
-            f"ip_address={search_term}",
-            f"number={search_term}"
+            f"nameLIKE{safe_term}",
+            f"ip_address={safe_term}",
+            f"number={safe_term}"
         ]
-        
+
         query_string = "^OR".join(query_parts)
         url = f"{NWS_API_BASE}/api/now/table/cmdb_ci?sysparm_fields={','.join(ESSENTIAL_CI_FIELDS)}&sysparm_query={query_string}&sysparm_display_value=true&sysparm_limit=50"
         data = await make_nws_request(url)

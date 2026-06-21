@@ -22,6 +22,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional
 import httpx
 
 from constants import APPLICATION_JSON
+from oauth.http_pool import get_pooled_client
 from oauth.exceptions import (
     ServiceNowAuthenticationError,
     ServiceNowAuthorizationError,
@@ -31,6 +32,10 @@ from oauth.exceptions import (
 
 
 TokenFetcher = Callable[[], Awaitable[Dict[str, Any]]]
+
+# Refresh the token this many minutes before its stated expiry, to absorb
+# clock skew and propagation delay rather than racing the exact expiry instant.
+TOKEN_REFRESH_BUFFER_MINUTES = 5
 
 
 class TokenStore:
@@ -56,13 +61,19 @@ class TokenStore:
     # ---- public API -----------------------------------------------------
 
     async def get_valid_token(self) -> str:
-        """Return a cached token or refresh if expired (with 5-minute buffer)."""
+        """Return a cached token, refreshing if it is missing or near expiry.
+
+        The lock is held across the refresh fetch so concurrent callers don't
+        each trigger their own token request (cache-miss stampede): one fetches
+        while the rest wait, then all read the freshly cached token. Refresh
+        fires TOKEN_REFRESH_BUFFER_MINUTES before the stated expiry.
+        """
         async with self._token_lock:
             now = datetime.now()
             if (
                 self._access_token
                 and self._token_expires_at
-                and now < (self._token_expires_at - timedelta(minutes=5))
+                and now < (self._token_expires_at - timedelta(minutes=TOKEN_REFRESH_BUFFER_MINUTES))
             ):
                 return self._access_token
 
@@ -107,34 +118,36 @@ class TokenStore:
         }
         data = "grant_type=client_credentials"
 
-        async with httpx.AsyncClient(verify=True) as client:
-            try:
-                response = await client.post(
-                    self.token_endpoint,
-                    headers=headers,
-                    data=data,
-                    timeout=30.0,
+        # Shared pooled client — token refreshes reuse the same keep-alive
+        # connection as API calls instead of opening a fresh one.
+        client = get_pooled_client()
+        try:
+            response = await client.post(
+                self.token_endpoint,
+                headers=headers,
+                data=data,
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            status = e.response.status_code
+            if status == 401:
+                raise ServiceNowAuthenticationError(
+                    "OAuth token request failed: Invalid client credentials"
                 )
-                response.raise_for_status()
-                return response.json()
-            except httpx.HTTPStatusError as e:
-                status = e.response.status_code
-                if status == 401:
-                    raise ServiceNowAuthenticationError(
-                        "OAuth token request failed: Invalid client credentials"
-                    )
-                if status == 403:
-                    raise ServiceNowAuthorizationError(
-                        "OAuth token request failed: Access denied"
-                    )
-                raise ServiceNowOAuthError(
-                    f"OAuth token request failed: Server error (status {status})"
+            if status == 403:
+                raise ServiceNowAuthorizationError(
+                    "OAuth token request failed: Access denied"
                 )
-            except (httpx.RequestError, httpx.TimeoutException) as e:
-                raise ServiceNowConnectionError(
-                    f"OAuth token request error: Connection failed - {e}"
-                )
-            except json.JSONDecodeError as e:
-                raise ServiceNowOAuthError(
-                    f"OAuth token response parsing failed: {e}"
-                )
+            raise ServiceNowOAuthError(
+                f"OAuth token request failed: Server error (status {status})"
+            )
+        except (httpx.RequestError, httpx.TimeoutException) as e:
+            raise ServiceNowConnectionError(
+                f"OAuth token request error: Connection failed - {e}"
+            )
+        except json.JSONDecodeError as e:
+            raise ServiceNowOAuthError(
+                f"OAuth token response parsing failed: {e}"
+            )

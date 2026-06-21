@@ -19,6 +19,9 @@ DATE_FORMAT_SIMPLE = "%Y-%m-%d"
 DATE_FORMAT_FULL = "%Y-%m-%d %H:%M:%S"
 DATE_PATTERN_SIMPLE = r"^\d{4}-\d{2}-\d{2}$"
 DATE_PATTERN_FULL = r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$"
+# Compiled once — validate_date_format runs on every date-filtered query.
+_DATE_RE_SIMPLE = re.compile(DATE_PATTERN_SIMPLE)
+_DATE_RE_FULL = re.compile(DATE_PATTERN_FULL)
 
 
 def validate_date_format(date_string: str) -> Tuple[bool, Optional[str]]:
@@ -46,7 +49,7 @@ def validate_date_format(date_string: str) -> Tuple[bool, Optional[str]]:
         return False, f"Date must be a string, got {type(date_string).__name__}"
 
     # Try simple format first (YYYY-MM-DD)
-    if re.match(DATE_PATTERN_SIMPLE, date_string):
+    if _DATE_RE_SIMPLE.match(date_string):
         try:
             datetime.strptime(date_string, DATE_FORMAT_SIMPLE)
             return True, None
@@ -54,7 +57,7 @@ def validate_date_format(date_string: str) -> Tuple[bool, Optional[str]]:
             return False, f"Invalid date values: {e}"
 
     # Try full format (YYYY-MM-DD HH:MM:SS)
-    if re.match(DATE_PATTERN_FULL, date_string):
+    if _DATE_RE_FULL.match(date_string):
         try:
             datetime.strptime(date_string, DATE_FORMAT_FULL)
             return True, None

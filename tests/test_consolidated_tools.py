@@ -12,11 +12,6 @@ from Table_Tools.consolidated_tools import (
     _build_priority_result_message,
     # Priority incidents
     get_priority_incidents,
-    get_priority_incidents_current_month,
-    get_priority_incidents_last_n_days,
-    get_priority_incidents_this_week,
-    get_priority_incidents_yesterday,
-    get_priority_incidents_today,
     # Knowledge tools
     similar_knowledge_for_text,
     get_knowledge_by_category,
@@ -159,55 +154,6 @@ class TestBuildPriorityResultMessage:
     def test_without_dates(self):
         msg = _build_priority_result_message(0, ["1"], None, None)
         assert "from" not in msg
-
-
-class TestPriorityIncidentsHelpers:
-    """Test convenience helper functions."""
-
-    @pytest.mark.asyncio
-    async def test_current_month(self):
-        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
-             patch('Table_Tools.consolidated_tools.get_current_month_range') as mock_range:
-            mock_range.return_value = ("2026-01-01", "2026-01-31")
-            mock_func.return_value = {"result": []}
-            await get_priority_incidents_current_month(["1", "2"])
-            assert mock_func.call_args[1]["start_date"] == "2026-01-01"
-
-    @pytest.mark.asyncio
-    async def test_last_n_days(self):
-        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
-             patch('Table_Tools.consolidated_tools.get_last_n_days_range') as mock_range:
-            mock_range.return_value = ("2026-01-21", "2026-01-28")
-            mock_func.return_value = {"result": []}
-            await get_priority_incidents_last_n_days(["1"], days=14)
-            mock_range.assert_called_once_with(14)
-
-    @pytest.mark.asyncio
-    async def test_this_week(self):
-        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
-             patch('Table_Tools.consolidated_tools.get_this_week_range') as mock_range:
-            mock_range.return_value = ("2026-01-26", "2026-02-01")
-            mock_func.return_value = {"result": []}
-            await get_priority_incidents_this_week(["1", "2"])
-            assert mock_func.call_args[1]["start_date"] == "2026-01-26"
-
-    @pytest.mark.asyncio
-    async def test_today(self):
-        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
-             patch('Table_Tools.consolidated_tools.get_today_range') as mock_range:
-            mock_range.return_value = ("2026-01-28", "2026-01-28")
-            mock_func.return_value = {"result": []}
-            await get_priority_incidents_today(["1"])
-            assert mock_func.call_args[1]["start_date"] == "2026-01-28"
-
-    @pytest.mark.asyncio
-    async def test_yesterday(self):
-        with patch('Table_Tools.consolidated_tools.get_priority_incidents') as mock_func, \
-             patch('Table_Tools.consolidated_tools.get_yesterday_range') as mock_range:
-            mock_range.return_value = ("2026-01-27", "2026-01-27")
-            mock_func.return_value = {"result": []}
-            await get_priority_incidents_yesterday(["1", "2"])
-            assert mock_func.call_args[1]["start_date"] == "2026-01-27"
 
 
 class TestKnowledgeTools:

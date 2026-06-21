@@ -25,13 +25,12 @@ import os
 import sys
 from typing import Any, Optional
 
-from dotenv import load_dotenv
-
 from http_layer.response_parser import extract_display_values
 from http_layer.url_builder import add_default_params, ensure_query_encoded
 from oauth.singleton import get_oauth_client, make_oauth_request
 
-load_dotenv()
+# .env is loaded once by oauth/client.py — imported above via oauth.singleton —
+# before this line reads the environment, so no duplicate load_dotenv() here.
 SERVICENOW_INSTANCE = os.getenv("SERVICENOW_INSTANCE")
 NWS_API_BASE = SERVICENOW_INSTANCE
 
@@ -65,7 +64,8 @@ async def make_nws_request(
             result = await make_oauth_request(url)
             return extract_display_values(result) if result and display_value else result
         except Exception as e:  # noqa: BLE001
-            print(f"[http_layer] OAuth request failed: {e}", file=sys.stderr)
+            # stderr only — stdout is reserved for the MCP JSON-RPC frame stream.
+            print(f"[http_layer] GET request failed for {url} ({type(e).__name__}): {e}", file=sys.stderr)
             return None
 
     # Write path: bypass read-only params + display flattening, raise

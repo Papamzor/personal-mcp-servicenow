@@ -3,7 +3,6 @@ from http_layer import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 import re
-from contextlib import contextmanager
 from constants import (
     ESSENTIAL_FIELDS,
     DETAIL_FIELDS,
@@ -35,18 +34,6 @@ from filter import (
     validate_query_filters,
     validate_result_count,
 )
-
-
-@contextmanager
-def timeout_protection(seconds=2):
-    """Context manager to protect against long-running regex operations.
-    
-    Windows-compatible version that doesn't use signals.
-    Uses input length validation instead of timeout.
-    """
-    # Simple length check to prevent ReDoS attacks
-    # Most legitimate date strings are under 100 characters
-    yield
 
 
 def _validate_regex_input(text: str) -> bool:
@@ -101,40 +88,58 @@ def _apply_sc_catalog_filter(table_name: str, existing_query: str = "") -> str:
     return _append_to_query(existing_query, "^".join(exclusion_filters))
 
 
+def _apply_domain_filters(table_name: str, query: str) -> str:
+    """Apply both category (incident) and catalog (sc_*) exclusion filters.
+
+    Single entry point for the table-specific exclusion policy so query paths
+    don't repeat the incident-then-catalog pair. Each underlying filter is a
+    no-op for tables it doesn't apply to.
+    """
+    query = _apply_incident_category_filter(table_name, query)
+    query = _apply_sc_catalog_filter(table_name, query)
+    return query
+
+
 async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any]:
-    """Generic function to query any ServiceNow table by text similarity."""
+    """Generic function to query any ServiceNow table by text similarity.
+
+    Builds ONE OR-combined query across every extracted keyword
+    (``short_descriptionLIKEa^ORshort_descriptionLIKEb``) so a single request
+    matches any keyword — replacing the old per-keyword sequential request
+    loop (N round-trips, single-keyword recall). LIKE is ServiceNow's
+    encoded-query "contains" operator; CONTAINS is GlideRecord scripting-only
+    and is silently ignored in sysparm_query strings (returns zero rows), so
+    it must never appear here.
+    """
     fields = DETAIL_FIELDS[table_name] if detailed else ESSENTIAL_FIELDS[table_name]
     keywords = extract_keywords(input_text)
+    if not keywords:
+        return {"result": [], "message": NO_RECORDS_FOUND}
 
-    for keyword in keywords:
-        # LIKE is ServiceNow's encoded-query "contains" operator. CONTAINS is a
-        # GlideRecord scripting-only operator and is silently ignored in
-        # sysparm_query strings (returns zero rows), so it must never appear here.
-        query = f"short_descriptionLIKE{keyword}"
-        # Apply category filtering for incidents
-        query = _apply_incident_category_filter(table_name, query)
-        # Apply catalog filtering for service catalog tables
-        query = _apply_sc_catalog_filter(table_name, query)
-        base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}"
-        # Use pagination to limit results for text searches
-        all_results = await _make_paginated_request(base_url, max_results=50)  # Limit text searches to 50 results
+    # OR-group the keyword conditions first. ServiceNow closes a ^OR run at the
+    # next plain ^, so appending the category/catalog exclusions below yields
+    # "(descLIKEa OR descLIKEb) AND category!=X" — match any keyword while
+    # still excluding sensitive categories.
+    query = "^OR".join(f"short_descriptionLIKE{keyword}" for keyword in keywords)
+    query = _apply_domain_filters(table_name, query)
+    base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}"
+    # Single paginated request; text searches capped at 50 results.
+    all_results = await _make_paginated_request(base_url, max_results=50)
 
-        if all_results:
-            result_count = len(all_results)
-            return {
-                "result": all_results,
-                "message": f"Found {result_count} records matching '{keyword}'" + (" (limited to 50)" if result_count == 50 else "")
-            }
+    if all_results:
+        result_count = len(all_results)
+        limit_note = " (limited to 50)" if result_count == 50 else ""
+        return {
+            "result": all_results,
+            "message": f"Found {result_count} records matching '{input_text}'{limit_note}",
+        }
     # Return consistent dict format for no results
     return {"result": [], "message": NO_RECORDS_FOUND}
 
 async def get_record_description(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get short_description for any record."""
     query = f"number={record_number}"
-    # Apply category filtering for incidents
-    query = _apply_incident_category_filter(table_name, query)
-    # Apply catalog filtering for service catalog tables
-    query = _apply_sc_catalog_filter(table_name, query)
+    query = _apply_domain_filters(table_name, query)
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query={query}"
     data = await make_nws_request(url)
     return data if data else {"result": [], "message": RECORD_NOT_FOUND}
@@ -143,10 +148,7 @@ async def get_record_details(table_name: str, record_number: str) -> dict[str, A
     """Generic function to get detailed information for any record."""
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
     query = f"number={record_number}"
-    # Apply category filtering for incidents
-    query = _apply_incident_category_filter(table_name, query)
-    # Apply catalog filtering for service catalog tables
-    query = _apply_sc_catalog_filter(table_name, query)
+    query = _apply_domain_filters(table_name, query)
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}&sysparm_display_value=true"
     data = await make_nws_request(url)
     return data if data else {"result": [], "message": RECORD_NOT_FOUND}
@@ -375,36 +377,26 @@ def _parse_date_range_from_text(text: str) -> Optional[tuple]:
 
     Complexity: 8 (reduced from ~30-35)
     """
-    # Security Fix #1 & #4: Pre-validate input to prevent ReDoS attacks
+    # Pre-validate input length/shape to prevent ReDoS attacks before any regex runs.
     if not _validate_regex_input(text):
         return None
 
     text = text.lower().strip()
 
-    try:
-        # Security Fix #3: Timeout protection for regex operations
-        with timeout_protection(seconds=2):
-            # Date parser registry - try each parser in sequence
-            parsers = [
-                _parse_week_format,
-                _parse_month_range_format,
-                _parse_iso_date_range,
-                _parse_cross_month_range,
-                _parse_between_format,
-                _parse_year_at_end_format
-            ]
-
-            # Try each parser until one succeeds
-            for parser in parsers:
-                result = parser(text)
-                if result:
-                    return result
-
-            return None
-
-    except TimeoutError:
-        # Regex operation timed out - likely ReDoS attack
-        return None
+    # Date parser registry - try each parser in sequence until one succeeds.
+    parsers = [
+        _parse_week_format,
+        _parse_month_range_format,
+        _parse_iso_date_range,
+        _parse_cross_month_range,
+        _parse_between_format,
+        _parse_year_at_end_format,
+    ]
+    for parser in parsers:
+        result = parser(text)
+        if result:
+            return result
+    return None
 
 def _normalize_priority_value(priority: str) -> str:
     """Convert P-notation to number (e.g., 'P1' -> '1', '2' -> '2')."""
@@ -590,6 +582,19 @@ def _handle_exact_match_condition(field: str, value: str) -> str:
     return f"{field}={value}"
 
 
+# Condition handler registry, ordered by specificity. Built once at import
+# (mirrors the _SUFFIX_OPERATORS pattern) rather than per _build_query_condition call.
+_CONDITION_HANDLERS = (
+    _handle_date_range_condition,
+    _handle_priority_condition,
+    _handle_caller_exclusion_condition,
+    _handle_bare_or_value_condition,
+    _handle_servicenow_filter_condition,
+    _handle_operator_condition,
+    _handle_suffix_operator_condition,
+)
+
+
 def _build_query_condition(field: str, value: str) -> str:
     """Build a single query condition based on field and value."""
     # Handle special complete query cases first
@@ -602,23 +607,12 @@ def _build_query_condition(field: str, value: str) -> str:
     # encoded-query equivalents (LIKE/NOT LIKE) before any handler runs.
     value = _normalize_operator(value)
 
-    # Condition handler registry ordered by specificity
-    condition_handlers = [
-        _handle_date_range_condition,
-        _handle_priority_condition,
-        _handle_caller_exclusion_condition,
-        _handle_bare_or_value_condition,
-        _handle_servicenow_filter_condition,
-        _handle_operator_condition,
-        _handle_suffix_operator_condition,
-    ]
-    
     # Try each condition handler until one matches
-    for handler in condition_handlers:
+    for handler in _CONDITION_HANDLERS:
         result = handler(field, value)
         if result is not None:
             return result
-    
+
     # Default to exact match if no specialized handler applies
     return _handle_exact_match_condition(field, value)
 
@@ -720,10 +714,7 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
             print(f"[generic_table_tools] Query validation warnings: {validation_result.warnings}", file=sys.stderr)
 
     query_string = _build_query_string(params.filters)
-    # Apply category filtering for incidents
-    query_string = _apply_incident_category_filter(table_name, query_string)
-    # Apply catalog filtering for service catalog tables
-    query_string = _apply_sc_catalog_filter(table_name, query_string)
+    query_string = _apply_domain_filters(table_name, query_string)
     encoded_query = _encode_query_string(query_string)
 
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
@@ -796,58 +787,83 @@ def _build_debug_info(
         "final_merged_filters": intelligence_result["filters"]
     }
 
+def _build_debug_extras(
+    intelligence_result: Dict,
+    natural_language_query: str,
+    table_name: str,
+    context: Optional[Dict],
+) -> Dict[str, Any]:
+    """Recompute filter-source attribution + encoded-query debug block.
+
+    Only invoked when the caller opts into ``debug`` — this is the extra work
+    (NL re-parse, context re-apply, query re-encode) that previously ran on
+    every intelligent query just to populate the debug payload.
+    """
+    from filter import QueryIntelligence
+    filters_from_nl = QueryIntelligence.parse_natural_language(natural_language_query, table_name).get("filters", {})
+    filters_from_context = QueryIntelligence._apply_context_filters(context, table_name) if context else {}
+    filter_sources = _determine_filter_sources(intelligence_result["filters"], filters_from_nl, filters_from_context)
+    encoded_query = _encode_query_string(_build_query_string(intelligence_result["filters"]))
+    debug_info = _build_debug_info(intelligence_result, context, filters_from_nl, filters_from_context, encoded_query)
+    return {"filter_sources": filter_sources, "debug": debug_info}
+
+
 def _build_intelligence_response(
     query_result: Dict,
     intelligence_result: Dict,
-    filter_sources: Dict,
-    debug_info: Dict
+    debug_extras: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Build successful intelligence response. Complexity: 2"""
+    """Build successful intelligence response. Debug extras attached only on opt-in."""
+    intelligence: Dict[str, Any] = {
+        "explanation": intelligence_result["explanation"],
+        "confidence": intelligence_result["confidence"],
+        "suggestions": intelligence_result["suggestions"],
+        "template_used": intelligence_result.get("template_used"),
+        "sql_equivalent": intelligence_result.get("sql_equivalent"),
+        "filters_used": intelligence_result["filters"],
+    }
+    if debug_extras:
+        intelligence.update(debug_extras)
     return {
         "result": query_result["result"],
-        "intelligence": {
-            "explanation": intelligence_result["explanation"],
-            "confidence": intelligence_result["confidence"],
-            "suggestions": intelligence_result["suggestions"],
-            "template_used": intelligence_result.get("template_used"),
-            "sql_equivalent": intelligence_result.get("sql_equivalent"),
-            "filters_used": intelligence_result["filters"],
-            "filter_sources": filter_sources,
-            "debug": debug_info
-        }
+        "intelligence": intelligence,
     }
 
 def _build_fallback_response(
     fallback_result: Dict,
     natural_language_query: str,
     table_name: str,
-    context: Optional[Dict]
+    context: Optional[Dict],
+    debug: bool = False,
 ) -> Dict[str, Any]:
-    """Build fallback keyword search response. Complexity: 2"""
+    """Build fallback keyword search response. Debug block attached only on opt-in."""
+    intelligence: Dict[str, Any] = {
+        "explanation": f"Fallback keyword search for: {natural_language_query}",
+        "confidence": 0.3,
+        "suggestions": ["Try being more specific with priorities, dates, or states"],
+        "template_used": None,
+        "sql_equivalent": f"SELECT * FROM {table_name} WHERE short_description LIKE '%{natural_language_query}%'",
+        "filters_used": {"short_description": f"short_descriptionLIKE{natural_language_query}"},
+    }
+    if debug:
+        intelligence["filter_sources"] = {"short_description": "fallback"}
+        intelligence["debug"] = {
+            "encoded_query_sent_to_servicenow": f"short_descriptionLIKE{natural_language_query}",
+            "context_received": context,
+            "filters_from_context": {},
+            "filters_from_nl": {},
+            "final_merged_filters": {},
+        }
     return {
         "result": fallback_result.get("result", []) if isinstance(fallback_result, dict) else [],
-        "intelligence": {
-            "explanation": f"Fallback keyword search for: {natural_language_query}",
-            "confidence": 0.3,
-            "suggestions": ["Try being more specific with priorities, dates, or states"],
-            "template_used": None,
-            "sql_equivalent": f"SELECT * FROM {table_name} WHERE short_description LIKE '%{natural_language_query}%'",
-            "filters_used": {"short_description": f"short_descriptionLIKE{natural_language_query}"},
-            "filter_sources": {"short_description": "fallback"},
-            "debug": {
-                "encoded_query_sent_to_servicenow": f"short_descriptionLIKE{natural_language_query}",
-                "context_received": context,
-                "filters_from_context": {},
-                "filters_from_nl": {},
-                "final_merged_filters": {}
-            }
-        }
+        "intelligence": intelligence,
     }
 
 async def query_table_intelligently(
     table_name: str,
     natural_language_query: str,
-    context: Optional[Dict] = None
+    context: Optional[Dict] = None,
+    debug: bool = False,
 ) -> Dict[str, Any]:
     """Query table using natural language with intelligent filter conversion.
 
@@ -855,19 +871,17 @@ async def query_table_intelligently(
         table_name: ServiceNow table to query
         natural_language_query: Natural language description of what to find
         context: Optional context for enhancing the query
+        debug: When True, attach filter-source attribution + the encoded query
+            actually sent. Off by default — building it re-parses the NL query,
+            re-applies context, and re-encodes the filter, all purely for the
+            debug payload, so it is skipped on the normal path.
 
     Returns:
         Dictionary containing query results and intelligence metadata
 
-    Complexity: 10 (reduced from ~18-22)
+    Complexity: 8 (reduced from ~18-22)
     """
-    # Build intelligent filter
     intelligence_result = build_smart_filter(natural_language_query, table_name, context)
-
-    # Separate filters by source for debugging
-    from filter import QueryIntelligence
-    filters_from_nl = QueryIntelligence.parse_natural_language(natural_language_query, table_name).get("filters", {})
-    filters_from_context = QueryIntelligence._apply_context_filters(context, table_name) if context else {}
 
     # If we got filters, execute the query
     if intelligence_result["filters"]:
@@ -876,23 +890,19 @@ async def query_table_intelligently(
             fields=ESSENTIAL_FIELDS.get(table_name, ["number", "short_description"])
         )
 
-        # Build encoded query for debugging
-        query_string = _build_query_string(intelligence_result["filters"])
-        encoded_query = _encode_query_string(query_string)
-
         query_result = await query_table_with_filters(table_name, params)
-
-        # Build response components
-        filter_sources = _determine_filter_sources(intelligence_result["filters"], filters_from_nl, filters_from_context)
-        debug_info = _build_debug_info(intelligence_result, context, filters_from_nl, filters_from_context, encoded_query)
 
         # Return successful response if we got results
         if isinstance(query_result, dict) and query_result.get('result'):
-            return _build_intelligence_response(query_result, intelligence_result, filter_sources, debug_info)
+            debug_extras = (
+                _build_debug_extras(intelligence_result, natural_language_query, table_name, context)
+                if debug else None
+            )
+            return _build_intelligence_response(query_result, intelligence_result, debug_extras)
 
     # Fallback to keyword-based search
     fallback_result = await query_table_by_text(table_name, natural_language_query)
-    return _build_fallback_response(fallback_result, natural_language_query, table_name, context)
+    return _build_fallback_response(fallback_result, natural_language_query, table_name, context, debug=debug)
 
 
 def explain_filter_query(
@@ -1037,8 +1047,7 @@ async def get_records_by_priority(
     filters = [priority_filter] + _build_additional_filters(additional_filters)
 
     final_query = "^".join(filters)
-    final_query = _apply_incident_category_filter(table_name, final_query)
-    final_query = _apply_sc_catalog_filter(table_name, final_query)
+    final_query = _apply_domain_filters(table_name, final_query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
 
     if final_query:
@@ -1067,10 +1076,7 @@ async def query_table_with_generic_filters(
         filter_parts.append(_build_query_condition(field, value))
 
     query = "^".join(filter_parts)
-    # Apply category filtering for incidents
-    query = _apply_incident_category_filter(table_name, query)
-    # Apply catalog filtering for service catalog tables
-    query = _apply_sc_catalog_filter(table_name, query)
+    query = _apply_domain_filters(table_name, query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
 
     if query:

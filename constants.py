@@ -196,6 +196,11 @@ DETAILED_VTB_TASK_FIELDS = COMMON_VTB_TASK_FIELDS + [
 
 KB_WRITE_RESPONSE_FIELDS = {"number", "sys_id", "short_description", "workflow_state"}
 
+# Field lists for KB read queries (ordered tuples — sysparm_fields order is stable).
+KB_META_FIELDS = ("sys_id", "short_description")
+KB_DEDUP_FIELDS = ("number", "short_description", "workflow_state", "sys_created_on", "kb_category")
+KB_VERIFY_FIELDS = ("sys_id", "number", "workflow_state", "short_description")
+
 # Workflow states that should NOT block a publish on duplicate check.
 # Retired = explicitly killed; outdated = prior version after a newer publish (ServiceNow versioning artefact).
 # Draft / review / published remain blockers because they represent live or pending content.
