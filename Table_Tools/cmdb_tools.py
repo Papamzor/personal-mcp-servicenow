@@ -147,18 +147,22 @@ DETAILED_CI_FIELDS = [
 async def find_cis_by_type(ci_type: str, detailed: bool = False) -> dict[str, Any] | str:
     """
     Find all Configuration Items of a specific type.
-    
+
     Args:
-        ci_type: CI class name (e.g., 'cmdb_ci_server', 'cmdb_ci_computer')
+        ci_type: CI class/table name (e.g., 'cmdb_ci_server', 'cmdb_ci_computer')
         detailed: If True, returns detailed CI information
-    
+
     Returns:
         Dictionary with CI results or error string
+
+    The ci_type is queried directly instead of being pre-validated against the
+    static CI_TABLES list — that list drifts from a given instance's CI classes
+    and was rejecting valid, common types (e.g. cmdb_ci_server). An unknown
+    table simply yields no results rather than a misleading "invalid type".
     """
-    # Validate CI type
-    if ci_type not in CI_TABLES:
-        return f"Invalid CI type. Supported types: {', '.join(CI_TABLES)}"
-    
+    if not ci_type:
+        return "CI type is required"
+
     fields = DETAILED_CI_FIELDS if detailed else ESSENTIAL_CI_FIELDS
     
     try:
