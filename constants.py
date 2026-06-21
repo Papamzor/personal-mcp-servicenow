@@ -28,6 +28,78 @@ TABLE_NO_PRIORITY_SUPPORT_ERROR = "Table {table_name} does not support priority 
 NO_CIS_FOUND_FOR_TYPE = "No CIs found for type: {ci_type}"
 NO_CIS_FOUND_MATCHING_CRITERIA = "No CIs found matching search criteria"
 CI_NOT_FOUND = "CI {ci_number} not found in any CMDB table"
+
+# ---------------------------------------------------------------------------
+# Reference-field handling
+# ---------------------------------------------------------------------------
+# ServiceNow reference fields store a sys_id (32-char hex), not the display
+# value. A bare equality filter against the display name (e.g.
+# `assignment_group=SN_FLEET`) matches the sys_id column, never the name, and
+# returns zero rows with no error. Detect this and tell the caller how to fix
+# it: pass a sys_id, or dot-walk to a stored field (e.g. `assignment_group.name`).
+REFERENCE_FIELDS = frozenset({
+    "assignment_group",
+    "assigned_to",
+    "caller_id",
+    "opened_by",
+    "closed_by",
+    "resolved_by",
+    "company",
+    "location",
+    "cmdb_ci",
+    "business_service",
+    "parent",
+    "u_requested_for",
+    "requested_for",
+})
+
+REFERENCE_FIELD_HINT = (
+    "Filter field '{field}' is a ServiceNow reference field — it stores a sys_id, "
+    "not the display value '{value}'. A bare equality match returns zero rows. "
+    "Pass the sys_id, or dot-walk to a stored attribute, e.g. "
+    "{field}.nameLIKE{value} (substring) or {field}.name={value} (exact)."
+)
+
+# ---------------------------------------------------------------------------
+# Encoded-query operator reference (anti-hallucination)
+# ---------------------------------------------------------------------------
+# Single source of truth for the operators that are VALID inside a
+# sysparm_query encoded-query string. Exposed to the MCP client (see
+# `servicenow://help/query-syntax` in tools.py) so the model uses real syntax
+# instead of guessing. NOTE: `CONTAINS`/`NOTCONTAINS` are GlideRecord scripting
+# operators and are NOT valid here — use `LIKE`/`NOT LIKE` for substring matches.
+SERVICENOW_QUERY_OPERATORS = {
+    "=": {"meaning": "equals", "example": "priority=1"},
+    "!=": {"meaning": "not equal", "example": "state!=6"},
+    "LIKE": {"meaning": "contains (substring); use this, NOT CONTAINS", "example": "short_descriptionLIKEserver"},
+    "NOT LIKE": {"meaning": "does not contain", "example": "short_descriptionNOT LIKEtest"},
+    "STARTSWITH": {"meaning": "begins with", "example": "numberSTARTSWITHINC"},
+    "ENDSWITH": {"meaning": "ends with", "example": "short_descriptionENDSWITHdown"},
+    "IN": {"meaning": "in a comma list", "example": "priorityIN1,2,3"},
+    "NOT IN": {"meaning": "not in a comma list", "example": "stateNOT IN7,8"},
+    "ISEMPTY": {"meaning": "field is empty", "example": "assigned_toISEMPTY"},
+    "ISNOTEMPTY": {"meaning": "field is not empty", "example": "assigned_toISNOTEMPTY"},
+    ">": {"meaning": "greater than", "example": "priority>2"},
+    ">=": {"meaning": "greater than or equal", "example": "sys_created_on>=2026-01-01"},
+    "<": {"meaning": "less than", "example": "priority<3"},
+    "<=": {"meaning": "less than or equal", "example": "sys_created_on<=2026-06-30"},
+    "BETWEEN": {"meaning": "inclusive range (a@b)", "example": "sys_created_onBETWEEN2026-01-01@2026-03-31"},
+    "INSTANCEOF": {"meaning": "table inheritance", "example": "sys_class_nameINSTANCEOFcmdb_ci_server"},
+    "^": {"meaning": "AND", "example": "priority=1^state=2"},
+    "^OR": {"meaning": "OR", "example": "priority=1^ORpriority=2"},
+    "^NQ": {"meaning": "new query (UNION)", "example": "active=true^NQactive=false"},
+    "ORDERBY": {"meaning": "sort ascending", "example": "^ORDERBYsys_created_on"},
+    "ORDERBYDESC": {"meaning": "sort descending", "example": "^ORDERBYDESCsys_created_on"},
+}
+
+QUERY_SYNTAX_NOTES = (
+    "ServiceNow encoded-query syntax: write conditions as fieldOPERATORvalue, "
+    "joined by ^ (AND) / ^OR (OR). For substring 'contains', use LIKE "
+    "(fieldLIKEvalue) — CONTAINS is GlideRecord-script-only and is silently "
+    "ignored in encoded queries. Reference fields (assignment_group, "
+    "assigned_to, caller_id, cmdb_ci, ...) store sys_ids; filter by sys_id or "
+    "dot-walk (assignment_group.nameLIKEFleet)."
+)
 NO_SIMILAR_CIS_FOUND = "No similar CIs found for {ci_number}"
 NO_CI_TYPES_FOUND = "No CI types found"
 NO_CIS_FOUND_FOR_SEARCH = "No CIs found for search term: {search_term}"

@@ -229,8 +229,11 @@ class QueryIntelligence:
         if not keywords:
             return {"filters": {}, "confidence": 0.0, "explanation": ""}
 
+        # Value carries the operator only (LIKE = encoded-query "contains"); the
+        # field name is supplied by the dict key. Embedding the field name in the
+        # value previously produced the malformed `short_description=short_descriptionLIKE...`.
         return {
-            "filters": {"short_description": f"short_descriptionCONTAINS{keywords[0]}"},
+            "filters": {"short_description": f"LIKE{keywords[0]}"},
             "confidence": 0.5,
             "explanation": f"Using keyword search for: {keywords[0]}",
         }

@@ -48,7 +48,7 @@ from Table_Tools.cmdb_tools import (
 from utility_tools import nowtest, now_test_oauth, now_auth_info
 from Table_Tools.intelligent_query_tools import (
     intelligent_search, explain_servicenow_filters, build_smart_servicenow_filter,
-    get_servicenow_filter_templates, get_query_examples
+    get_servicenow_filter_templates, get_query_examples, get_query_syntax_help
 )
 
 from typing import Any, Dict, List, Optional
@@ -112,7 +112,7 @@ tools = [
 
     # Intelligent query tools
     intelligent_search, explain_servicenow_filters, build_smart_servicenow_filter,
-    get_servicenow_filter_templates, get_query_examples
+    get_servicenow_filter_templates, get_query_examples, get_query_syntax_help
 ]
 
 for tool in tools:

@@ -5,9 +5,46 @@ rather than raising, so callers can attach them to LLM-visible responses.
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List
 
+from constants import REFERENCE_FIELDS, REFERENCE_FIELD_HINT
 from filter.models import QueryValidationResult
+
+
+# A bare value that is a 32-char hex string is already a sys_id — no warning.
+_SYS_ID_RE = re.compile(r"^[0-9a-f]{32}$", re.IGNORECASE)
+_COMPARISON_OPS = (">=", "<=", "!=", ">", "<", "=")
+_TEXT_OP_PREFIXES = (
+    "NOT LIKE", "NOTLIKE", "LIKE", "STARTSWITH", "ENDSWITH",
+    "NOT IN", "NOTIN", "IN", "ISEMPTY", "ISNOTEMPTY", "BETWEEN",
+    "CONTAINS", "NOTCONTAINS",
+)
+
+
+def _value_carries_operator(value: str) -> bool:
+    """True if the value already expresses an operator (so it is not a bare match)."""
+    if any(op in value for op in _COMPARISON_OPS):
+        return True
+    return any(value.startswith(op) for op in _TEXT_OP_PREFIXES)
+
+
+def validate_reference_field(field: str, value: str) -> QueryValidationResult:
+    """Warn when a reference field is filtered by a bare display value.
+
+    Reference fields store a sys_id; `assignment_group=SN_FLEET` matches the
+    sys_id column against a name and silently returns zero rows. Fires only for
+    the bare-equality case (not sys_ids, dot-walked keys, or operator values),
+    which is exactly the silent-empty failure mode.
+    """
+    result = QueryValidationResult()
+    if field not in REFERENCE_FIELDS or not isinstance(value, str):
+        return result
+    if _SYS_ID_RE.match(value.strip()) or _value_carries_operator(value):
+        return result
+    result.add_warning(f"Reference field '{field}' filtered by bare value '{value}'")
+    result.add_suggestion(REFERENCE_FIELD_HINT.format(field=field, value=value))
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +154,11 @@ def validate_query_filters(filters: Dict[str, str]) -> QueryValidationResult:
             date_result = validate_date_range_filter(value)
             result.warnings.extend(date_result.warnings)
             result.suggestions.extend(date_result.suggestions)
+
+        # Self-guarding; only fires for known reference fields with a bare value.
+        ref_result = validate_reference_field(field, value)
+        result.warnings.extend(ref_result.warnings)
+        result.suggestions.extend(ref_result.suggestions)
 
     return result
 

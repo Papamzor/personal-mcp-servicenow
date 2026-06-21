@@ -23,6 +23,7 @@ from Table_Tools.generic_table_tools import (
     _parse_priority_list,
     _parse_caller_exclusions,
     _has_operator_in_value,
+    _normalize_operator,
     _is_complete_servicenow_filter,
     _handle_bare_or_value_condition,
     _build_query_condition,
@@ -300,6 +301,42 @@ class TestQueryBuilding:
         assert _has_operator_in_value("100") is False
         assert _has_operator_in_value("New") is False
 
+    def test_has_operator_in_value_extended_operators(self):
+        """Newly recognized encoded-query operators are detected."""
+        assert _has_operator_in_value("NOT LIKEtest") is True
+        assert _has_operator_in_value("NOTLIKEtest") is True
+        assert _has_operator_in_value("INSTANCEOFcmdb_ci_server") is True
+        assert _has_operator_in_value("NOT IN7,8") is True
+        assert _has_operator_in_value("IN1,2,3") is True
+
+    def test_has_operator_in_value_ambiguous_in_guard(self):
+        """'IN' must not be misread when it is just the start of a word."""
+        assert _has_operator_in_value("INTERNAL") is False
+        assert _has_operator_in_value("Incident") is False
+        # but a genuine IN-list (digit follows) still matches
+        assert _has_operator_in_value("IN1,2") is True
+
+    def test_normalize_operator_contains_to_like(self):
+        """CONTAINS/NOTCONTAINS (GlideRecord-only) rewrite to LIKE/NOT LIKE."""
+        assert _normalize_operator("CONTAINSsubrent") == "LIKEsubrent"
+        assert _normalize_operator("NOTCONTAINSspam") == "NOT LIKEspam"
+        assert _normalize_operator("NOT CONTAINSspam") == "NOT LIKEspam"
+        # already-valid operators and bare values are untouched
+        assert _normalize_operator("LIKEserver") == "LIKEserver"
+        assert _normalize_operator("New") == "New"
+
+    def test_build_query_condition_normalizes_contains(self):
+        """A CONTAINS filter value becomes a LIKE encoded-query condition."""
+        result = _build_query_condition("short_description", "CONTAINSsubrent")
+        assert result == "short_descriptionLIKEsubrent"
+        assert "CONTAINS" not in result
+        assert "=" not in result  # not degraded to equality
+
+    def test_build_query_condition_field_named_contains_no_dead_branch(self):
+        """A field whose name contains 'CONTAINS' no longer yields a value-less fragment."""
+        result = _build_query_condition("u_contains_flag", "yes")
+        assert result == "u_contains_flag=yes"
+
     def test_is_complete_servicenow_filter_true(self):
         """Test detecting complete ServiceNow filters with ^OR and proper field=value structure."""
         assert _is_complete_servicenow_filter("priority=1^ORpriority=2") is True
@@ -482,6 +519,21 @@ class TestAsyncTableOperations:
             assert "Found" in result["message"]
 
     @pytest.mark.asyncio
+    async def test_query_table_by_text_uses_like_operator(self):
+        """Search path must build short_descriptionLIKE..., never CONTAINS (invalid in encoded queries)."""
+        with patch("Table_Tools.generic_table_tools.extract_keywords") as mock_keywords, \
+             patch("Table_Tools.generic_table_tools._make_paginated_request") as mock_request:
+
+            mock_keywords.return_value = ["database"]
+            mock_request.return_value = [{"number": "INC001"}]
+
+            await query_table_by_text("incident", "database issue")
+
+            url = mock_request.call_args.args[0]
+            assert "short_descriptionLIKEdatabase" in url
+            assert "CONTAINS" not in url
+
+    @pytest.mark.asyncio
     async def test_query_table_by_text_no_results(self):
         """Test querying table by text with no results."""
         with patch("Table_Tools.generic_table_tools.extract_keywords") as mock_keywords, \
@@ -592,6 +644,19 @@ class TestAsyncTableOperations:
             assert result["result"] == []
             assert "message" in result
             assert result["returned_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_query_table_with_filters_reference_field_hint_on_empty(self):
+        """Bare reference-field value returning empty attaches a dot-walk hint."""
+        with patch("Table_Tools.generic_table_tools._make_paginated_request") as mock_request:
+            mock_request.return_value = []
+
+            params = TableFilterParams(filters={"assignment_group": "SN_FLEET"})
+            result = await query_table_with_filters("incident", params)
+
+            assert result["result"] == []
+            assert "suggestions" in result
+            assert any("dot-walk" in s or "sys_id" in s for s in result["suggestions"])
             assert result["truncated"] is False
             assert result["max_results"] == 100
 

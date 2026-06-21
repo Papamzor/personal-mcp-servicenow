@@ -29,6 +29,7 @@ from filter.validator import (
     validate_date_range_filter,
     validate_priority_filter,
     validate_query_filters,
+    validate_reference_field,
     validate_result_count,
 )
 from filter.intelligence import (
@@ -55,6 +56,7 @@ __all__ = [
     "validate_date_range_filter",
     "validate_priority_filter",
     "validate_query_filters",
+    "validate_reference_field",
     "validate_result_count",
     # NL parsing
     "QueryIntelligence",

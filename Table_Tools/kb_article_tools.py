@@ -91,16 +91,16 @@ async def _get_kb_article_meta(article_number: str, workflow_state: str | None =
 async def _check_kb_duplicates(short_description: str, exclude_number: str) -> list:
     """Return KB articles matching short_description exactly across live workflow states.
 
-    Queries with CONTAINS then exact-matches in Python so the check catches
-    drafts, review, and published articles. Retired + outdated articles are
-    skipped — retired = explicitly killed, outdated = prior version after a newer
-    publish (ServiceNow versioning artefact). Excludes the article being published
-    (exclude_number) from results.
+    Queries with LIKE (ServiceNow's encoded-query "contains") then exact-matches
+    in Python so the check catches drafts, review, and published articles.
+    Retired + outdated articles are skipped — retired = explicitly killed,
+    outdated = prior version after a newer publish (ServiceNow versioning
+    artefact). Excludes the article being published (exclude_number) from results.
     """
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
         f"?sysparm_fields=number,short_description,workflow_state,sys_created_on,kb_category"
-        f"&sysparm_query=short_descriptionCONTAINS{short_description}"
+        f"&sysparm_query=short_descriptionLIKE{short_description}"
     )
     data = await make_nws_request(url)
     if not data or not data.get('result'):

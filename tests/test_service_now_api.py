@@ -139,9 +139,9 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
 
-        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionCONTAINSserver down"
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionLIKEserver down"
         result = self._ensure_query_encoded(url)
-        self.assertIn("sysparm_query=short_descriptionCONTAINSserver%20down", result)
+        self.assertIn("sysparm_query=short_descriptionLIKEserver%20down", result)
 
     async def test_ensure_query_encoded_preserves_sn_operators(self):
         """Test that ServiceNow operators (=, ^, <, >, etc.) are preserved."""
@@ -157,9 +157,9 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
 
-        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionCONTAINSissue #123"
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionLIKEissue #123"
         result = self._ensure_query_encoded(url)
-        self.assertIn("sysparm_query=short_descriptionCONTAINSissue%20%23123", result)
+        self.assertIn("sysparm_query=short_descriptionLIKEissue%20%23123", result)
         self.assertNotIn("#", result.split("sysparm_query=")[1].split("&")[0])
 
     async def test_ensure_query_encoded_idempotent(self):
@@ -167,7 +167,7 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
 
-        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionCONTAINSserver%20down"
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionLIKEserver%20down"
         result = self._ensure_query_encoded(url)
         self.assertIn("server%20down", result)
         self.assertNotIn("%2520", result)
@@ -177,10 +177,10 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
 
-        url = "https://test.service-now.com/api/now/table/incident?sysparm_fields=number&sysparm_query=short_descriptionCONTAINSserver down&sysparm_limit=10"
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_fields=number&sysparm_query=short_descriptionLIKEserver down&sysparm_limit=10"
         result = self._ensure_query_encoded(url)
         self.assertIn("sysparm_fields=number", result)
-        self.assertIn("sysparm_query=short_descriptionCONTAINSserver%20down", result)
+        self.assertIn("sysparm_query=short_descriptionLIKEserver%20down", result)
         self.assertIn("sysparm_limit=10", result)
 
     # --- _add_default_params tests ---
@@ -291,7 +291,7 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
 
         mock_oauth_request.return_value = {'result': []}
 
-        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionCONTAINSserver down"
+        url = "https://test.service-now.com/api/now/table/incident?sysparm_query=short_descriptionLIKEserver down"
         await self.make_nws_request(url)
 
         called_url = mock_oauth_request.call_args[0][0]
