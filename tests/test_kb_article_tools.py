@@ -714,6 +714,22 @@ class TestPublishWithVerify:
             assert result["number"] == "KB0001234"
 
     @pytest.mark.asyncio
+    async def test_fire_anyio_timeout_but_verify_finds_published(self):
+        """Regression: anyio.fail_after raises builtin TimeoutError, not
+        httpx.TimeoutException. _fire_publish must treat it as a recoverable
+        fire timeout and let verify confirm the publish."""
+        async def fake_request(url, **kwargs):
+            if kwargs.get("method") == "POST":
+                raise TimeoutError("anyio deadline exceeded")
+            return {"result": [{"number": "KB0001234", "workflow_state": "Published"}]}
+
+        with patch('Table_Tools.kb_article_tools.make_nws_request', side_effect=fake_request), \
+             patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock):
+            result = await _publish_with_verify("abc123", "KB0001234")
+            assert isinstance(result, dict)
+            assert result["number"] == "KB0001234"
+
+    @pytest.mark.asyncio
     async def test_fire_http_error_but_verify_finds_published(self):
         async def fake_request(url, **kwargs):
             if kwargs.get("method") == "POST":

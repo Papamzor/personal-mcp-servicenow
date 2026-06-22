@@ -166,11 +166,17 @@ async def _verify_kb_published(article_number: str) -> Dict[str, Any] | None:
 
 
 async def _fire_publish(sys_id: str) -> str | None:
-    """Fire the publish workflow. Returns None on success, error string on fire-time failure."""
+    """Fire the publish workflow. Returns None on success, error string on fire-time failure.
+
+    A fire-time timeout is recoverable: the publish may still commit server-side,
+    so we return a marker and let _publish_with_verify poll for the Published row.
+    The deadline now comes from anyio.fail_after (builtin TimeoutError); the
+    httpx.TimeoutException arm is kept for any transport-level timeout.
+    """
     try:
         await _call_kb_publish_workflow(sys_id)
         return None
-    except httpx.TimeoutException:
+    except (httpx.TimeoutException, TimeoutError):
         return "fire timeout"
     except httpx.HTTPStatusError as e:
         return _handle_kb_error(e, "publish")
