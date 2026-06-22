@@ -202,8 +202,8 @@ async def get_knowledge_by_category(category: str, kb_base: Optional[str] = None
         filters["kb_knowledge_base"] = kb_base
     return await query_table_with_generic_filters("kb_knowledge", filters)
 
-async def get_active_knowledge_articles(input_text: str) -> Dict[str, Any]:  # noqa: ARG001
-    """Get active knowledge articles matching text."""
+async def get_active_knowledge_articles() -> Dict[str, Any]:
+    """Get active knowledge articles."""
     filters = {"workflow_state": "published"}
     return await query_table_with_generic_filters("kb_knowledge", filters)
 

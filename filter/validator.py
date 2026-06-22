@@ -171,7 +171,7 @@ def validate_query_filters(filters: Dict[str, str]) -> QueryValidationResult:
 # owns the "what is wrong + how to fix" knowledge — correction is the
 # applied form of that knowledge.
 
-def _correct_priority(field: str, value: str) -> tuple[str, str | None]:
+def _correct_priority(value: str) -> tuple[str, str | None]:
     """Return (corrected_value, suggestion_or_None) for a priority field."""
     if "," in value and "^OR" not in value:
         # Local import — validator -> builder is acceptable; the forbidden
@@ -184,7 +184,7 @@ def _correct_priority(field: str, value: str) -> tuple[str, str | None]:
     return value, None
 
 
-def _correct_date(field: str, value: str) -> tuple[str, str | None]:
+def _correct_date(value: str) -> tuple[str, str | None]:
     """Return (corrected_value, suggestion_or_None) for a sys_created_on field."""
     if ">=" in value and ":" not in value and "javascript:" not in value:
         corrected = value.replace(">=", ">=") + " 00:00:00"
@@ -204,9 +204,9 @@ def validate_and_correct_filters(filters: Dict[str, str]) -> QueryValidationResu
     corrected: Dict[str, str] = {}
     for field, value in filters.items():
         if field == "priority":
-            new_value, suggestion = _correct_priority(field, value)
+            new_value, suggestion = _correct_priority(value)
         elif field == "sys_created_on":
-            new_value, suggestion = _correct_date(field, value)
+            new_value, suggestion = _correct_date(value)
         else:
             new_value, suggestion = value, None
         corrected[field] = new_value

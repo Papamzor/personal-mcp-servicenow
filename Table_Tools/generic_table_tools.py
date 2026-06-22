@@ -504,7 +504,7 @@ def _handle_date_range_condition(field: str, value: str) -> Optional[str]:
         if "BETWEEN" in value:
             return value
         # If already has operator, return as-is
-        if value.startswith(">=") or value.startswith("<="):
+        if value.startswith((">=", "<=")):
             return f"{field}{value}"
         # Try to parse natural language date range
         date_range = _parse_date_range_from_text(value)

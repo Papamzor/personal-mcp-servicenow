@@ -90,7 +90,7 @@ def main():
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
 
     if transport == "sse":
-        print(f"Personal ServiceNow MCP Server started (SSE)", file=sys.stderr)
+        print("Personal ServiceNow MCP Server started (SSE)", file=sys.stderr)
         from tools import mcp
         mcp.run(transport="sse")
     else:

@@ -631,8 +631,6 @@ class TestRoutesThroughUnifiedPipeline:
             url, kwargs = post_calls[0]
             assert kwargs["method"] == "POST"
             assert "/api/qonv/mateco_knowledge/articles/abc123/publish" in url
-            # KB-publish opts in to a longer timeout than the executor default.
-            assert kwargs["timeout"] > 30.0
 
     @pytest.mark.asyncio
     async def test_retire_routes_through_make_nws_request(self):
@@ -832,34 +830,3 @@ class TestWritePathTimeoutPropagation:
             result = await executor.make_authenticated_request("GET", "https://x/api")
             assert result is None
 
-    @pytest.mark.asyncio
-    async def test_executor_passes_custom_timeout_to_httpx(self):
-        from oauth.request_executor import RequestExecutor
-        from oauth.token_store import TokenStore
-
-        async def headers():
-            return {"Authorization": "Bearer test"}
-
-        token_store = MagicMock(spec=TokenStore)
-        token_store.clear = AsyncMock()
-        executor = RequestExecutor(get_auth_headers=headers, token_store=token_store)
-
-        captured = {}
-
-        async def fake_request(method, url, **kwargs):
-            captured.update(kwargs)
-            resp = MagicMock()
-            resp.status_code = 200
-            resp.json.return_value = {"ok": True}
-            resp.raise_for_status = MagicMock()
-            return resp
-
-        with patch("oauth.request_executor.httpx.AsyncClient") as mock_client_class:
-            mock_client = MagicMock()
-            mock_client.request = AsyncMock(side_effect=fake_request)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=None)
-            mock_client_class.return_value = mock_client
-
-            await executor.make_authenticated_request("POST", "https://x/api", timeout=180.0)
-            assert captured["timeout"] == 180.0

@@ -1,6 +1,7 @@
 import asyncio
 from http_layer import make_nws_request, NWS_API_BASE
 from typing import Any, Dict, List
+import anyio
 import httpx
 from .write_helpers import map_http_error, unwrap_write_response
 from constants import (
@@ -134,12 +135,8 @@ async def _call_kb_publish_workflow(sys_id: str) -> Dict[str, Any] | None:
     # of mapping them to strings. _publish_with_verify needs the raw
     # TimeoutException / HTTPStatusError types to decide retry behaviour.
     url = f"{NWS_API_BASE}/api/qonv/mateco_knowledge/articles/{sys_id}/publish"
-    return await make_nws_request(
-        url,
-        method="POST",
-        json_data={},
-        timeout=KB_PUBLISH_TIMEOUT_SECONDS,
-    )
+    with anyio.fail_after(KB_PUBLISH_TIMEOUT_SECONDS):
+        return await make_nws_request(url, method="POST", json_data={})
 
 
 async def _verify_kb_published(article_number: str) -> Dict[str, Any] | None:

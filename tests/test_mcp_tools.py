@@ -160,7 +160,7 @@ class TestKnowledgeBaseTools(unittest.IsolatedAsyncioTestCase):
         with patch.object(self, 'get_active_knowledge_articles', new_callable=AsyncMock) as mock_func:
             mock_func.return_value = mock_response
             
-            result = await self.get_active_knowledge_articles("server")
+            result = await self.get_active_knowledge_articles()
             
             self.assertIsInstance(result, dict)
             self.assertIn('articles', result)

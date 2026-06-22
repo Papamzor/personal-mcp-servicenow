@@ -40,7 +40,6 @@ class RequestExecutor:
         method: str,
         url: str,
         raise_for_status: bool = False,
-        timeout: float = 30.0,
         **kwargs,
     ) -> Optional[Dict[str, Any]]:
         """Make an authenticated request to ServiceNow API.
@@ -52,9 +51,8 @@ class RequestExecutor:
         operations keep the default permissive behaviour and return
         ``None`` on failure.
 
-        The ``timeout`` kwarg controls the per-request httpx timeout in
-        seconds. Defaults to 30.0; long-running endpoints (e.g. KB
-        publish workflow) should opt in to a higher value.
+        Wrap calls in ``anyio.fail_after()`` at the call site to control
+        per-request deadlines.
         """
         headers = await self._get_auth_headers()
 
@@ -68,7 +66,7 @@ class RequestExecutor:
         # per-call TLS handshake). The 401-retry reuses the same client.
         client = get_pooled_client()
         try:
-            response = await client.request(method, url, timeout=timeout, **kwargs)
+            response = await client.request(method, url, **kwargs)
             response.raise_for_status()
             return self._process_response(response)
         except httpx.HTTPStatusError as e:
@@ -76,7 +74,6 @@ class RequestExecutor:
                 return await self._retry_with_fresh_token(
                     client, method, url,
                     raise_for_status=raise_for_status,
-                    timeout=timeout,
                     **kwargs,
                 )
             if raise_for_status:
@@ -99,7 +96,6 @@ class RequestExecutor:
         method: str,
         url: str,
         raise_for_status: bool = False,
-        timeout: float = 30.0,
         **kwargs,
     ) -> Optional[Dict[str, Any]]:
         """Drop the cached token, re-authenticate, retry once."""
@@ -109,7 +105,7 @@ class RequestExecutor:
         kwargs["headers"] = headers
 
         try:
-            response = await client.request(method, url, timeout=timeout, **kwargs)
+            response = await client.request(method, url, **kwargs)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError:

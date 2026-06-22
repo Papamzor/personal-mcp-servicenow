@@ -12,6 +12,19 @@ import platform
 import os
 import argparse
 
+_PROJECT_ROOT = os.path.realpath(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _validate_path(path: str) -> str:
+    """Resolve path and raise ValueError if it escapes the project root."""
+    if os.path.isabs(path):
+        resolved = os.path.realpath(path)
+    else:
+        resolved = os.path.realpath(os.path.join(_PROJECT_ROOT, path))
+    if resolved != _PROJECT_ROOT and not resolved.startswith(_PROJECT_ROOT + os.sep):
+        raise ValueError(f"Path traversal rejected: {path!r} escapes project root")
+    return resolved
+
 
 def get_output_name():
     """Get platform-appropriate output filename."""
@@ -45,17 +58,18 @@ def build(output_dir='dist'):
     """Run Nuitka build."""
     import sysconfig
 
+    safe_output_dir = _validate_path(output_dir)
     output_name = get_output_name()
-    output_path = os.path.join(output_dir, output_name)
+    output_path = os.path.join(safe_output_dir, output_name)
 
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(safe_output_dir, exist_ok=True)
 
     cmd = [
         sys.executable, '-m', 'nuitka',
         '--standalone',
         '--onefile',
         f'--output-filename={output_name}',
-        f'--output-dir={output_dir}',
+        f'--output-dir={safe_output_dir}',
         '--assume-yes-for-downloads',  # Auto-download dependencies
         '--remove-output',  # Clean up build artifacts
         'personal_mcp_servicenow_main.py'
@@ -82,10 +96,14 @@ def build(output_dir='dist'):
 
 def smoke_test(binary_path):
     """Run smoke test on built binary."""
-    print(f"\nRunning smoke test on {binary_path}...")
+    safe_binary = _validate_path(binary_path)
+    if not os.path.isfile(safe_binary):
+        raise FileNotFoundError(f"Binary not found: {safe_binary!r}")
+
+    print(f"\nRunning smoke test on {safe_binary}...")
 
     # Test --version
-    result = subprocess.run([binary_path, '--version'], capture_output=True, text=True)
+    result = subprocess.run([safe_binary, '--version'], capture_output=True, text=True)
     if result.returncode != 0:
         print(f"FAIL: --version returned {result.returncode}")
         print(f"stderr: {result.stderr}")
@@ -94,7 +112,7 @@ def smoke_test(binary_path):
     print(f"  --version: {result.stdout.strip()}")
 
     # Test --help
-    result = subprocess.run([binary_path, '--help'], capture_output=True, text=True)
+    result = subprocess.run([safe_binary, '--help'], capture_output=True, text=True)
     if result.returncode != 0:
         print(f"FAIL: --help returned {result.returncode}")
         sys.exit(1)

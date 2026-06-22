@@ -25,6 +25,8 @@ import os
 import sys
 from typing import Any, Optional
 
+import anyio
+
 from http_layer.response_parser import extract_display_values
 from http_layer.url_builder import add_default_params, ensure_query_encoded
 from oauth.singleton import get_oauth_client, make_oauth_request
@@ -40,7 +42,6 @@ async def make_nws_request(
     display_value: bool = True,
     method: str = "GET",
     json_data: Optional[dict[str, Any]] = None,
-    timeout: Optional[float] = None,
 ) -> dict[str, Any] | None:
     """Make a request to the ServiceNow API using OAuth 2.0 authentication.
 
@@ -53,16 +54,19 @@ async def make_nws_request(
     ``httpx.TimeoutException`` so callers can map them to domain-specific
     error messages.
 
-    ``timeout`` (write path only) overrides the executor's default httpx
-    timeout. Use for endpoints whose server-side processing exceeds 30s
-    (e.g. KB publish workflow). GET ignores it — reads use the default.
+    Wrap calls in ``anyio.fail_after()`` at the call site to enforce
+    per-operation deadlines (e.g. ``anyio.fail_after(180.0)`` for KB publish).
     """
     if method == "GET":
         url = ensure_query_encoded(url)
         url = add_default_params(url, display_value)
         try:
-            result = await make_oauth_request(url)
+            with anyio.fail_after(30.0):  # anyio cancel scope: sync ctx, async-compatible
+                result = await make_oauth_request(url)
             return extract_display_values(result) if result and display_value else result
+        except TimeoutError:
+            print(f"[http_layer] GET request timed out for {url}", file=sys.stderr)
+            return None
         except Exception as e:  # noqa: BLE001
             # stderr only — stdout is reserved for the MCP JSON-RPC frame stream.
             print(f"[http_layer] GET request failed for {url} ({type(e).__name__}): {e}", file=sys.stderr)
@@ -70,12 +74,10 @@ async def make_nws_request(
 
     # Write path: bypass read-only params + display flattening, raise
     # for status so callers can map HTTP errors to domain errors.
+    # Callers wrap in anyio.fail_after() to enforce custom deadlines.
     client = get_oauth_client()
-    write_kwargs: dict[str, Any] = {"json": json_data}
-    if timeout is not None:
-        write_kwargs["timeout"] = timeout
     return await client.make_authenticated_request(
-        method, url, raise_for_status=True, **write_kwargs
+        method, url, raise_for_status=True, json=json_data
     )
 
 

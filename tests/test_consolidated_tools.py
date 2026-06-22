@@ -200,7 +200,7 @@ class TestKnowledgeTools:
     async def test_get_active_knowledge_articles(self):
         with patch('Table_Tools.consolidated_tools.query_table_with_generic_filters') as mock_query:
             mock_query.return_value = {"result": [{"number": "KB001"}]}
-            result = await get_active_knowledge_articles("test")
+            result = await get_active_knowledge_articles()
             mock_query.assert_called_once_with("kb_knowledge", {"workflow_state": "published"})
 
 

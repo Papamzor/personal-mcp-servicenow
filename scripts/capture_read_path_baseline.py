@@ -156,7 +156,7 @@ async def main() -> int:
         await measure(
             "get_active_knowledge_articles",
             'input_text="error"',
-            lambda: get_active_knowledge_articles("error"),
+            lambda: get_active_knowledge_articles(),
         )
     )
 

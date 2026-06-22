@@ -13,9 +13,9 @@ shared ``httpx`` module object, so the patch also intercepts the
 construction below. Cross-test isolation is handled by an autouse fixture
 in ``tests/conftest.py`` that resets ``_pooled_client``.
 
-Per-request timeouts are always passed explicitly by callers
-(``RequestExecutor`` and ``TokenStore``), so the client-level default
-timeout is never relied upon.
+Timeouts are controlled via ``anyio.fail_after()`` at each call site;
+the client-level timeout is set to ``None`` so anyio cancel scopes
+govern all deadlines.
 """
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def get_pooled_client() -> httpx.AsyncClient:
     """Return the shared keep-alive client, creating it on first use."""
     global _pooled_client
     if _pooled_client is None or getattr(_pooled_client, "is_closed", False):
-        _pooled_client = httpx.AsyncClient(verify=True, limits=_LIMITS)
+        _pooled_client = httpx.AsyncClient(verify=True, limits=_LIMITS, timeout=httpx.Timeout(None))
     return _pooled_client
 
 
