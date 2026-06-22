@@ -1,4 +1,6 @@
 import asyncio
+import sys
+import time
 from http_layer import make_nws_request, NWS_API_BASE
 from typing import Any, Dict, List
 import anyio
@@ -20,6 +22,7 @@ from constants import (
     KB_VERIFY_FIELDS,
     KB_DUPLICATE_IGNORED_STATES,
     KB_PUBLISH_TIMEOUT_SECONDS,
+    KB_WRITE_TIMEOUT_SECONDS,
     KB_VERIFY_DELAY_SECONDS,
     KB_PUBLISH_MAX_RETRIES,
     KB_PUBLISH_BATCH_CONCURRENCY,
@@ -58,8 +61,12 @@ async def _write_kb_article(
     payload: Dict[str, Any],
     operation: str,
 ) -> Dict[str, Any] | str:
+    # Bound the write with an anyio cancel scope — the pooled client runs with
+    # timeout=None, so without this a held/half-open connection hangs forever.
+    # anyio.fail_after raises builtin TimeoutError on breach, caught below.
     try:
-        result = await make_nws_request(url, method=method, json_data=payload)
+        with anyio.fail_after(KB_WRITE_TIMEOUT_SECONDS):
+            result = await make_nws_request(url, method=method, json_data=payload)
     except httpx.HTTPStatusError as e:
         return _handle_kb_error(e, operation)
     except Exception:
@@ -207,12 +214,20 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
     """
     if not update_data:
         return ERROR_KB_NO_UPDATE_DATA
+
+    # Per-step stderr timing — localises a stall to the sys_id GET vs the PATCH
+    # when an update hangs. stdout is reserved for the MCP JSON-RPC frame stream.
+    t0 = time.monotonic()
     sys_id = await _get_kb_article_sys_id(article_number, workflow_state="draft")
+    t1 = time.monotonic()
+    print(f"[kb] {article_number} sys_id GET took {t1 - t0:.1f}s", file=sys.stderr)
     if not sys_id:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
     fields = ",".join(KB_WRITE_RESPONSE_FIELDS)
     url = f"{NWS_API_BASE}/api/now/table/kb_knowledge/{sys_id}?sysparm_fields={fields}"
-    return await _write_kb_article("PATCH", url, update_data, "update")
+    result = await _write_kb_article("PATCH", url, update_data, "update")
+    print(f"[kb] {article_number} PATCH took {time.monotonic() - t1:.1f}s", file=sys.stderr)
+    return result
 
 
 async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str:

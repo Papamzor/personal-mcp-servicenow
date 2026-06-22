@@ -211,6 +211,12 @@ KB_DUPLICATE_IGNORED_STATES = {"retired", "outdated"}
 # Fire-and-verify pattern: POST with extended timeout, then poll for the
 # Published row to confirm. Treat verify as source of truth.
 KB_PUBLISH_TIMEOUT_SECONDS = 180.0
+# Total deadline for a single KB table write (PATCH/POST via _write_kb_article).
+# The v4.2 anyio refactor set the pooled client to timeout=None and only wrapped
+# the GET and publish-workflow paths in anyio.fail_after, leaving ordinary writes
+# (update/retire) unbounded — a slow or half-open ServiceNow connection could hang
+# update_knowledge_article for minutes. This restores the pre-refactor 30s bound.
+KB_WRITE_TIMEOUT_SECONDS = 30.0
 KB_VERIFY_DELAY_SECONDS = 12
 KB_PUBLISH_MAX_RETRIES = 1
 KB_PUBLISH_BATCH_CONCURRENCY = 2

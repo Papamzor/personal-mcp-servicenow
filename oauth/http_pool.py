@@ -27,7 +27,19 @@ import httpx
 
 # ServiceNow is a single host; a modest keep-alive pool covers our concurrent
 # gather() fan-outs (CMDB probe, KB batch) without exhausting the instance.
-_LIMITS = httpx.Limits(max_connections=100, max_keepalive_connections=20)
+#
+# ``keepalive_expiry`` caps how long an idle pooled connection may be reused.
+# ServiceNow (and the load-balancer/proxy in front of it) silently drops idle
+# sockets; reusing a half-open one stalls the next request — classically the
+# first WRITE fired after a burst of READs. With the client running at
+# ``timeout=None`` (deadlines come from anyio cancel scopes) there is no
+# transport-level timeout to catch such a socket, so expiring idle connections
+# after 15s forces a fresh socket instead of inheriting a dead one.
+_LIMITS = httpx.Limits(
+    max_connections=100,
+    max_keepalive_connections=20,
+    keepalive_expiry=15.0,
+)
 
 _pooled_client: Optional[httpx.AsyncClient] = None
 
