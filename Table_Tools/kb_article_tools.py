@@ -28,6 +28,7 @@ from constants import (
     KB_PUBLISH_BATCH_CONCURRENCY,
     KB_PUBLISHED_STATE,
     KB_MAX_BATCH_CONCURRENCY,
+    KB_UPDATABLE_FIELDS,
 )
 
 
@@ -221,6 +222,10 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
     """
     if not update_data:
         return ERROR_KB_NO_UPDATE_DATA
+
+    bad = [k for k in update_data if k not in KB_UPDATABLE_FIELDS]
+    if bad:
+        return f"Rejected non-updatable field(s): {', '.join(bad)}"
 
     # Per-step stderr timing — localises a stall to the sys_id GET vs the PATCH
     # when an update hangs. stdout is reserved for the MCP JSON-RPC frame stream.

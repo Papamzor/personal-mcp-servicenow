@@ -421,10 +421,26 @@ class TestQueryBuilding:
         # Must contain caller_id condition
         assert "caller_id!=xxx" in result
 
-    def test_build_query_condition_complete_query(self):
-        """Test building complete query condition."""
+    def test_build_query_condition_complete_query_disabled_by_default(self):
+        """_complete_query is dropped (returns "") unless ENABLE_COMPLETE_QUERY is on.
+
+        C-1(b) hardening: a raw caller-built query is the same shape of input
+        an attacker would use to smuggle a ^NQ past the domain exclusion
+        fences appended by _apply_domain_filters, so it is off by default.
+        """
         result = _build_query_condition("_complete_query", "priority=1^state=2")
+        assert result == ""
+
+    def test_build_query_condition_complete_query_enabled_via_flag(self):
+        """_complete_query passes through unchanged when explicitly re-enabled."""
+        with patch("Table_Tools.generic_table_tools.ENABLE_COMPLETE_QUERY", True):
+            result = _build_query_condition("_complete_query", "priority=1^state=2")
         assert result == "priority=1^state=2"
+
+    def test_build_query_condition_nq_defense(self):
+        """A ^NQ new-query-reset smuggled inside an ordinary filter value is dropped."""
+        result = _build_query_condition("short_description", "fooLIKEbar^NQactive=true")
+        assert result == ""
 
     def test_build_query_condition_priority(self):
         """Test building priority condition."""

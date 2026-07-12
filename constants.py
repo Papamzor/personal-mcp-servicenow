@@ -124,6 +124,13 @@ ERROR_PRIVATE_TASK_INVALID_REQUEST = "Error during private task {operation}: Inv
 ERROR_PRIVATE_TASK_NOT_FOUND = "Error during private task {operation}: Task not found"
 ERROR_PRIVATE_TASK_SERVER_ERROR = "Error during private task {operation}: Server error"
 
+# Write allowlist for update_private_task — blocks writes to sys_* metadata,
+# number, or other fields that should never be caller-settable.
+VTB_UPDATABLE_FIELDS = [
+    "short_description", "description", "state", "priority", "assigned_to",
+    "assignment_group", "due_date", "parent", "comments", "work_notes"
+]
+
 # KB Article-specific error messages
 ERROR_KB_NO_UPDATE_DATA = "Error: No update data provided."
 ERROR_KB_ARTICLE_NOT_FOUND_OP = "Knowledge article {number} not found."
@@ -138,6 +145,13 @@ ERROR_KB_PUBLISH_NOT_CONFIRMED = (
     "failed, or ServiceNow has not yet committed the state change). Re-check "
     "with check_kb_duplicates or get_kb_articles_by_state before retrying."
 )
+
+# Write allowlist for update_knowledge_article — editable content fields only.
+# workflow_state is deliberately excluded: it is a ServiceNow-managed field
+# that publish/retire transition via the qonv workflow endpoint, never a
+# direct Table API write (see kb_article_tools._call_kb_workflow). sys_* and
+# other metadata fields are likewise never caller-settable.
+KB_UPDATABLE_FIELDS = ["short_description", "text", "kb_category"]
 
 # Table-specific error messages
 TABLE_ERROR_MESSAGES = {
@@ -257,6 +271,14 @@ QUERY_WARNINGS = {
     "low_critical_incident_count": "Unusually low count for critical incidents - verify completeness",
     "zero_results_high_priority": "No results for high priority query - check filter syntax"
 }
+
+# Query-injection hardening
+# `_complete_query` lets a caller hand a raw, pre-built ServiceNow encoded
+# query straight through the filter pipeline. That is exactly the shape of
+# input an attacker would use to smuggle a `^NQ` new-query-reset (defeats the
+# domain exclusion fences appended by `_apply_domain_filters`) or other
+# injected conditions. Off by default; an operator can opt back in.
+ENABLE_COMPLETE_QUERY = os.getenv("ENABLE_COMPLETE_QUERY", "false").strip().lower() in ("1", "true", "yes", "on")
 
 # Incident Category Filtering Configuration
 ENABLE_INCIDENT_CATEGORY_FILTERING = os.getenv("ENABLE_INCIDENT_CATEGORY_FILTERING", "true").strip().lower() in ("1", "true", "yes", "on")  # Toggle to enable/disable category filtering

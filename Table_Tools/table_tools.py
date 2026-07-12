@@ -1,4 +1,5 @@
 from http_layer import make_nws_request, NWS_API_BASE
+from constants import TABLE_CONFIGS
 
 async def nowtestauth():
     """Test function to verify authentication with ServiceNow standard API."""
@@ -16,6 +17,8 @@ async def nowtestauth():
 
 async def nowtest_auth_input(table_name: str):
     """Get ServiceNow table schema information for a given table."""
+    if table_name not in TABLE_CONFIGS:
+        return f"Invalid table '{table_name}'. Not in the supported allowlist."
     # Use standard table API to get basic table info
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_limit=1"
     data = await make_nws_request(url)
