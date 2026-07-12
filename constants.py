@@ -2,6 +2,8 @@
 Constants used throughout the ServiceNow MCP server.
 """
 
+import os
+
 # HTTP Content Types
 APPLICATION_JSON = "application/json"
 
@@ -217,10 +219,16 @@ KB_PUBLISH_TIMEOUT_SECONDS = 180.0
 # (update/retire) unbounded — a slow or half-open ServiceNow connection could hang
 # update_knowledge_article for minutes. This restores the pre-refactor 30s bound.
 KB_WRITE_TIMEOUT_SECONDS = 30.0
+# Total deadline for a single vtb_task write (POST/PATCH via _write_private_task).
+# Parity with KB_WRITE_TIMEOUT_SECONDS above.
+VTB_WRITE_TIMEOUT_SECONDS = 30.0
 KB_VERIFY_DELAY_SECONDS = 12
 KB_PUBLISH_MAX_RETRIES = 1
 KB_PUBLISH_BATCH_CONCURRENCY = 2
 KB_PUBLISHED_STATE = "published"
+# Hard cap on caller-supplied concurrency for KB batch tools (check_kb_duplicates,
+# publish_knowledge_articles) to prevent excessive concurrent ServiceNow requests.
+KB_MAX_BATCH_CONCURRENCY = 5
 
 # ServiceNow Query Patterns and Validation
 SERVICENOW_OR_SYNTAX_EXAMPLE = "1^ORpriority=2"
@@ -251,12 +259,15 @@ QUERY_WARNINGS = {
 }
 
 # Incident Category Filtering Configuration
-ENABLE_INCIDENT_CATEGORY_FILTERING = False  # Toggle to enable/disable category filtering
+ENABLE_INCIDENT_CATEGORY_FILTERING = os.getenv("ENABLE_INCIDENT_CATEGORY_FILTERING", "true").strip().lower() in ("1", "true", "yes", "on")  # Toggle to enable/disable category filtering
 EXCLUDED_INCIDENT_CATEGORIES = [
     "Payroll",
     "People Support",
     "Workplace"
 ]
+
+# LogicMonitor integration caller sys_id, used for exclusion filters.
+LOGICMONITOR_CALLER_SYS_ID = os.getenv("LOGICMONITOR_CALLER_SYS_ID", "1727339e47d99190c43d3171e36d43ad")
 
 # Service Catalog Filtering Configuration
 # Applies to: sc_request (REQ), sc_req_item (RITM), sc_task (SCTASK)

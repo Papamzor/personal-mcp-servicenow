@@ -18,6 +18,7 @@ from constants import (
     MONTH_NAME_TO_NUMBER,
     ENABLE_INCIDENT_CATEGORY_FILTERING,
     EXCLUDED_INCIDENT_CATEGORIES,
+    LOGICMONITOR_CALLER_SYS_ID,
     ENABLE_SC_CATALOG_FILTERING,
     EXCLUDED_SC_CATALOG_CATEGORIES,
     EXCLUDED_SC_ASSIGNMENT_GROUPS,
@@ -472,7 +473,7 @@ def _parse_caller_exclusions(value: str) -> str:
     
     # Handle known caller names
     known_callers = {
-        "logicmonitor": "1727339e47d99190c43d3171e36d43ad"
+        "logicmonitor": LOGICMONITOR_CALLER_SYS_ID
     }
     
     value_lower = value.lower()

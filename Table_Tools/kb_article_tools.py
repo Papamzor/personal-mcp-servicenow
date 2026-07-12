@@ -27,6 +27,7 @@ from constants import (
     KB_PUBLISH_MAX_RETRIES,
     KB_PUBLISH_BATCH_CONCURRENCY,
     KB_PUBLISHED_STATE,
+    KB_MAX_BATCH_CONCURRENCY,
 )
 
 
@@ -308,7 +309,7 @@ async def check_kb_duplicates(
     if len(article_numbers) > 50:
         return {"error": "check_kb_duplicates accepts at most 50 article numbers per call."}
 
-    semaphore = asyncio.Semaphore(max(1, concurrency))
+    semaphore = asyncio.Semaphore(min(max(1, concurrency), KB_MAX_BATCH_CONCURRENCY))
 
     async def _bounded(num: str) -> Dict[str, Any]:
         async with semaphore:
@@ -356,7 +357,7 @@ async def publish_knowledge_articles(
     if len(article_numbers) > 20:
         return {"error": "publish_knowledge_articles accepts at most 20 article numbers per call."}
 
-    semaphore = asyncio.Semaphore(max(1, concurrency))
+    semaphore = asyncio.Semaphore(min(max(1, concurrency), KB_MAX_BATCH_CONCURRENCY))
 
     async def _bounded(num: str) -> Dict[str, Any]:
         async with semaphore:

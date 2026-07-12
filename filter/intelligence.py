@@ -10,6 +10,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from utils import extract_keywords
+from constants import LOGICMONITOR_CALLER_SYS_ID
 from filter.models import QueryValidationResult
 from filter.validator import validate_and_correct_filters
 
@@ -106,8 +107,8 @@ class QueryIntelligence:
         servicenow_field = field_mapping.get(field.lower(), field)
 
         known_entities = {
-            "logicmonitor integration": "1727339e47d99190c43d3171e36d43ad",
-            "logicmonitor": "1727339e47d99190c43d3171e36d43ad",
+            "logicmonitor integration": LOGICMONITOR_CALLER_SYS_ID,
+            "logicmonitor": LOGICMONITOR_CALLER_SYS_ID,
         }
 
         value_lower = value.lower().strip()
