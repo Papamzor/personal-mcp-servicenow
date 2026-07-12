@@ -5,6 +5,7 @@ from http_layer import make_nws_request, NWS_API_BASE
 from typing import Any, Dict, List
 import anyio
 import httpx
+import structlog
 from .write_helpers import map_http_error, unwrap_write_response
 from constants import (
     ERROR_KB_NO_UPDATE_DATA,
@@ -30,6 +31,8 @@ from constants import (
     KB_MAX_BATCH_CONCURRENCY,
     KB_UPDATABLE_FIELDS,
 )
+
+_log = structlog.get_logger("kb_write")
 
 
 def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> str:
@@ -135,7 +138,7 @@ async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any] | str:
     url = f"{NWS_API_BASE}/api/qonv/mateco_knowledge/articles/{sys_id}/{action}"
     result = await _write_kb_article("POST", url, {}, action)
     if isinstance(result, str):
-        return f"{result} [url={url}]"
+        _log.error("kb_workflow_error", action=action, sys_id=sys_id, url=url, result=result)
     return result
 
 

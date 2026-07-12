@@ -18,6 +18,11 @@ NO_DESCRIPTION_FOUND = "No description found."
 CONNECTION_ERROR = "Connection error: Request failed"
 RECORD_NOT_FOUND = "Record not found."
 NO_RECORDS_FOUND = "No records found."
+
+# MCP transport auth (SSE shared-secret bearer token — see auth_middleware.py).
+# Deliberately generic: never reveal whether the token was missing, malformed,
+# or wrong to the caller.
+MCP_AUTH_REJECTED = "Unauthorized: invalid or missing MCP auth token."
 UNABLE_TO_FETCH_RECORDS = "Unable to fetch alerts or no alerts found."
 UNABLE_TO_FETCH_DETAILS = "Unable to fetch {record_type} details or no {record_type} found."
 NO_SIMILAR_RECORDS_FOUND = "No similar records found (only exact match)"
