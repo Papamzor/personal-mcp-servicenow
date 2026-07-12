@@ -3,6 +3,8 @@
 Covers the auth middleware (C-2), audit PII summarization (H-4), and the
 error-detail suppression in the write-path error mapper (H-5).
 """
+import os
+
 import httpx
 import pytest
 
@@ -98,3 +100,31 @@ def test_map_http_error_does_not_leak_body_on_detail_code():
     msg = map_http_error(err, {400: "Bad request."}, "Server error.", detail_codes={400})
     assert msg == "Bad request."
     assert "xyz" not in msg
+
+
+# --- M-5: config-file -> env hydration -------------------------------------
+
+def test_hydrate_env_from_config_fills_missing(monkeypatch):
+    import oauth.singleton as singleton
+
+    for env_var in ("SERVICENOW_INSTANCE", "SERVICENOW_CLIENT_ID", "SERVICENOW_CLIENT_SECRET"):
+        monkeypatch.delenv(env_var, raising=False)
+    monkeypatch.setattr(
+        "config_loader.load_config_from_file",
+        lambda: {"instance": "https://cfg.test", "client_id": "cfgid", "client_secret": "cfgsecret"},
+    )
+    singleton._hydrate_env_from_config()
+    assert os.environ["SERVICENOW_INSTANCE"] == "https://cfg.test"
+    assert os.environ["SERVICENOW_CLIENT_ID"] == "cfgid"
+
+
+def test_hydrate_env_does_not_override_existing(monkeypatch):
+    import oauth.singleton as singleton
+
+    monkeypatch.setenv("SERVICENOW_INSTANCE", "https://env.test")
+    monkeypatch.setattr(
+        "config_loader.load_config_from_file",
+        lambda: {"instance": "https://cfg.test"},
+    )
+    singleton._hydrate_env_from_config()
+    assert os.environ["SERVICENOW_INSTANCE"] == "https://env.test"
