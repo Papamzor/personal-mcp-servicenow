@@ -76,16 +76,13 @@ class TestOAuthClientCreation(unittest.TestCase):
         """Test successful OAuth client creation."""
         try:
             from oauth import ServiceNowOAuthClient
-            
-            client = ServiceNowOAuthClient()
-            self.assertIsInstance(client, ServiceNowOAuthClient)
-            self.assertIsNotNone(client.token_endpoint)
-            self.assertIn("oauth_token.do", client.token_endpoint)
-            
         except ImportError:
             self.skipTest("oauth_client module not available")
-        except Exception as e:
-            self.fail(f"Failed to create OAuth client: {str(e)}")
+
+        client = ServiceNowOAuthClient()
+        self.assertIsInstance(client, ServiceNowOAuthClient)
+        self.assertIsNotNone(client.token_endpoint)
+        self.assertIn("oauth_token.do", client.token_endpoint)
 
     @patch.dict(os.environ, {
         'SERVICENOW_INSTANCE': 'https://test.service-now.com',
