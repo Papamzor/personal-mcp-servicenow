@@ -17,14 +17,32 @@ _log = structlog.get_logger("audit")
 
 _SENSITIVE = {"password", "secret", "token", "key", "auth", "credential"}
 
+# Free-text / filter-shaped args that can carry incident descriptions, names,
+# or other PII. Logged as a shape-only summary instead of raw content.
+_RISKY_VALUE_KEYS = {
+    "query", "filters", "update_data", "task_data", "input_text",
+    "natural_language_query", "short_description", "text",
+}
+
+
+def _summarize(v) -> str:
+    if isinstance(v, (str, list, dict)):
+        return f"<{type(v).__name__} len={len(v)}>"
+    return f"<{type(v).__name__}>"
+
 
 def _sanitize(args: dict | None) -> dict:
     if not args:
         return {}
-    return {
-        k: "[REDACTED]" if any(s in k.lower() for s in _SENSITIVE) else v
-        for k, v in args.items()
-    }
+    result = {}
+    for k, v in args.items():
+        if any(s in k.lower() for s in _SENSITIVE):
+            result[k] = "[REDACTED]"
+        elif k.lower() in _RISKY_VALUE_KEYS:
+            result[k] = _summarize(v)
+        else:
+            result[k] = v
+    return result
 
 
 def _user_from_headers() -> str:

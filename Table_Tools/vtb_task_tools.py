@@ -1,5 +1,6 @@
 from http_layer import make_nws_request, NWS_API_BASE
 from typing import Any, Dict
+import anyio
 import httpx
 from .write_helpers import map_http_error, unwrap_write_response
 from constants import (
@@ -11,7 +12,9 @@ from constants import (
     ERROR_PRIVATE_TASK_ACCESS_DENIED,
     ERROR_PRIVATE_TASK_INVALID_REQUEST,
     ERROR_PRIVATE_TASK_NOT_FOUND,
-    ERROR_PRIVATE_TASK_SERVER_ERROR
+    ERROR_PRIVATE_TASK_SERVER_ERROR,
+    VTB_WRITE_TIMEOUT_SECONDS,
+    VTB_UPDATABLE_FIELDS
 )
 
 def _handle_http_error(error: httpx.HTTPStatusError, operation: str) -> str:
@@ -40,7 +43,8 @@ async def _write_private_task(
 ) -> Dict[str, Any] | str:
     """Send a write request through make_nws_request, mapping errors locally."""
     try:
-        result = await make_nws_request(url, method=method, json_data=payload)
+        with anyio.fail_after(VTB_WRITE_TIMEOUT_SECONDS):
+            result = await make_nws_request(url, method=method, json_data=payload)
     except httpx.HTTPStatusError as e:
         return _handle_http_error(e, operation)
     except Exception:
@@ -109,6 +113,10 @@ async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> 
     """
     if not update_data:
         return ERROR_NO_UPDATE_DATA
+
+    bad = [k for k in update_data if k not in VTB_UPDATABLE_FIELDS]
+    if bad:
+        return f"Rejected non-updatable field(s): {', '.join(bad)}"
 
     sys_id = await _get_task_sys_id(task_number)
     if not sys_id:

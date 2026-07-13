@@ -19,6 +19,7 @@ structlog.configure(
 )
 
 from fastmcp import FastMCP
+from auth_middleware import AuthMiddleware
 from audit_middleware import AuditMiddleware
 from Table_Tools.generic_tool_wrappers import (
     search_records, get_record_summary, get_record, find_similar, filter_records
@@ -79,6 +80,7 @@ _mcp_get_priority_incidents.__doc__ = get_priority_incidents.__doc__
 
 
 mcp = FastMCP("personalmcpservicenow")
+mcp.add_middleware(AuthMiddleware())
 mcp.add_middleware(AuditMiddleware())
 
 # Register tools — consolidated from 55 -> 37 (v3.0) -> 32 (v4.0) -> 38 (v4.1 KB expansion)

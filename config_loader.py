@@ -139,9 +139,35 @@ def save_config(config: Dict[str, Any]) -> None:
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=2)
 
-    # Set restrictive permissions on Unix
+    # Restrict access: the file holds client_secret / password in plaintext.
     if platform.system() != 'Windows':
         os.chmod(config_path, 0o600)
+    else:
+        _restrict_windows_acl(config_path)
+
+
+def _restrict_windows_acl(path: str) -> None:
+    """Lock a file down to the current user on Windows via icacls.
+
+    ``os.chmod`` cannot express Windows ACLs, so a plaintext-secret config
+    file would otherwise inherit directory ACLs readable by other profiles
+    on a shared machine. Removes inheritance and grants full control to the
+    current user only. Best-effort — never blocks setup on failure.
+    """
+    import subprocess
+
+    user = os.environ.get('USERNAME')
+    if not user:
+        return
+    try:
+        subprocess.run(
+            ['icacls', path, '/inheritance:r', '/grant:r', f'{user}:F'],
+            check=True,
+            capture_output=True,
+        )
+    except (subprocess.SubprocessError, OSError):
+        # Setup should still succeed even if hardening the ACL failed.
+        pass
 
 
 def get_setup_instructions() -> str:

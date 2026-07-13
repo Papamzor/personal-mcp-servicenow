@@ -11,6 +11,9 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable, Optional
 
 import httpx
+import structlog
+
+_log = structlog.get_logger("write")
 
 
 def _extract_error_detail(error: httpx.HTTPStatusError) -> Any:
@@ -32,14 +35,17 @@ def map_http_error(
     """Map an HTTPStatusError to a localized message.
 
     error_map: {status_code: message}; ``default`` is used for unmapped codes.
-    detail_codes / detail_on_default: append the response body to the message
-        for those codes (KB writes want this for debuggable 400 / 5xx errors).
+    detail_codes / detail_on_default: for those codes, the response body is
+        logged server-side (structlog, stderr) for debugging — it is never
+        included in the returned string, which stays the stable base message
+        so ServiceNow internals (response bodies, stack traces, ACL hints)
+        never reach the MCP client.
     """
     status = error.response.status_code
     base = error_map.get(status, default)
     is_default = status not in error_map
     if status in set(detail_codes) or (is_default and detail_on_default):
-        return f"{base}: {_extract_error_detail(error)}"
+        _log.error("write_http_error", status=status, detail=_extract_error_detail(error))
     return base
 
 

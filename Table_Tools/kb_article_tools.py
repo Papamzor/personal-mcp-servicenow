@@ -5,6 +5,7 @@ from http_layer import make_nws_request, NWS_API_BASE
 from typing import Any, Dict, List
 import anyio
 import httpx
+import structlog
 from .write_helpers import map_http_error, unwrap_write_response
 from constants import (
     ERROR_KB_NO_UPDATE_DATA,
@@ -27,7 +28,11 @@ from constants import (
     KB_PUBLISH_MAX_RETRIES,
     KB_PUBLISH_BATCH_CONCURRENCY,
     KB_PUBLISHED_STATE,
+    KB_MAX_BATCH_CONCURRENCY,
+    KB_UPDATABLE_FIELDS,
 )
+
+_log = structlog.get_logger("kb_write")
 
 
 def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> str:
@@ -133,7 +138,7 @@ async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any] | str:
     url = f"{NWS_API_BASE}/api/qonv/mateco_knowledge/articles/{sys_id}/{action}"
     result = await _write_kb_article("POST", url, {}, action)
     if isinstance(result, str):
-        return f"{result} [url={url}]"
+        _log.error("kb_workflow_error", action=action, sys_id=sys_id, url=url, result=result)
     return result
 
 
@@ -220,6 +225,10 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
     """
     if not update_data:
         return ERROR_KB_NO_UPDATE_DATA
+
+    bad = [k for k in update_data if k not in KB_UPDATABLE_FIELDS]
+    if bad:
+        return f"Rejected non-updatable field(s): {', '.join(bad)}"
 
     # Per-step stderr timing — localises a stall to the sys_id GET vs the PATCH
     # when an update hangs. stdout is reserved for the MCP JSON-RPC frame stream.
@@ -308,7 +317,7 @@ async def check_kb_duplicates(
     if len(article_numbers) > 50:
         return {"error": "check_kb_duplicates accepts at most 50 article numbers per call."}
 
-    semaphore = asyncio.Semaphore(max(1, concurrency))
+    semaphore = asyncio.Semaphore(min(max(1, concurrency), KB_MAX_BATCH_CONCURRENCY))
 
     async def _bounded(num: str) -> Dict[str, Any]:
         async with semaphore:
@@ -356,7 +365,7 @@ async def publish_knowledge_articles(
     if len(article_numbers) > 20:
         return {"error": "publish_knowledge_articles accepts at most 20 article numbers per call."}
 
-    semaphore = asyncio.Semaphore(max(1, concurrency))
+    semaphore = asyncio.Semaphore(min(max(1, concurrency), KB_MAX_BATCH_CONCURRENCY))
 
     async def _bounded(num: str) -> Dict[str, Any]:
         async with semaphore:
