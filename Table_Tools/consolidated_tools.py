@@ -24,6 +24,7 @@ from .date_utils import (
 )
 from typing import Any, Dict, Optional, List
 from constants import TABLE_ERROR_MESSAGES, TASK_NUMBER_FIELD
+from param_coercion import OptJsonList, OptJsonDict
 
 logger = logging.getLogger(__name__)
 
@@ -448,7 +449,7 @@ async def query_slas_by_status(
     days: Optional[int] = None,
     threshold_minutes: Optional[int] = None,
     stage: Optional[str] = None,
-    extra_filters: Optional[Dict[str, str]] = None,
+    extra_filters: OptJsonDict = None,
 ) -> Dict[str, Any]:
     """Query SLA records by a named status preset.
 
@@ -480,7 +481,7 @@ async def query_slas_by_status(
 
 async def query_slas_custom(
     filters: Dict[str, str],
-    fields: Optional[List[str]] = None,
+    fields: OptJsonList = None,
     days: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Custom SLA query — escape hatch for filter shapes the presets do not cover.

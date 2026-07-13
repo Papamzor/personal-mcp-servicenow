@@ -183,14 +183,14 @@ ESSENTIAL_FIELDS = {
 }
 
 DETAIL_FIELDS = {
-    "incident": ["number", "short_description", "description", "priority", "state", "category", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id", "major_incident_state"],
-    "change_request": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "type", "urgency", "impact", "risk", "start_date", "end_date", "implementation_plan", "backout_plan", "test_plan", "u_communication"],
-    "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "u_reference_1", "company", "cmdb_ci"],
+    "incident": ["number", "short_description", "description", "priority", "state", "category", "sys_created_on", "sys_updated_on", "opened_at", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id", "major_incident_state"],
+    "change_request": ["number", "short_description", "description", "priority", "state", "sys_created_on", "sys_updated_on", "opened_at", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "type", "urgency", "impact", "risk", "start_date", "end_date", "implementation_plan", "backout_plan", "test_plan", "u_communication"],
+    "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "sys_updated_on", "assigned_to", "assignment_group", "comments", "u_reference_1", "company", "cmdb_ci"],
     "kb_knowledge": ["number", "short_description", "text", "kb_category", "workflow_state", "sys_created_on", "assigned_to"],
     "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
     "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on", "breach_time", "business_time_left", "duration", "has_breached", "business_duration", "business_elapsed_time", "planned_end_time"],
     "sc_req_item": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "cat_item", "request", "stage"],
-    "sc_task": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "request_item", "request"]
+    "sc_task": ["number", "short_description", "description", "priority", "state", "sys_created_on", "sys_updated_on", "opened_at", "assigned_to", "assignment_group", "comments", "request_item", "request"]
 }
 
 # VTB Task specific field definitions

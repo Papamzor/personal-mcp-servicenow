@@ -149,3 +149,20 @@ class TestFilterRecords:
             mock.return_value = {"result": [{"number": "VTB001"}]}
             result = await filter_records("vtb_task", {"state": "1"})
             assert args[0][0] == "vtb_task" if (args := mock.call_args) else False
+
+    @pytest.mark.asyncio
+    async def test_sys_updated_on_field_accepted_for_incident(self):
+        """sys_updated_on is a DETAIL_FIELDS entry for incident; filter_records
+        must pass the allowlist gate and delegate instead of returning an
+        'Unsupported field(s)' error."""
+        with patch("Table_Tools.generic_tool_wrappers.query_table_with_filters") as mock:
+            mock.return_value = {"result": []}
+            result = await filter_records(
+                "incident",
+                {"priority": "1"},
+                fields=["number", "sys_updated_on"]
+            )
+            assert "error" not in result
+            mock.assert_called_once()
+            args = mock.call_args
+            assert args[0][1].fields == ["number", "sys_updated_on"]
