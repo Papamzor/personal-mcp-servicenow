@@ -21,9 +21,11 @@ invariant memory).
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 from typing import Any, Optional
+from urllib.parse import urlsplit
 
 import anyio
 
@@ -35,6 +37,13 @@ from oauth.singleton import get_oauth_client, make_oauth_request
 # before this line reads the environment, so no duplicate load_dotenv() here.
 SERVICENOW_INSTANCE = os.getenv("SERVICENOW_INSTANCE")
 NWS_API_BASE = SERVICENOW_INSTANCE
+
+
+def _redact_url(url: str) -> str:
+    """Path + stable query hash for stderr logs — never the raw sysparm_query."""
+    parts = urlsplit(url)
+    h = hashlib.sha256(url.encode()).hexdigest()[:8]
+    return f"{parts.path} q_hash={h}"
 
 
 async def make_nws_request(
@@ -65,11 +74,11 @@ async def make_nws_request(
                 result = await make_oauth_request(url)
             return extract_display_values(result) if result and display_value else result
         except TimeoutError:
-            print(f"[http_layer] GET request timed out for {url}", file=sys.stderr)
+            print(f"[http_layer] GET request timed out for {_redact_url(url)}", file=sys.stderr)
             return None
         except Exception as e:  # noqa: BLE001
             # stderr only — stdout is reserved for the MCP JSON-RPC frame stream.
-            print(f"[http_layer] GET request failed for {url} ({type(e).__name__}): {e}", file=sys.stderr)
+            print(f"[http_layer] GET request failed for {_redact_url(url)} ({type(e).__name__}): {e}", file=sys.stderr)
             return None
 
     # Write path: bypass read-only params + display flattening, raise

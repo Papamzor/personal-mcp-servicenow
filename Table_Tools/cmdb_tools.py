@@ -162,6 +162,8 @@ async def find_cis_by_type(ci_type: str, detailed: bool = False) -> dict[str, An
     """
     if not ci_type:
         return "CI type is required"
+    if not ci_type.startswith("cmdb_ci"):
+        return "Invalid CI type: must be a cmdb_ci* table."
 
     fields = DETAILED_CI_FIELDS if detailed else ESSENTIAL_CI_FIELDS
     

@@ -2,6 +2,8 @@
 Constants used throughout the ServiceNow MCP server.
 """
 
+import os
+
 # HTTP Content Types
 APPLICATION_JSON = "application/json"
 
@@ -16,6 +18,11 @@ NO_DESCRIPTION_FOUND = "No description found."
 CONNECTION_ERROR = "Connection error: Request failed"
 RECORD_NOT_FOUND = "Record not found."
 NO_RECORDS_FOUND = "No records found."
+
+# MCP transport auth (SSE shared-secret bearer token — see auth_middleware.py).
+# Deliberately generic: never reveal whether the token was missing, malformed,
+# or wrong to the caller.
+MCP_AUTH_REJECTED = "Unauthorized: invalid or missing MCP auth token."
 UNABLE_TO_FETCH_RECORDS = "Unable to fetch alerts or no alerts found."
 UNABLE_TO_FETCH_DETAILS = "Unable to fetch {record_type} details or no {record_type} found."
 NO_SIMILAR_RECORDS_FOUND = "No similar records found (only exact match)"
@@ -122,6 +129,13 @@ ERROR_PRIVATE_TASK_INVALID_REQUEST = "Error during private task {operation}: Inv
 ERROR_PRIVATE_TASK_NOT_FOUND = "Error during private task {operation}: Task not found"
 ERROR_PRIVATE_TASK_SERVER_ERROR = "Error during private task {operation}: Server error"
 
+# Write allowlist for update_private_task — blocks writes to sys_* metadata,
+# number, or other fields that should never be caller-settable.
+VTB_UPDATABLE_FIELDS = [
+    "short_description", "description", "state", "priority", "assigned_to",
+    "assignment_group", "due_date", "parent", "comments", "work_notes"
+]
+
 # KB Article-specific error messages
 ERROR_KB_NO_UPDATE_DATA = "Error: No update data provided."
 ERROR_KB_ARTICLE_NOT_FOUND_OP = "Knowledge article {number} not found."
@@ -136,6 +150,13 @@ ERROR_KB_PUBLISH_NOT_CONFIRMED = (
     "failed, or ServiceNow has not yet committed the state change). Re-check "
     "with check_kb_duplicates or get_kb_articles_by_state before retrying."
 )
+
+# Write allowlist for update_knowledge_article — editable content fields only.
+# workflow_state is deliberately excluded: it is a ServiceNow-managed field
+# that publish/retire transition via the qonv workflow endpoint, never a
+# direct Table API write (see kb_article_tools._call_kb_workflow). sys_* and
+# other metadata fields are likewise never caller-settable.
+KB_UPDATABLE_FIELDS = ["short_description", "text", "kb_category"]
 
 # Table-specific error messages
 TABLE_ERROR_MESSAGES = {
@@ -217,10 +238,16 @@ KB_PUBLISH_TIMEOUT_SECONDS = 180.0
 # (update/retire) unbounded — a slow or half-open ServiceNow connection could hang
 # update_knowledge_article for minutes. This restores the pre-refactor 30s bound.
 KB_WRITE_TIMEOUT_SECONDS = 30.0
+# Total deadline for a single vtb_task write (POST/PATCH via _write_private_task).
+# Parity with KB_WRITE_TIMEOUT_SECONDS above.
+VTB_WRITE_TIMEOUT_SECONDS = 30.0
 KB_VERIFY_DELAY_SECONDS = 12
 KB_PUBLISH_MAX_RETRIES = 1
 KB_PUBLISH_BATCH_CONCURRENCY = 2
 KB_PUBLISHED_STATE = "published"
+# Hard cap on caller-supplied concurrency for KB batch tools (check_kb_duplicates,
+# publish_knowledge_articles) to prevent excessive concurrent ServiceNow requests.
+KB_MAX_BATCH_CONCURRENCY = 5
 
 # ServiceNow Query Patterns and Validation
 SERVICENOW_OR_SYNTAX_EXAMPLE = "1^ORpriority=2"
@@ -250,13 +277,24 @@ QUERY_WARNINGS = {
     "zero_results_high_priority": "No results for high priority query - check filter syntax"
 }
 
+# Query-injection hardening
+# `_complete_query` lets a caller hand a raw, pre-built ServiceNow encoded
+# query straight through the filter pipeline. That is exactly the shape of
+# input an attacker would use to smuggle a `^NQ` new-query-reset (defeats the
+# domain exclusion fences appended by `_apply_domain_filters`) or other
+# injected conditions. Off by default; an operator can opt back in.
+ENABLE_COMPLETE_QUERY = os.getenv("ENABLE_COMPLETE_QUERY", "false").strip().lower() in ("1", "true", "yes", "on")
+
 # Incident Category Filtering Configuration
-ENABLE_INCIDENT_CATEGORY_FILTERING = False  # Toggle to enable/disable category filtering
+ENABLE_INCIDENT_CATEGORY_FILTERING = os.getenv("ENABLE_INCIDENT_CATEGORY_FILTERING", "true").strip().lower() in ("1", "true", "yes", "on")  # Toggle to enable/disable category filtering
 EXCLUDED_INCIDENT_CATEGORIES = [
     "Payroll",
     "People Support",
     "Workplace"
 ]
+
+# LogicMonitor integration caller sys_id, used for exclusion filters.
+LOGICMONITOR_CALLER_SYS_ID = os.getenv("LOGICMONITOR_CALLER_SYS_ID", "1727339e47d99190c43d3171e36d43ad")
 
 # Service Catalog Filtering Configuration
 # Applies to: sc_request (REQ), sc_req_item (RITM), sc_task (SCTASK)

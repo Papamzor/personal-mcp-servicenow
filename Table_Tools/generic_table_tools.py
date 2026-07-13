@@ -18,10 +18,13 @@ from constants import (
     MONTH_NAME_TO_NUMBER,
     ENABLE_INCIDENT_CATEGORY_FILTERING,
     EXCLUDED_INCIDENT_CATEGORIES,
+    LOGICMONITOR_CALLER_SYS_ID,
     ENABLE_SC_CATALOG_FILTERING,
     EXCLUDED_SC_CATALOG_CATEGORIES,
     EXCLUDED_SC_ASSIGNMENT_GROUPS,
-    SC_CATALOG_TABLES
+    SC_CATALOG_TABLES,
+    ENABLE_COMPLETE_QUERY,
+    TABLE_CONFIGS
 )
 from filter import (
     QueryExplainer,
@@ -45,6 +48,22 @@ def _validate_regex_input(text: str) -> bool:
         return False
     # Reject strings with suspicious patterns
     if text.count(' ') > 50 or text.count('-') > 20:
+        return False
+    return True
+
+
+def _is_safe_record_number(record_number: str) -> bool:
+    """Reject record numbers that carry query operators/whitespace instead of a plain number.
+
+    `get_record_description` / `get_record_details` interpolate record_number
+    directly into `number={record_number}` ahead of `_apply_domain_filters`.
+    A record_number containing `^` (AND/OR/NQ), whitespace, `&`, or a
+    comparison operator could inject additional query conditions or a
+    `^NQ` new-query-reset that bypasses the appended domain exclusion filters.
+    """
+    if not record_number:
+        return False
+    if re.search(r'[\^\s&=<>]', record_number):
         return False
     return True
 
@@ -138,6 +157,8 @@ async def query_table_by_text(table_name: str, input_text: str, detailed: bool =
 
 async def get_record_description(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get short_description for any record."""
+    if not _is_safe_record_number(record_number):
+        return {"result": [], "message": RECORD_NOT_FOUND}
     query = f"number={record_number}"
     query = _apply_domain_filters(table_name, query)
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query={query}"
@@ -146,6 +167,8 @@ async def get_record_description(table_name: str, record_number: str) -> dict[st
 
 async def get_record_details(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get detailed information for any record."""
+    if not _is_safe_record_number(record_number):
+        return {"result": [], "message": RECORD_NOT_FOUND}
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
     query = f"number={record_number}"
     query = _apply_domain_filters(table_name, query)
@@ -472,7 +495,7 @@ def _parse_caller_exclusions(value: str) -> str:
     
     # Handle known caller names
     known_callers = {
-        "logicmonitor": "1727339e47d99190c43d3171e36d43ad"
+        "logicmonitor": LOGICMONITOR_CALLER_SYS_ID
     }
     
     value_lower = value.lower()
@@ -599,6 +622,13 @@ def _build_query_condition(field: str, value: str) -> str:
     """Build a single query condition based on field and value."""
     # Handle special complete query cases first
     if field == "_complete_query":
+        # `_complete_query` hands a raw, caller-built encoded query straight
+        # through — the same shape of input an attacker would use to smuggle
+        # a `^NQ` new-query-reset past the domain exclusion fences appended
+        # by `_apply_domain_filters`. Gated off by default; drop it entirely
+        # (rather than call the handler) unless explicitly re-enabled.
+        if not ENABLE_COMPLETE_QUERY:
+            return ""
         return _handle_complete_query_condition(value)
     if field == "_complete_caller_exclusion":
         return value  # Already in complete ServiceNow format
@@ -606,6 +636,14 @@ def _build_query_condition(field: str, value: str) -> str:
     # Rewrite GlideRecord-only operators (CONTAINS/NOTCONTAINS) to their
     # encoded-query equivalents (LIKE/NOT LIKE) before any handler runs.
     value = _normalize_operator(value)
+
+    # Defend against a `^NQ` new-query-reset smuggled inside an otherwise
+    # ordinary filter value: `^NQ` starts a brand-new query, discarding
+    # everything before it — including the domain exclusion filters that
+    # `_apply_domain_filters` appends after this condition is built. Drop
+    # any condition that attempts it rather than passing it through.
+    if "^NQ" in value.upper():
+        return ""
 
     # Try each condition handler until one matches
     for handler in _CONDITION_HANDLERS:
@@ -620,12 +658,16 @@ def _build_query_string(filters: Dict[str, str]) -> str:
     """Build the complete query string from filters."""
     if not filters:
         return ""
-    
+
     query_parts = []
     for field, value in filters.items():
         query_parts.append(_build_query_condition(field, value))
-    
-    return "^".join(query_parts)
+
+    # A condition handler (e.g. the ENABLE_COMPLETE_QUERY gate, or the ^NQ
+    # defense) may now return "" to drop a condition entirely. Skip empties
+    # so a dropped condition doesn't leave a dangling "^^" or a leading/
+    # trailing "^" in the joined query.
+    return "^".join(part for part in query_parts if part)
 
 def _encode_query_string(query_string: str) -> str:
     """URL encode query string while preserving ServiceNow JavaScript functions and operators."""
@@ -881,6 +923,9 @@ async def query_table_intelligently(
 
     Complexity: 8 (reduced from ~18-22)
     """
+    if table_name not in TABLE_CONFIGS:
+        return {"error": f"Invalid table '{table_name}'."}
+
     intelligence_result = build_smart_filter(natural_language_query, table_name, context)
 
     # If we got filters, execute the query
@@ -1070,12 +1115,10 @@ async def query_table_with_generic_filters(
     if not fields:
         return {"error": NO_FIELD_CONFIG_ERROR.format(table_name=table_name)}
     
-    # Build query from filters using the same handler chain as query_table_with_filters
-    filter_parts = []
-    for field, value in filters.items():
-        filter_parts.append(_build_query_condition(field, value))
-
-    query = "^".join(filter_parts)
+    # Build query via _build_query_string so the ENABLE_COMPLETE_QUERY gate and
+    # the ^NQ defense (which can drop a condition to "") don't leave a dangling
+    # "^^" or leading/trailing "^" in the joined query.
+    query = _build_query_string(filters)
     query = _apply_domain_filters(table_name, query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
 

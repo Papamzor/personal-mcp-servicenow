@@ -90,6 +90,14 @@ def main():
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
 
     if transport == "sse":
+        insecure = os.environ.get("MCP_ALLOW_INSECURE_SSE", "").strip().lower() in ("1", "true", "yes", "on")
+        if not os.environ.get("MCP_SSE_AUTH_TOKEN") and not insecure:
+            print(
+                "Refusing to start SSE transport without MCP_SSE_AUTH_TOKEN. "
+                "Set it, or set MCP_ALLOW_INSECURE_SSE=true to override.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         print("Personal ServiceNow MCP Server started (SSE)", file=sys.stderr)
         from tools import mcp
         mcp.run(transport="sse")

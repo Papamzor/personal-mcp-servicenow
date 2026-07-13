@@ -149,5 +149,10 @@ async def filter_records(
     error = _validate_table(table)
     if error:
         return error
+    if fields:
+        allowed = set(DETAIL_FIELDS.get(table, []))
+        bad = [f for f in fields if f not in allowed]
+        if bad:
+            return {"error": f"Unsupported field(s) for {table}: {', '.join(bad)}"}
     params = TableFilterParams(filters=filters, fields=fields, max_results=max_results)
     return await query_table_with_filters(table, params)
