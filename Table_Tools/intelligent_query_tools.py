@@ -3,22 +3,23 @@ MCP tool wrappers for intelligent query functionality.
 These tools provide natural language query capabilities for ServiceNow data.
 """
 
-from typing import Dict, Any, Optional, List
-from pydantic import BaseModel, Field
+from typing import Annotated, Dict, Any, Optional, List
+from pydantic import BaseModel, BeforeValidator, Field
 from Table_Tools.generic_table_tools import (
-    query_table_intelligently, 
-    explain_filter_query, 
+    query_table_intelligently,
+    explain_filter_query,
     build_and_validate_smart_filter
 )
 from filter import get_filter_templates
 from constants import SERVICENOW_QUERY_OPERATORS, QUERY_SYNTAX_NOTES
+from param_coercion import coerce_json_dict
 
 
 class IntelligentQueryParams(BaseModel):
     """Parameters for intelligent natural language queries."""
     query: str = Field(description="Natural language description of what to find (e.g., 'high priority incidents from last week')")
     table: str = Field(default="incident", description="ServiceNow table to search (incident, change_request, sc_req_item, universal_request, kb_knowledge)")
-    context: Optional[Dict[str, Any]] = Field(None, description="Optional context to enhance the query")
+    context: Annotated[Optional[Dict[str, Any]], BeforeValidator(coerce_json_dict)] = Field(None, description="Optional context to enhance the query")
 
 
 class FilterExplanationParams(BaseModel):
@@ -31,7 +32,7 @@ class SmartFilterParams(BaseModel):
     """Parameters for building and validating smart filters."""
     query: str = Field(description="Natural language query to convert to filters")
     table: str = Field(default="incident", description="ServiceNow table name")
-    context: Optional[Dict[str, Any]] = Field(None, description="Additional context for filter building")
+    context: Annotated[Optional[Dict[str, Any]], BeforeValidator(coerce_json_dict)] = Field(None, description="Additional context for filter building")
 
 
 async def intelligent_search(params: IntelligentQueryParams) -> Dict[str, Any]:
