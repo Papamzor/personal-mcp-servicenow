@@ -7,6 +7,7 @@ to the corresponding generic function in generic_table_tools.py.
 
 from typing import Any, Dict, List, Optional
 from constants import TABLE_CONFIGS, ESSENTIAL_FIELDS, DETAIL_FIELDS
+from param_coercion import OptJsonList
 from .generic_table_tools import (
     query_table_by_text,
     get_record_description,
@@ -117,7 +118,7 @@ async def find_similar(table: str, number: str) -> Dict[str, Any]:
 async def filter_records(
     table: str,
     filters: Dict[str, str],
-    fields: Optional[List[str]] = None,
+    fields: OptJsonList = None,
     max_results: int = 100,
 ) -> Dict[str, Any]:
     """Query a ServiceNow table with field-value filters.

@@ -51,6 +51,7 @@ from Table_Tools.intelligent_query_tools import (
     intelligent_search, explain_servicenow_filters, build_smart_servicenow_filter,
     get_servicenow_filter_templates, get_query_examples, get_query_syntax_help
 )
+from param_coercion import OptJsonDict
 
 from typing import Any, Dict, List, Optional
 
@@ -64,7 +65,7 @@ async def _mcp_get_priority_incidents(
     priorities: List[str],
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    additional_filters: Optional[Dict[str, Any]] = None,
+    additional_filters: OptJsonDict = None,
     include_metadata: bool = False,
 ) -> Dict[str, Any]:
     return await get_priority_incidents(

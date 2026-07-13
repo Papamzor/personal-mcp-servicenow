@@ -7,6 +7,7 @@ import anyio
 import httpx
 import structlog
 from .write_helpers import map_http_error, unwrap_write_response
+from param_coercion import JsonList
 from constants import (
     ERROR_KB_NO_UPDATE_DATA,
     ERROR_KB_ARTICLE_NOT_FOUND_OP,
@@ -294,7 +295,7 @@ async def _check_single_kb_duplicate(article_number: str) -> Dict[str, Any]:
 
 
 async def check_kb_duplicates(
-    article_numbers: List[str],
+    article_numbers: JsonList,
     concurrency: int = 5,
 ) -> Dict[str, Any]:
     """Check for duplicate KB articles without publishing.
@@ -343,7 +344,7 @@ def _normalize_publish_result(article_number: str, result: Dict[str, Any] | str)
 
 
 async def publish_knowledge_articles(
-    article_numbers: List[str],
+    article_numbers: JsonList,
     concurrency: int = KB_PUBLISH_BATCH_CONCURRENCY,
 ) -> Dict[str, Any]:
     """Publish multiple KB articles in one tool call.
