@@ -125,8 +125,35 @@ jobs:
           name: mcp-servicenow-windows-amd64
           path: dist/mcp-servicenow-windows-amd64.exe
 
+  build-mcpb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install mcpb CLI
+        run: npm install -g @anthropic-ai/mcpb
+
+      - name: Build bundle
+        run: python scripts/build_mcpb.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcpb-bundle
+          path: dist/*.mcpb
+
   release:
-    needs: [build-macos, build-linux, build-windows]
+    needs: [build-macos, build-linux, build-windows, build-mcpb]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -142,4 +169,5 @@ jobs:
             artifacts/mcp-servicenow-darwin-arm64/mcp-servicenow-darwin-arm64
             artifacts/mcp-servicenow-linux-amd64/mcp-servicenow-linux-amd64
             artifacts/mcp-servicenow-windows-amd64/mcp-servicenow-windows-amd64.exe
+            artifacts/mcpb-bundle/*.mcpb
           generate_release_notes: true

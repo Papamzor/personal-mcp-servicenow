@@ -29,7 +29,34 @@ Backwards-compat shims keep all v3 import paths and test-patch targets working. 
 
 ---
 
-## Installation
+## Easy install — Claude Desktop (no technical knowledge needed)
+
+This works on Windows 11 and macOS and takes about 2 minutes.
+
+**Before you start:** ask your IT department for 3 things:
+- Your company's ServiceNow address (looks like `https://company.service-now.com`)
+- A Client ID
+- A Client Secret
+
+**Steps:**
+
+1. Open the [Releases page](https://github.com/Papamzor/personal-mcp-servicenow/releases/latest) and download the file ending in `.mcpb`.
+2. Double-click the downloaded file. Claude Desktop will open an install prompt — click **Install**. (If double-clicking doesn't open Claude Desktop, go to Claude Desktop → **Settings** → **Extensions** → **Advanced settings** → **Install Extension…** and pick the file instead.)
+3. Fill in the three boxes with the values your IT department gave you, then save.
+4. Start a new chat and try asking: "Show me my open ServiceNow incidents".
+
+**First use note:** the first chat after installing can take a minute while the extension sets itself up. This only happens once.
+
+**Something not working?**
+- "Server disconnected" — double-check the three values you entered (Claude Desktop → Settings → Extensions → ServiceNow for Claude → Configure).
+- Ask Claude to "test the ServiceNow connection" — it will tell you what's wrong.
+- On a company network, the one-time setup needs access to `pypi.org`, `files.pythonhosted.org` and `astral.sh`. Ask IT to allow these if setup doesn't finish.
+
+IT readers: see [docs/MCPB_BUILD.md](docs/MCPB_BUILD.md) for build, release and proxy details.
+
+---
+
+## Installation (developers)
 
 ### From source
 

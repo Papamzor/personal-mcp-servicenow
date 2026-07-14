@@ -1,0 +1,55 @@
+{
+  "manifest_version": "0.4",
+  "name": "personal-mcp-servicenow",
+  "display_name": "ServiceNow for Claude",
+  "version": "4.3.0",
+  "description": "Query and manage ServiceNow incidents, changes, knowledge articles, SLAs and CMDB directly from Claude.",
+  "long_description": "39 tools for ServiceNow: incident/change/request search, intelligent query building, knowledge base management, SLA reporting, CMDB exploration and private task CRUD. Uses OAuth client credentials against your company's ServiceNow instance.",
+  "author": {
+    "name": "Jonathan Demeulemeester"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Papamzor/personal-mcp-servicenow"
+  },
+  "server": {
+    "type": "uv",
+    "entry_point": "personal_mcp_servicenow_main.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "personal_mcp_servicenow_main.py"],
+      "env": {
+        "SERVICENOW_INSTANCE": "${user_config.servicenow_instance}",
+        "SERVICENOW_AUTH_TYPE": "oauth",
+        "SERVICENOW_CLIENT_ID": "${user_config.client_id}",
+        "SERVICENOW_CLIENT_SECRET": "${user_config.client_secret}",
+        "MCP_TRANSPORT": "stdio"
+      }
+    }
+  },
+  "user_config": {
+    "servicenow_instance": {
+      "type": "string",
+      "title": "ServiceNow address",
+      "description": "Your company's ServiceNow address, e.g. https://company.service-now.com. Your IT department gives you this.",
+      "required": true
+    },
+    "client_id": {
+      "type": "string",
+      "title": "Client ID",
+      "description": "The Client ID your IT department gave you.",
+      "required": true
+    },
+    "client_secret": {
+      "type": "string",
+      "title": "Client Secret",
+      "description": "The Client Secret your IT department gave you. Stored securely on your PC.",
+      "sensitive": true,
+      "required": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["win32", "darwin"]
+  },
+  "keywords": ["servicenow", "itsm", "incident", "cmdb", "knowledge-base"]
+}
