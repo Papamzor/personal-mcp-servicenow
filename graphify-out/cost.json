@@ -29,6 +29,20 @@
       "input_tokens": 44932,
       "output_tokens": 0,
       "mode": "update"
+    },
+    {
+      "date": "2026-07-19T07:09:05.158645+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 80,
+      "mode": "update-full-semantic"
+    },
+    {
+      "date": "2026-07-19T07:09:55.573907+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 80,
+      "mode": "full-rebuild-update"
     }
   ],
   "total_input_tokens": 44932,

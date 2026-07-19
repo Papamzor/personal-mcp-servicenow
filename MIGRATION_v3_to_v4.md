@@ -128,19 +128,13 @@ If you extend the HTTP layer, the negative-test suite will catch any leak betwee
 ## Verifying your migration
 
 ```bash
-# Tests should pass
+# Tests should pass (includes token-footprint + HTTP-layer invariant guards)
 pytest tests/ -v
 
-# Live ServiceNow regression — capture baseline + diff
-python scripts/capture_read_path_baseline.py
-python scripts/capture_sla_token_baseline.py
-python scripts/compare_sla_token_baseline.py
-
-# Tool count check
-python -c "import tools; assert len(tools.tools) == 32, len(tools.tools)"
+# Tool count check (v4.0 SLA collapse: 32 tools; later minor releases add more)
+python -c "import tools; print(len(tools.tools))"
 ```
 
 ## Questions?
 
-- The full architectural rationale lives in `ARCHITECTURE_REFACTOR_PLAN.md`.
 - Graphify analysis output (the source of these refactors) lives in `graphify-out/`.

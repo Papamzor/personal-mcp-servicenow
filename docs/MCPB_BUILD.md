@@ -37,7 +37,7 @@ Output: `dist/personal-mcp-servicenow-<version>.mcpb`
 2. Commit the version bump.
 3. Tag it: `git tag v<X.Y.Z>`
 4. Push the tag to the GitHub remote (`Papamzor/personal-mcp-servicenow`) — this is the remote GitHub Actions releases from, separate from the Bitbucket `origin` remote used for CI.
-5. `.github/workflows/release.yaml` builds the macOS/Linux/Windows binaries and the `.mcpb` bundle, then attaches all of them to the GitHub Release.
+5. `.github/workflows/release.yaml` builds the `.mcpb` bundle and attaches it to the GitHub Release.
 
 `tests/test_pyproject_sync.py` enforces the three-way version alignment in CI — a mismatched bump fails the build before it ever reaches the tag/push step.
 

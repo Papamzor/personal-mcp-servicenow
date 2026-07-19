@@ -135,7 +135,7 @@ Backwards-compat shims retain the v3 import paths and test-patch targets:
 
 ### 🚨 BREAKING CHANGES
 
-This is a major architectural overhaul with significant breaking changes. Migration guide available in `MIGRATION_V2.md`.
+This is a major architectural overhaul with significant breaking changes. See CHANGELOG entries below for v1.x → v2.0 migration notes.
 
 #### **Deleted Files (Breaking Changes)**
 
@@ -268,7 +268,7 @@ This is a major architectural overhaul with significant breaking changes. Migrat
 
 ### 🔄 MIGRATION GUIDE
 
-See `MIGRATION_V2.md` for detailed migration instructions from v1.x to v2.0.
+See the v2.0 section above for migration notes from v1.x to v2.0.
 
 ### 🙏 ACKNOWLEDGMENTS
 
