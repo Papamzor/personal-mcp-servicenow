@@ -1,159 +1,111 @@
-# Similarity Search & Intelligent Query Flow (v3.0)
+# Search & Query Flow (v4.3)
 
-This flowchart demonstrates the search flow in v3.0, showing both the generic `search_records` tool (replacing per-table wrappers) and the AI-powered `intelligent_search` tool, including the new performance and encoding enhancements.
+How text search and AI-assisted search reach ServiceNow: keyword extraction, **one** OR-combined LIKE query (v4.2), domain filters, pagination, and the GET-only HTTP transforms.
 
-## Search Flow
+## End-to-end flow
 
 ```mermaid
 flowchart TD
-    A["User Query: 'Find incidents about network outage'"] --> B{Search Type}
-    B -->|Generic Search| C["search_records(table='incident', query='network outage')"]
-    B -->|AI-Powered| D["intelligent_search(table='incident', query='...')"]
+    A["User: find incidents about network outage"] --> B{Tool}
+    B -->|Generic| C["search_records(table, query)"]
+    B -->|NL / AI| D["intelligent_search(params)"]
 
-    C --> VAL{Table in TABLE_CONFIGS?}
-    VAL -->|No| VALERR[Return: unsupported table error]
+    C --> VAL{table in TABLE_CONFIGS?}
+    VAL -->|No| VALERR[Unsupported table error]
     VAL -->|Yes| E[query_table_by_text]
 
-    D --> F[Query Intelligence Engine]
+    D --> F[filter/intelligence QueryIntelligence]
+    F --> V[filter/validator validate_and_correct]
+    V --> R[query_table_with_filters / engine]
 
-    E --> G[extract_keywords - Compiled Regex]
-    F --> H[Natural Language Processing]
+    E --> G[extract_keywords]
+    G --> H{Keywords?}
+    H -->|No| L[No records / empty result]
+    H -->|Yes| ORQ["Build single query:<br/>short_descriptionLIKEk1^ORshort_descriptionLIKEk2…"]
 
-    G --> I{Keywords Found?}
-    H --> J[Smart Filter Builder]
-
-    I -->|Yes| K[Iterative Search Loop]
-    I -->|No| L[Return: no records found]
-
-    J --> M[Security Validation]
-    M --> N{Input Safe?}
-    N -->|Yes| O[Template Matching]
-    N -->|No| P[Security Alert + Safe Processing]
-
-    K --> Q[Build sysparm_query<br/>short_descriptionCONTAINSkeyword]
-    O --> R[Execute Enhanced Query]
-    P --> R
-
-    Q --> CAT[Apply Category Filters<br/>incident/sc_req_item exclusions]
+    ORQ --> CAT[_apply_domain_filters<br/>incident category / SC catalog]
     CAT --> PAG
+    R --> PAG
 
-    R --> PAG[_make_paginated_request]
+    PAG[_make_paginated_request]
+    PAG --> SORT[_inject_sort_order<br/>^ORDERBYDESCsys_created_on]
+    SORT --> API[make_nws_request GET]
+    API --> ENC[url_builder.ensure_query_encoded]
+    ENC --> PERF[url_builder.add_default_params]
+    PERF --> OAUTH[oauth request_executor + pool]
+    OAUTH --> SN[ServiceNow Table API]
+    SN --> FLAT[response_parser.extract_display_values]
+    FLAT --> OUT[Return records / intelligence metadata]
 
-    PAG --> SORT[_inject_sort_order<br/>Append ^ORDERBYDESCsys_created_on]
-    SORT --> API[make_nws_request]
-    API --> ENCODE[_ensure_query_encoded<br/>Percent-encode sysparm_query]
-    ENCODE --> PERF[_add_default_params<br/>+ exclude_reference_link<br/>+ no_count<br/>+ display_value]
-    PERF --> OAUTH[OAuth 2.0 → ServiceNow API]
-
-    OAUTH --> T{Results Found?}
-    T -->|Yes| U[Extract Display Values + Return]
-    T -->|No, Traditional| V[Try Next Keyword]
-    T -->|No, AI| W[Generate Intelligence Report]
-
-    U --> X[Return Results]
-    V --> Y{More Keywords?}
-    W --> Z[Return with AI Insights]
-
-    Y -->|Yes| K
-    Y -->|No| L
-
-    subgraph "v3.0: API Enhancements"
-        SORT
-        ENCODE
+    subgraph "GET-only invariants"
+        ENC
         PERF
-    end
-
-    subgraph "AI Intelligence Features"
-        AI1[Confidence Scoring]
-        AI2[Query Explanation]
-        AI3[SQL Generation]
-        AI4[Improvement Suggestions]
-
-        H --> AI1
-        H --> AI2
-        H --> AI3
-        H --> AI4
+        FLAT
     end
 
     style C fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
     style D fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
-    style SORT fill:#e1f5fe,stroke:#2196f3,stroke-width:2px
-    style ENCODE fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    style ORQ fill:#e1f5fe,stroke:#2196f3,stroke-width:2px
     style PERF fill:#fce4ec,stroke:#e91e63,stroke-width:2px
-    style X fill:#e8f5e8,stroke:#4caf50
-    style L fill:#ffebee,stroke:#f44336
 ```
 
-## Search Flow Steps
+## Generic search (`search_records`)
 
-### Generic Search (search_records)
-1. **Table Validation**: Validate `table` parameter against `TABLE_CONFIGS` (8 supported tables)
-2. **Keyword Extraction**: Compiled regex tokenizes input, filters stop words
-3. **Query Construction**: Build `short_descriptionCONTAINSkeyword` for each keyword
-4. **Category Filtering**: Apply incident/sc_req_item exclusion filters if enabled
-5. **Paginated Request**: Offset-based pagination with deterministic sort order
-6. **URL Encoding**: `_ensure_query_encoded()` percent-encodes special characters
-7. **Performance Params**: `sysparm_exclude_reference_link=true` + `sysparm_no_count=true`
-8. **Early Exit**: Return on first keyword match with results
+1. **Validate table** against `TABLE_CONFIGS` (8 tables).
+2. **Extract keywords** via compiled regex / stop-word filtering (`utils.extract_keywords`).
+3. **Build one `sysparm_query`**:  
+   `short_descriptionLIKE{k1}^ORshort_descriptionLIKE{k2}^OR…`  
+   (v4.2 — **not** one serial request per keyword).
+4. **Domain filters** when enabled: incident category exclusion, SC catalog exclusion.
+5. **Paginate** with `sysparm_offset` / `sysparm_limit` and deterministic sort.
+6. **GET pipeline** in `make_nws_request`:
+   - encode `sysparm_query` (preserve SN operators in the safe set)
+   - inject `sysparm_display_value`, `sysparm_exclude_reference_link`, `sysparm_no_count`
+   - flatten `{display_value, value}` envelopes
 
-### AI-Powered Search (intelligent_search)
-1. **NLP Processing**: Advanced query parsing with context awareness
-2. **Security Validation**: Input sanitization, ReDoS protection
-3. **Template Matching**: Enterprise-grade pre-built filter patterns
-4. **Smart Filter Generation**: AI-powered ServiceNow syntax creation
-5. **Confidence Scoring**: 0.0-1.0 confidence with intelligence metadata
-6. **Query Explanation**: Human-readable explanations and SQL equivalents
+### Example URL shape
 
-## v3.0 API Enhancement Details
-
-### Deterministic Pagination (Step 4)
-- `_inject_sort_order()` appends `^ORDERBYDESCsys_created_on` to all paginated queries
-- Prevents records from being skipped or duplicated across pages
-- Respects any existing `ORDERBY` clause in the query
-- Callers can override or disable via `default_sort` parameter
-
-### URL Encoding (Step 3)
-- `_ensure_query_encoded()` in `make_nws_request()` centralizes encoding
-- Unquotes first to prevent double-encoding, then applies `quote(value, safe='=<>&^():@!')`
-- Fixes: queries with `&`, `=`, `^`, `#`, or spaces no longer cause silent full-table returns
-
-### Performance Parameters (Step 2)
-- `_add_default_params()` injects on all read requests:
-  - `sysparm_exclude_reference_link=true` — removes unused reference URLs (reduces token usage)
-  - `sysparm_no_count=true` — skips `SELECT COUNT(*)` (reduces latency)
-  - `sysparm_display_value=true` — returns human-readable values
-
-## Query Evolution Example
-
-### v3.0 Generic Search
-**Input**: `search_records(table="incident", query="network outage in datacenter")`
-
-**Processing**:
-1. Table validation: `incident` is in `TABLE_CONFIGS`
-2. Keywords extracted: `["network", "outage", "datacenter"]`
-3. First query: `short_descriptionCONTAINSnetwork`
-4. Category filter applied (if enabled)
-5. Sort appended: `^ORDERBYDESCsys_created_on`
-6. URL encoded, performance params added
-7. Paginated results returned
-
-**Final API URL**:
 ```
-/api/now/table/incident?sysparm_fields=number,short_description,...
-&sysparm_query=short_descriptionCONTAINSnetwork^ORDERBYDESCsys_created_on
-&sysparm_display_value=true&sysparm_exclude_reference_link=true&sysparm_no_count=true
-&sysparm_limit=50&sysparm_offset=0
+/api/now/table/incident
+  ?sysparm_fields=number,short_description,…
+  &sysparm_query=short_descriptionLIKEnetwork^ORshort_descriptionLIKEoutage^ORDERBYDESCsys_created_on
+  &sysparm_display_value=true
+  &sysparm_exclude_reference_link=true
+  &sysparm_no_count=true
+  &sysparm_limit=…
+  &sysparm_offset=0
 ```
 
-### AI-Powered Search
-**Input**: `intelligent_search(table="incident", query="high priority incidents from last week")`
+## AI-assisted search (`intelligent_search`)
 
-**AI Processing**:
-- Time detection: "last week" → date range filter
-- Priority intelligence: "high priority" → `priorityIN1,2`
-- Confidence: 0.92
-- SQL equivalent: `SELECT * FROM incident WHERE priority IN (1,2) AND sys_created_on BETWEEN ...`
+1. Parse natural language with **`filter.intelligence.QueryIntelligence`** (regex-based, not an external LLM).
+2. Map phrases to priority / date / state / keyword fragments.
+3. **Validate / auto-correct** in `filter.validator` (may call `ServiceNowQueryBuilder` — intelligence never imports builder).
+4. Execute via the table filter engine; attach confidence, explanation, and related metadata when available.
+5. Fall back to text search (`query_table_by_text`) when NL conversion is weak.
 
----
+Related tools (same package):  
+`build_smart_servicenow_filter`, `explain_servicenow_filters`, `get_servicenow_filter_templates`, `get_query_examples`, `get_query_syntax_help`.
 
-*The v3.0 search architecture combines generic parameterized tools with centralized API enhancements for reliable, performant queries across all supported tables.*
+## Similarity (`find_similar`)
+
+1. Load the seed record’s short description (or detail fields).
+2. Reuse **`query_table_by_text`** on that description so the same OR-LIKE + domain-filter path runs.
+3. Return peer records (excluding trivial self-matches as implemented in the engine).
+
+## Structured filter (`filter_records`)
+
+- Accepts structured filter maps (and coerced JSON dicts via `param_coercion`).
+- Optional **`max_results`** (default 100, max 1000).
+- Response metadata: **`returned_count`**, **`truncated`**, **`max_results`** for partial-set detection (v4.1).
+
+## HTTP enhancements (still critical)
+
+| Concern | Implementation |
+|---------|----------------|
+| Stable pages | `_inject_sort_order` → `^ORDERBYDESCsys_created_on` unless ORDERBY present |
+| Encoding | `ensure_query_encoded` — unquote then `quote(..., safe='=<>&^():@!')` |
+| Token size / latency | `exclude_reference_link` + `no_count` + essential field lists |
+| Display values | flatten after GET only |
+
+Writes (VTB, KB) use the same OAuth stack but **skip** encode/default-params/flatten.

@@ -1,334 +1,82 @@
 {
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\audit_middleware.py": {
-    "mtime": 1779882573.5211346,
-    "hash": "2cbb147d6ae95d836acff83ab4421d3f"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\config_loader.py": {
-    "mtime": 1769269803.6226397,
-    "hash": "5b7bc0c6c6419a65277cfa04d1b3bfdb"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\constants.py": {
-    "mtime": 1781974370.0935962,
-    "hash": "47277dcbf49073a8e0506a53d5664588"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\nuitka_build.py": {
-    "mtime": 1769269803.6358411,
-    "hash": "501ae91bfd61b993741d3a46f83f173c"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\personal_mcp_servicenow_main.py": {
-    "mtime": 1779882573.7188222,
-    "hash": "f883368bf0028a509c28993a89064d88"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\setup.py": {
-    "mtime": 1769871482.79937,
-    "hash": "a0732f0d42bfa257b394e53409693dd7"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tools.py": {
-    "mtime": 1781972568.6313899,
-    "hash": "57ffed2a3d66ddc09fc9e7f6889e0428"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\utility_tools.py": {
-    "mtime": 1781332520.3286667,
-    "hash": "93a796ebc6c4ecd46489707a325b76e5"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\utils.py": {
-    "mtime": 1781973336.8047109,
-    "hash": "8741cfede305a7de95226a203627ca84"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\builder.py": {
-    "mtime": 1779295408.9253154,
-    "hash": "5d35d0b425a945603f099a53c34a896c"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\explainer.py": {
-    "mtime": 1779295408.9263206,
-    "hash": "8401b9f76eb4d72e7b66c3ac0da5f0d1"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\intelligence.py": {
-    "mtime": 1781974473.0391092,
-    "hash": "25442d039af135d6c49e92037e7c78e4"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\models.py": {
-    "mtime": 1781332520.0644703,
-    "hash": "ecb2b50a375c41783cf1054a43fe5f77"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\validator.py": {
-    "mtime": 1781973471.324784,
-    "hash": "450acda85cc88e2d903e2fe35a908fc9"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\__init__.py": {
-    "mtime": 1781974513.7547648,
-    "hash": "42a49609312c67ffa8979379b0f45229"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\request_dispatcher.py": {
-    "mtime": 1781974717.9526517,
-    "hash": "d25eac37ae4c410da8c37d3dd8b8762a"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\response_parser.py": {
-    "mtime": 1779295408.93232,
-    "hash": "510b21d8cfa6401e4ce89a6175fd1589"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\url_builder.py": {
-    "mtime": 1779295408.9328227,
-    "hash": "1c528941270084caffa798af3afdf57d"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\__init__.py": {
-    "mtime": 1779295408.9303203,
-    "hash": "55c3b81a1b815a1e5d85b26b3b9fee85"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\client.py": {
-    "mtime": 1779295408.9348261,
-    "hash": "d7ea4e9fbaaa15f44f8a9f40b119c687"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\exceptions.py": {
-    "mtime": 1779295408.9358273,
-    "hash": "2bd5b83dd14ce47419a6de4d2db4db46"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\http_pool.py": {
-    "mtime": 1781972568.6830914,
-    "hash": "4d35283572989fd46c793eff76fa5d83"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\request_executor.py": {
-    "mtime": 1781972568.684084,
-    "hash": "4c16f63db4d9c09d1ff7ddf4abc7b355"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\singleton.py": {
-    "mtime": 1781972568.685084,
-    "hash": "27568387465b123cfb122ba4670254f1"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\__init__.py": {
-    "mtime": 1781972568.6820993,
-    "hash": "46034953db575dfa02fe5559b207a41e"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\scripts\\capture_read_path_baseline.py": {
-    "mtime": 1781332520.318566,
-    "hash": "2ce8479b9e3083341844aec871f100db"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\cmdb_tools.py": {
-    "mtime": 1781973658.1014185,
-    "hash": "151cf9d6c355e59c9edf718036714b11"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\consolidated_tools.py": {
-    "mtime": 1781973196.8948348,
-    "hash": "92ad68e217a70ce8c4abde29c9d0706a"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\date_utils.py": {
-    "mtime": 1781973351.2123992,
-    "hash": "9f6f0bd8a95941a3943cf56ee110fd92"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\generic_table_tools.py": {
-    "mtime": 1781974313.992943,
-    "hash": "a06d088975eff8c098634abf5a6d034f"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\generic_tool_wrappers.py": {
-    "mtime": 1781972911.3160884,
-    "hash": "58ef12142c89467a815195d1d232a646"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\intelligent_query_tools.py": {
-    "mtime": 1781973033.3817859,
-    "hash": "a9b906f4710308543079b05af2a0c75b"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\kb_article_tools.py": {
-    "mtime": 1781974504.151324,
-    "hash": "95771f7daed08180128078cfbced55d6"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\table_tools.py": {
-    "mtime": 1781332520.0533123,
-    "hash": "aae3f881953be2e8556107b0c6c6ec28"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\vtb_task_tools.py": {
-    "mtime": 1781973849.9390888,
-    "hash": "c7566a7c72c5bd90a8ae5b5f7e711737"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\write_helpers.py": {
-    "mtime": 1781973799.3503504,
-    "hash": "d1765a4bcecd5c471ecca1adc91d0949"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\conftest.py": {
-    "mtime": 1781972568.6870828,
-    "hash": "71f691d68fff251a0623f4c26718e64a"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\run_tests.py": {
-    "mtime": 1781332520.3195662,
-    "hash": "92492084d09ee39f206ff29ae8f53ea2"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_cli.py": {
-    "mtime": 1769269803.6456914,
-    "hash": "456a16cef2d5a12a453768e39e582058"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_cmdb_tools.py": {
-    "mtime": 1763040093.4790072,
-    "hash": "5741636d30088492afabe1ed37da00f6"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_config_loader.py": {
-    "mtime": 1778014854.8401916,
-    "hash": "abe0c2887000b6c3d92b72ce80c3ae07"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_consolidated_tools.py": {
-    "mtime": 1781973218.0499191,
-    "hash": "e457e8c94482732b3fd886976cb408e2"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_date_utils.py": {
-    "mtime": 1769871482.8023708,
-    "hash": "c440c712a9f3b1d150079b93b41b2932"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_filtering.py": {
-    "mtime": 1781332520.3205664,
-    "hash": "a905e8ac54b906ce4d1a392dc3e0cd76"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_generic_table_tools.py": {
-    "mtime": 1781972568.6273916,
-    "hash": "a5b7179c263817cfb193cedb999bd92a"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_generic_tool_wrappers.py": {
-    "mtime": 1775634646.5121443,
-    "hash": "ba8a5de339f9213ccfdfa9d24620fa01"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_http_layer.py": {
-    "mtime": 1781332520.3205664,
-    "hash": "d95f065e6c70f2158aaa5c6968cde6f2"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_integration.py": {
-    "mtime": 1781972568.6273916,
-    "hash": "608de2e64b6ba6db60cbfa8532a76bc5"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_kb_article_tools.py": {
-    "mtime": 1779882573.7213018,
-    "hash": "213c2f1a09b6f29acd255379386be18e"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_mcp_tools.py": {
-    "mtime": 1775634646.5131416,
-    "hash": "bdb4ecc58355f6a3e89026139b5e1079"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_no_stdout_pollution.py": {
-    "mtime": 1781972568.628391,
-    "hash": "86ab2ad3a646d04158763023024ead44"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_oauth.py": {
-    "mtime": 1781332520.3226633,
-    "hash": "0db6cb30103ab51078f92263b95b71d6"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_oauth_client.py": {
-    "mtime": 1781332520.3236637,
-    "hash": "4a799439f0f853132c105793686002ed"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_oauth_client_enhanced.py": {
-    "mtime": 1781332520.3246632,
-    "hash": "f4e844d8ef69f7e21880d36f7f5fcbbd"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_query_intelligence.py": {
-    "mtime": 1781974483.9470687,
-    "hash": "a03c6427e982f0faf410536c3a7b8e0f"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_query_validation.py": {
-    "mtime": 1781972568.6303904,
-    "hash": "029200efba031d64970c1654400a1991"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_service_now_api.py": {
-    "mtime": 1781972568.6313899,
-    "hash": "479bc5606b0471ec247c4922c536bc44"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_utility_tools.py": {
-    "mtime": 1763040093.4857976,
-    "hash": "84b3b0a0a2bf566d65e4778eb29681f3"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_vtb_task_tools.py": {
-    "mtime": 1778014854.8431935,
-    "hash": "d83b082a64a78b3f1593c4179fe75c5a"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\__init__.py": {
-    "mtime": 1763040093.476957,
-    "hash": "dd112a652b070a03f1624637e87f8eb6"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\ARCHITECTURE_REFACTOR_PLAN.md": {
-    "mtime": 1779295408.9140415,
-    "hash": "c1279bf84c91b3b6bfd3e34432de195b"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\bitbucket-pipelines.yml": {
-    "mtime": 1775634646.5081306,
-    "hash": "e7aabbafd44336caafd482a9e83e7d25"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\CHANGELOG.md": {
-    "mtime": 1781332520.027754,
-    "hash": "90f6425e8e90b682cd8772404136c38f"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\CLAUDE.md": {
-    "mtime": 1781617944.676338,
-    "hash": "17d953e5285134b66cccfda5dc616e20"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\MIGRATION_V2.md": {
-    "mtime": 1763040093.4569309,
-    "hash": "6a1fd993db0529d1a871941c897dcca0"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\MIGRATION_v3_to_v4.md": {
-    "mtime": 1781332520.028752,
-    "hash": "5f9713a46128cbe9b9b8c020f0cc9ac3"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\OAUTH_SETUP_GUIDE.md": {
-    "mtime": 1763040093.4579372,
-    "hash": "8cace098545dbb7cd5ec86846d65719b"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\OPTIMIZATION_SUMMARY.md": {
-    "mtime": 1763040093.4589367,
-    "hash": "4f51de79f6aa5037fe18a53b65728b13"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\README.md": {
-    "mtime": 1781332520.028752,
-    "hash": "8580528d4dceb6bbba342caa8fef758b"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\requirements-dev.txt": {
-    "mtime": 1779295408.942829,
-    "hash": "95226a8f9d090f440855b3e5ab89cbc4"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\requirements.txt": {
-    "mtime": 1779882573.7188222,
-    "hash": "5ddec5edc28d5fa2b8695a7a56c64a96"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\SERVICENOW_QUERY_GUIDE.md": {
-    "mtime": 1763040093.4599373,
-    "hash": "ac998300444c08f2787777e4f705bb55"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\01-architecture-overview.md": {
-    "mtime": 1779295408.917034,
-    "hash": "57c71a9d13620470c4e330d4d413f224"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\02-oauth-authentication-flow.md": {
-    "mtime": 1779295408.9180338,
-    "hash": "af422c6d7bccadb5f0cd61ce74bba845"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\03-tool-organization.md": {
-    "mtime": 1779295408.919033,
-    "hash": "06b9a2f3405a0c366cf8e3b4dcb21141"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\04-similarity-search-flow.md": {
-    "mtime": 1775634646.5010037,
-    "hash": "80f727cf48b8d945be06af566f8696e4"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\05-ai-intelligence-flow.md": {
-    "mtime": 1763040093.454427,
-    "hash": "6c5e0bdac98021856e40dbc5d3ac98be"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\06-sla-architecture-flow.md": {
-    "mtime": 1779295408.9200394,
-    "hash": "f3397c03680c351e4572c575ba47dc84"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\README.md": {
-    "mtime": 1775634646.5020044,
-    "hash": "bf4ea1724daba8d0bedc60b5370b15cd"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\Fixes\\FILTERING_FIXES_GUIDE.md": {
-    "mtime": 1763040093.4554274,
-    "hash": "05c85fd674a55cf3b04ac1bcc1cd7489"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\docs\\plans\\2025-01-17-binary-packaging-design.md": {
-    "mtime": 1769269803.630746,
-    "hash": "f3ec033a1c718fe8b59580b632e327b1"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\docs\\plans\\2025-01-17-binary-packaging-implementation.md": {
-    "mtime": 1769269803.6337974,
-    "hash": "62200c43a3c8985dc093692d7831c035"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\v3.0\\release.md": {
-    "mtime": 1775634646.516149,
-    "hash": "5bc38262740ac5212da9664dd767c070"
-  }
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\audit_middleware.py": 1783935101.0045266,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\auth_middleware.py": 1783935101.0045266,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\config_loader.py": 1783935101.005817,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\constants.py": 1784018921.0536501,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\param_coercion.py": 1784018921.0546563,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\personal_mcp_servicenow_main.py": 1784443267.1393235,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tools.py": 1784018921.0576491,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\utility_tools.py": 1781332520.3286667,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\utils.py": 1782046807.9160337,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\builder.py": 1779295408.9253154,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\explainer.py": 1779295408.9263206,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\intelligence.py": 1783935101.0099125,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\models.py": 1781332520.0644703,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\validator.py": 1782048445.8714252,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\__init__.py": 1782046807.8764193,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\request_dispatcher.py": 1783935101.0109122,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\response_parser.py": 1779295408.93232,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\url_builder.py": 1779295408.9328227,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\__init__.py": 1779295408.9303203,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\client.py": 1779295408.9348261,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\exceptions.py": 1779295408.9358273,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\http_pool.py": 1783855924.1509557,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\request_executor.py": 1782048491.4855294,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\singleton.py": 1783935101.0119183,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\__init__.py": 1782046807.9020326,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\scripts\\build_mcpb.py": 1784443267.1413312,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\cmdb_tools.py": 1783935100.9986217,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\consolidated_tools.py": 1784018921.0494719,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\date_utils.py": 1782046807.866948,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\generic_table_tools.py": 1783935100.9986217,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\generic_tool_wrappers.py": 1784018921.0506399,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\intelligent_query_tools.py": 1784018921.0516446,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\kb_article_tools.py": 1784018921.0526497,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\table_tools.py": 1783935101.0025203,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\vtb_task_tools.py": 1783935101.0025203,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\write_helpers.py": 1783935101.0035203,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\conftest.py": 1782046807.9070306,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\run_tests.py": 1781332520.3195662,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_cli.py": 1769269803.6456914,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_cmdb_tools.py": 1763040093.4790072,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_config_loader.py": 1778014854.8401916,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_consolidated_tools.py": 1782048545.4239314,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_date_utils.py": 1769871482.8023708,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_filtering.py": 1781332520.3205664,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_generic_table_tools.py": 1783935101.014912,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_generic_tool_wrappers.py": 1784018921.055649,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_http_layer.py": 1781332520.3205664,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_integration.py": 1782046807.9100296,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_kb_article_tools.py": 1783855924.151953,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_mcp_tools.py": 1782048546.749374,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_no_stdout_pollution.py": 1784443309.2844837,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_oauth.py": 1784443267.142324,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_oauth_client.py": 1781332520.3236637,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_oauth_client_enhanced.py": 1781332520.3246632,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_param_coercion.py": 1784018921.0566492,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_pyproject_sync.py": 1784443267.1433249,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_query_intelligence.py": 1782046807.912033,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_query_validation.py": 1782046807.913027,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_security_sanitization.py": 1783935101.014912,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_service_now_api.py": 1782046807.914037,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_utility_tools.py": 1763040093.4857976,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_vtb_task_tools.py": 1778014854.8431935,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\__init__.py": 1763040093.476957,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\CHANGELOG.md": 1784443309.3128152,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\CLAUDE.md": 1781979516.327743,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\MIGRATION_v3_to_v4.md": 1784443336.5519643,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\OAUTH_SETUP_GUIDE.md": 1763040093.4579372,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\README.md": 1784443336.5519643,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\requirements-dev.txt": 1779295408.942829,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\requirements.txt": 1783935101.0129123,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\SERVICENOW_QUERY_GUIDE.md": 1763040093.4599373,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\01-architecture-overview.md": 1784443612.4511168,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\02-oauth-authentication-flow.md": 1784443670.6814933,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\03-tool-organization.md": 1784443670.6814933,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\04-similarity-search-flow.md": 1784443670.6814933,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\05-ai-intelligence-flow.md": 1784443705.3876517,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\06-sla-architecture-flow.md": 1784443705.388651,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\README.md": 1784443612.4511168,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\docs\\E2E_TEST_PROMPTS.md": 1782046807.8754191,
+  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\docs\\MCPB_BUILD.md": 1784443309.2844837
 }

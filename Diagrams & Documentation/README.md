@@ -1,68 +1,78 @@
-# MCP ServiceNow Server - Architecture Documentation
+# MCP ServiceNow Server — Architecture Documentation
 
-This folder contains Mermaid diagrams documenting the architecture of the Personal MCP ServiceNow server (v3.0).
+Mermaid diagrams for the Personal MCP ServiceNow server (**v4.3**). Packaging is Claude Desktop Extension (`.mcpb`); distribution is no longer Nuitka binaries.
 
 ## Diagram Index
 
 | File | Description | Diagram Type | Status |
 |------|-------------|--------------|--------|
-| [01-architecture-overview.md](./01-architecture-overview.md) | v3.0 architecture with generic tool wrappers, performance params, URL encoding, deterministic sort | Component Diagram | **Updated for v3.0** |
-| [02-oauth-authentication-flow.md](./02-oauth-authentication-flow.md) | OAuth 2.0 authentication sequence with ServiceNow | Sequence Diagram | Current |
-| [03-tool-organization.md](./03-tool-organization.md) | v3.0 tool consolidation: 24 wrappers → 5 generic tools, 55 → 36 total tools | Graph Diagram | **Updated for v3.0** |
-| [04-similarity-search-flow.md](./04-similarity-search-flow.md) | Search flow with `search_records` generic tool, API enhancements, AI search | Flowchart | **Updated for v3.0** |
-| [05-ai-intelligence-flow.md](./05-ai-intelligence-flow.md) | AI intelligence workflow with natural language processing | Flowchart | Current |
-| [06-sla-architecture-flow.md](./06-sla-architecture-flow.md) | SLA monitoring architecture with 10 specialised tools | Architecture Diagram | Current |
+| [01-architecture-overview.md](./01-architecture-overview.md) | Layered architecture: tools → filter → http_layer → oauth → ServiceNow | Component | **v4.3** |
+| [02-oauth-authentication-flow.md](./02-oauth-authentication-flow.md) | Client-credentials flow, token cache, 401 retry, pooled httpx | Sequence | **v4.3** |
+| [03-tool-organization.md](./03-tool-organization.md) | 39 tools by source module; generic wrappers + domain tools | Graph | **v4.3** |
+| [04-similarity-search-flow.md](./04-similarity-search-flow.md) | `search_records` / `intelligent_search` read path (OR-LIKE, pagination, GET params) | Flowchart | **v4.3** |
+| [05-ai-intelligence-flow.md](./05-ai-intelligence-flow.md) | NL → `filter/` pipeline (intelligence → validator → builder → explainer) | Flowchart | **v4.3** |
+| [06-sla-architecture-flow.md](./06-sla-architecture-flow.md) | 5 SLA tools, status presets, token-safe defaults | Architecture | **v4.3** |
 
 ## How to View Diagrams
 
 ### VS Code
-1. Install the **Mermaid Preview** extension
+1. Install the **Mermaid Preview** extension (or use built-in Markdown preview with Mermaid support)
 2. Open any `.md` file in this folder
-3. Use `Ctrl+Shift+V` to preview with rendered diagrams
+3. Preview with `Ctrl+Shift+V` (Windows) / `Cmd+Shift+V` (macOS)
 
 ### GitHub / Bitbucket
-- Diagrams render automatically when viewing files on GitHub
-- Click on any `.md` file to see the rendered Mermaid charts
+- Mermaid in fenced ` ```mermaid ` blocks renders in the file viewer
 
 ### Mermaid Live Editor
-1. Copy the mermaid code block from any file
+1. Copy a mermaid code block
 2. Paste into [Mermaid Live Editor](https://mermaid.live/)
-3. View, edit, and export as needed
 
-## System Overview (v3.0)
+## System Overview (v4.3)
 
-The MCP ServiceNow server provides:
-
-- **36 Tools** across 8 ServiceNow table types (down from 55 in v2.x)
-- **5 Generic Tools** replacing 24 per-table wrappers via `TABLE_CONFIGS` validation
-- **OAuth 2.0 Authentication** with automatic token management
-- **Performance Optimizations**: `sysparm_exclude_reference_link`, `sysparm_no_count`
-- **Centralized URL Encoding**: All `sysparm_query` values encoded in `make_nws_request()`
-- **Deterministic Pagination**: `^ORDERBYDESCsys_created_on` on all paginated queries
-- **AI Intelligence**: Natural language query processing and smart filter generation
-- **537 Tests**, 80% coverage, all functions under CC 15
+- **39 MCP tools** over stdio (Claude Desktop) or SSE (Docker / network agents)
+- **8 tables** in `TABLE_CONFIGS`: `incident`, `change_request`, `sc_req_item`, `sc_task`, `universal_request`, `kb_knowledge`, `vtb_task`, `task_sla`
+- **5 generic tools** for any configured table (`search_records`, `get_record`, …)
+- **Filter pipeline** in `filter/` (no v3 shims — deleted in v4.1)
+- **HTTP layer** in `http_layer/` — GET token-optimization invariants; writes bypass them
+- **OAuth** in `oauth/` — façade + TokenStore + RequestExecutor + process-wide httpx pool (v4.2)
+- **Writes**: `vtb_task` CRUD + KB article lifecycle tools
+- **Distribution**: `.mcpb` bundle (`scripts/build_mcpb.py`) or Docker SSE
 
 ## Architecture Summary
 
 ```
-MCP Client (Claude)
-  ↓ stdio
-tools.py (FastMCP registration — 36 tools)
+MCP Client (Claude / agent)
+  ↓ stdio | SSE
+tools.py (FastMCP + AuthMiddleware + AuditMiddleware — 39 tools)
   ↓
-generic_tool_wrappers.py (5 generic tools with table validation)
-consolidated_tools.py   (priority incidents, knowledge, 10 SLA tools)
-cmdb_tools.py           (6 CMDB tools)
-intelligent_query_tools.py (5 NLP tools)
-vtb_task_tools.py       (2 CRUD tools)
+generic_tool_wrappers.py   (5 generic tools — TABLE_CONFIGS validate)
+consolidated_tools.py      (priority incidents, knowledge read, 5 SLA tools)
+vtb_task_tools.py          (private task create/update)
+kb_article_tools.py        (KB update / publish / batch / retire / dup-check)
+cmdb_tools.py              (6 CMDB tools)
+intelligent_query_tools.py (6 NLP / filter-help tools)
   ↓
-generic_table_tools.py (core query engine + pagination + sort order)
+generic_table_tools.py     (query engine, pagination, domain filters)
   ↓
-service_now_api_oauth.py (perf params + URL encoding + display values)
+filter/                    (builder, validator, intelligence, explainer, models)
   ↓
-oauth_client.py → httpx → ServiceNow REST API
+http_layer/                (make_nws_request: GET url_builder + response_parser)
+  ↓
+oauth/                     (singleton → client → token_store + request_executor + http_pool)
+  ↓
+httpx → ServiceNow Table API
 ```
+
+## Related docs (repo root)
+
+| Doc | Purpose |
+|-----|---------|
+| [README.md](../README.md) | Install, config, Claude Desktop / Docker |
+| [docs/MCPB_BUILD.md](../docs/MCPB_BUILD.md) | `.mcpb` build and release |
+| [MIGRATION_v3_to_v4.md](../MIGRATION_v3_to_v4.md) | v3 → v4 SLA + import path changes |
+| [OAUTH_SETUP_GUIDE.md](../OAUTH_SETUP_GUIDE.md) | ServiceNow OAuth client setup |
+| [CHANGELOG.md](../CHANGELOG.md) | Version history |
 
 ---
 
-*Last Updated: February 2026*
-*Project: Personal MCP ServiceNow Server v3.0*
+*Last updated: 2026-07-19 · Project version: 4.3.0*

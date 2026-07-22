@@ -1,35 +1,32 @@
-# Tool Organization & Consolidation (v3.0)
+# Tool Organization (v4.3)
 
-This diagram shows the v3.0 architectural transformation: 24 near-duplicate per-table wrappers replaced by 5 generic parameterized tools, reducing from 55 to 36 total tools with zero functional loss.
+How 39 MCP tools are grouped by module, and how the v3 generic-wrapper consolidation still underpins table access.
 
-## Before vs After: v3.0 Consolidation
+## Historical consolidation (v3 — still the foundation)
+
 ```mermaid
 graph TB
-    subgraph "BEFORE: 24 Per-Table Wrappers"
+    subgraph "Before v3: 24 per-table wrappers"
         OLD1[similar_incidents_for_text]
         OLD2[similar_changes_for_text]
-        OLD3[similar_ur_for_text]
-        OLD4[get_incident_details]
-        OLD5[get_change_details]
-        OLD6[get_short_desc_for_incident]
-        OLD7["... 18 more 1-line wrappers"]
+        OLD3[get_incident_details]
+        OLD4[get_change_details]
+        OLD5["… 20 more one-line wrappers"]
     end
 
-    subgraph "AFTER: 5 Generic Tools"
+    subgraph "After v3: 5 generic tools"
         NEW1["search_records(table, query)"]
         NEW2["get_record(table, number)"]
         NEW3["get_record_summary(table, number)"]
         NEW4["find_similar(table, number)"]
-        NEW5["filter_records(table, filters, fields)"]
+        NEW5["filter_records(table, filters, fields, max_results)"]
     end
 
     OLD1 --> NEW1
     OLD2 --> NEW1
-    OLD3 --> NEW1
+    OLD3 --> NEW2
     OLD4 --> NEW2
-    OLD5 --> NEW2
-    OLD6 --> NEW3
-    OLD7 --> NEW4
+    OLD5 --> NEW4
 
     NEW1 --> GTT[generic_table_tools.py]
     NEW2 --> GTT
@@ -38,142 +35,129 @@ graph TB
     NEW5 --> GTT
 
     style NEW1 fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
-    style NEW2 fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
-    style NEW3 fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
-    style NEW4 fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
-    style NEW5 fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
-    style OLD7 fill:#ffebee,stroke:#f44336,stroke-width:2px
+    style GTT fill:#e1f5fe,stroke:#2196f3,stroke-width:2px
+    style OLD5 fill:#ffebee,stroke:#f44336,stroke-width:1px
 ```
 
-## v3.0 Tool Categories Overview
+Later releases **added** domain tools (KB write, SLA collapse, syntax help) without bringing back per-table search wrappers.
+
+## Current tool map (39 tools)
+
 ```mermaid
 graph LR
-    subgraph "32 MCP Tools (v4.0)"
-        A[Generic Table Tools<br/>5 tools - parameterized]
-        B[Incident Tools<br/>1 tool - priority + dates]
-        C[Knowledge Tools<br/>3 tools - category filtering]
-        D[CMDB Tools<br/>6 tools - CI discovery]
-        E[Private Task Tools<br/>2 tools - CRUD]
-        F[SLA Tools<br/>5 tools - preset dispatcher + escape hatch]
-        G[Utility Tools<br/>5 tools - auth/connectivity]
-        H[Intelligent Query Tools<br/>5 tools - NLP]
+    subgraph "39 MCP tools"
+        A[Generic table — 5]
+        B[Priority incidents — 1]
+        C[Knowledge read — 4]
+        D[KB write — 5]
+        E[Private task CRUD — 2]
+        F[SLA — 5]
+        G[CMDB — 6]
+        H[Intelligent query — 6]
+        I[Utility / auth — 5]
     end
 
-    A --> I[generic_tool_wrappers.py]
-    B --> J[consolidated_tools.py]
-    C --> J
-    F --> J
-    D --> K[cmdb_tools.py]
-    E --> L[vtb_task_tools.py]
-    G --> M[utility_tools.py]
-    H --> N[intelligent_query_tools.py]
+    A --> W[generic_tool_wrappers.py]
+    B --> CNS[consolidated_tools.py]
+    C --> CNS
+    F --> CNS
+    D --> KB[kb_article_tools.py]
+    E --> VTB[vtb_task_tools.py]
+    G --> CMDB[cmdb_tools.py]
+    H --> IQ[intelligent_query_tools.py]
+    I --> U[utility_tools.py / table_tools.py]
 
-    I --> O[generic_table_tools.py]
-    J --> O
-    K --> P[service_now_api_oauth.py]
-    L --> Q[_make_authenticated_request]
-    N --> O
-    O --> P
-    P --> R[ServiceNow API]
-    Q --> R
+    W --> GTT[generic_table_tools.py]
+    CNS --> GTT
+    IQ --> GTT
+    GTT --> HTTP[http_layer.make_nws_request]
+    VTB --> HTTP
+    KB --> HTTP
+    CMDB --> HTTP
+    U --> HTTP
+    HTTP --> SN[ServiceNow REST]
 
-    style I fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
-    style O fill:#e1f5fe,stroke:#2196f3,stroke-width:2px
-    style P fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    style W fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
+    style GTT fill:#e1f5fe,stroke:#2196f3,stroke-width:2px
+    style HTTP fill:#fce4ec,stroke:#e91e63,stroke-width:2px
 ```
 
-## Generic Tool Wrapper Pattern (v3.0)
+## Generic wrapper path
+
 ```mermaid
 graph TB
-    subgraph "MCP Tool Call"
-        CALL["search_records(table='incident', query='server down')"]
-    end
+    CALL["search_records(table='incident', query='server down')"]
+    CALL --> VAL{table in TABLE_CONFIGS?}
+    VAL -->|No| ERR[Error: unsupported table]
+    VAL -->|Yes| DELEGATE[query_table_by_text / other engine fn]
 
-    subgraph "generic_tool_wrappers.py"
-        VAL{table in TABLE_CONFIGS?}
-        CALL --> VAL
-        VAL -->|No| ERR[Return error: unsupported table]
-        VAL -->|Yes| DELEGATE[Call generic function]
-    end
-
-    subgraph "generic_table_tools.py"
-        DELEGATE --> QBT[query_table_by_text]
-        QBT --> KW[extract_keywords]
-        KW --> BUILD[Build sysparm_query]
-        BUILD --> FILTER[Apply category filters]
-    end
-
-    subgraph "Pagination + API"
-        FILTER --> PAG[_make_paginated_request]
-        PAG --> SORT[_inject_sort_order<br/>^ORDERBYDESCsys_created_on]
-        SORT --> REQ[make_nws_request]
-        REQ --> PARAMS[_add_default_params<br/>+ _ensure_query_encoded]
-        PARAMS --> OAUTH[OAuth 2.0 → ServiceNow]
-    end
-
-    subgraph "Supported Tables"
-        T1[incident]
-        T2[change_request]
-        T3[sc_req_item]
-        T4[sc_task]
-        T5[universal_request]
-        T6[kb_knowledge]
-        T7[vtb_task]
-        T8[task_sla]
-    end
+    DELEGATE --> KW[extract_keywords]
+    KW --> ORQ["One OR-combined LIKE query<br/>short_descriptionLIKEa^ORshort_descriptionLIKEb"]
+    ORQ --> DOM[_apply_domain_filters<br/>category / catalog exclusions]
+    DOM --> PAG[_make_paginated_request<br/>ORDERBYDESC sys_created_on]
+    PAG --> REQ[make_nws_request GET]
+    REQ --> URL[url_builder + response_parser]
+    URL --> SN[ServiceNow]
 
     style VAL fill:#fff3e0,stroke:#ff9800,stroke-width:2px
-    style SORT fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
-    style PARAMS fill:#e1f5fe,stroke:#2196f3,stroke-width:2px
+    style ORQ fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
 ```
 
-## Tool Categories Detail
+### Supported tables (`TABLE_CONFIGS`)
 
-### Generic Table Tools (5 tools — generic_tool_wrappers.py)
-Each validates `table` against `TABLE_CONFIGS` and delegates to `generic_table_tools.py`:
-- **search_records(table, query)** → `query_table_by_text()` — text-based search
-- **get_record(table, number)** → `get_record_details()` — full record by number
-- **get_record_summary(table, number)** → `get_record_description()` — short description
-- **find_similar(table, number)** → `find_similar_records()` — similarity matching
-- **filter_records(table, filters, fields)** → `query_table_with_filters()` — structured filtering
+`incident` · `change_request` · `sc_req_item` · `sc_task` · `universal_request` · `kb_knowledge` · `vtb_task` · `task_sla`
 
-### Consolidated Tools (9 tools — consolidated_tools.py)
-Tools with unique logic that cannot be replaced by generic wrappers:
-- **Priority Incidents** (1): Complex date logic, metadata, convenience helpers
-- **Knowledge** (3): Category/kb_base filtering, active articles
-- **SLA** (5, v4.0): `similar_slas_for_text`, `get_sla_details` (sys_id lookup — fixed v3 bug), `query_slas_by_task`, `query_slas_by_status` (preset enum: active/breached/breaching/critical/by_stage/performance), `query_slas_custom` (escape hatch, defaults to ESSENTIAL_FIELDS)
+## Categories in detail
 
-### CMDB Tools (6 tools — cmdb_tools.py)
-Separate architecture with 100+ CI table types:
-- `find_cis_by_type`, `search_cis_by_attributes`, `get_ci_details`
-- `similar_cis_for_ci`, `get_all_ci_types`, `quick_ci_search`
+### Generic table tools (5) — `generic_tool_wrappers.py`
 
-### Intelligent Query Tools (5 tools — intelligent_query_tools.py)
-NLP-based query processing:
-- `intelligent_search`, `explain_servicenow_filters`, `build_smart_servicenow_filter`
-- `get_servicenow_filter_templates`, `get_query_examples`
+| Tool | Engine function | Notes |
+|------|-----------------|--------|
+| `search_records` | `query_table_by_text` | Single OR-LIKE request (v4.2) |
+| `get_record` | `get_record_details` | Detail field set |
+| `get_record_summary` | short description path | Lean response |
+| `find_similar` | `find_similar_records` | Similarity via description text |
+| `filter_records` | `query_table_with_filters` | Optional `max_results` (default 100, max 1000); response includes `returned_count`, `truncated`, `max_results` |
 
-### Utility Tools (5 tools)
-- `nowtest`, `now_test_oauth`, `now_auth_info`, `nowtestauth`, `nowtest_auth_input`
+### Consolidated tools — `consolidated_tools.py`
 
-### Private Task CRUD (2 tools — vtb_task_tools.py)
-- `create_private_task`, `update_private_task` (uses PATCH for partial updates)
+- **Priority**: `get_priority_incidents` — date ranges + metadata (MCP wrapper strips `**kwargs` for FastMCP v3)
+- **Knowledge read** (4): `similar_knowledge_for_text`, `get_knowledge_by_category`, `get_active_knowledge_articles`, `get_kb_articles_by_state` (collapses KB versions to one row per `number`)
+- **SLA** (5): see [06-sla-architecture-flow.md](./06-sla-architecture-flow.md)
 
-## Consolidation Benefits
+### KB write (5) — `kb_article_tools.py`
 
-### Metrics
-- **Tools**: 55 → 36 (35% reduction, zero functional loss)
-- **Wrappers removed**: 24 one-line functions deleted
-- **Dead code removed**: 5 duplicate functions from vtb_task_tools.py
-- **Tests**: 537 passing, 80% coverage
+`update_knowledge_article` · `publish_knowledge_article` · `publish_knowledge_articles` (batch, cap 20) · `retire_knowledge_article` · `check_kb_duplicates`
 
-### v3.0 API Improvements
-- **Performance params**: `sysparm_exclude_reference_link=true` + `sysparm_no_count=true` on all reads
-- **URL encoding**: Centralized `sysparm_query` encoding in `make_nws_request()`
-- **Deterministic pagination**: `^ORDERBYDESCsys_created_on` appended to all paginated queries
-- **HTTP semantics**: PUT → PATCH for partial updates
+Shared helpers in `write_helpers.py` (`map_http_error`, `unwrap_write_response`).
 
-### Extensibility
-1. Add table config to `constants.py`
-2. All 5 generic tools automatically support the new table
-3. No code duplication required
+### Private tasks (2) — `vtb_task_tools.py`
+
+`create_private_task` · `update_private_task` (HTTP **PATCH** for partial updates)
+
+### CMDB (6) — `cmdb_tools.py`
+
+`find_cis_by_type` · `search_cis_by_attributes` · `get_ci_details` · `similar_cis_for_ci` · `get_all_ci_types` · `quick_ci_search`
+
+### Intelligent query (6) — `intelligent_query_tools.py`
+
+`intelligent_search` · `explain_servicenow_filters` · `build_smart_servicenow_filter` · `get_servicenow_filter_templates` · `get_query_examples` · `get_query_syntax_help` (encoded-query operator reference)
+
+### Utility / auth (5)
+
+`nowtest` · `now_test_oauth` · `now_auth_info` · `nowtestauth` · `nowtest_auth_input`
+
+## Counts over time
+
+| Era | Approx. tool count | Notes |
+|-----|-------------------|--------|
+| Pre-v3 | ~55 | Many per-table wrappers |
+| v3 | ~36–37 | Generic wrappers land |
+| v4.0 | 32 | SLA 10 → 5 |
+| v4.1+ | **39** | KB expansion + `get_query_syntax_help` + state collapse tool |
+
+## Extensibility
+
+1. Add an entry to `TABLE_CONFIGS` / field maps in `constants.py`
+2. The five generic tools pick up the table automatically
+3. Add a dedicated tool only when behaviour cannot fit the generic engine (dates, KB workflow, CMDB multi-table, SLA presets)
