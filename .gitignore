@@ -38,6 +38,7 @@ claude/
 claude.json
 .claude.json
 CLAUDE.md
+branching-strategy.md
 personal comments.md
 
 # One-off sprint baselines (local only)
