@@ -2,7 +2,7 @@
 
 MCP server for ServiceNow integration. Uses FastMCP over stdio transport, OAuth 2.0 client credentials.
 
-[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)
+[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://python.org)
 [![ServiceNow](https://img.shields.io/badge/ServiceNow-REST%20API-green.svg)](https://servicenow.com)
 [![OAuth 2.0](https://img.shields.io/badge/Auth-OAuth%202.0%20Only-orange.svg)](https://oauth.net/2/)
 
@@ -259,11 +259,6 @@ pytest tests/ -v --tb=short
 
 # With coverage
 pytest tests/ --cov=. --cov-report=term-missing
-
-# Live ServiceNow regression
-python scripts/capture_sla_token_baseline.py
-python scripts/compare_sla_token_baseline.py
-python scripts/capture_read_path_baseline.py
 ```
 
 575 tests passing, ~83% overall coverage. `filter/` 98.16%, `oauth/` + `http_layer/` 92.98%.
@@ -432,7 +427,7 @@ Dev dependencies are never installed in the Docker image.
 - [OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md) — ServiceNow OAuth 2.0 setup
 - [MIGRATION_v3_to_v4.md](MIGRATION_v3_to_v4.md) — v3 → v4 migration guide
 - [CHANGELOG.md](CHANGELOG.md) — full change history
-- [ARCHITECTURE_REFACTOR_PLAN.md](ARCHITECTURE_REFACTOR_PLAN.md) — rationale behind v4.0 refactor sprints
+- [docs/MCPB_BUILD.md](docs/MCPB_BUILD.md) — Claude Desktop Extension (`.mcpb`) build & release
 
 ---
 

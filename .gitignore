@@ -1,33 +1,35 @@
+# Python
 __pycache__/
 **/__pycache__/
 *.py[cod]
+*.egg-info/
+.pytest_cache/
+**/pyvenv.cfg
+
+# Virtual envs / secrets
 /.env
 .env.*
 !.env.example
 /.venv
 /venv
-/Table_Tools/__pycache__/
-**/pyvenv.cfg
 
-# Coverage artifacts
+# Coverage / test outputs (CI regenerates these)
 .coverage
+.coverage.*
 htmlcov/
+coverage.xml
+test-results.xml
 
-# IDE settings
+# Build / packaging
+dist/
+build/
+*.mcpb
+
+# IDE
 .vscode/settings.json
 settings.json
 
-# ...existing code...
-*.egg-info/
-dist/
-build/
-
-# Nuitka build artifacts
-*.build/
-*.dist/
-*.onefile-build/
-
-# Claude related files and folders
+# Claude local notes (not shipped)
 claude/
 .claude/
 **/claude/
@@ -37,12 +39,12 @@ claude.json
 .claude.json
 CLAUDE.md
 personal comments.md
+
+# One-off sprint baselines (local only)
 v3.0/
 v4.0/
+Testing/
 
-# Settings files
-settings.json
-
-# graphify knowledge graph artifacts
+# graphify — keep graphify-out/ tracked; ignore caches + root temp scripts
 .graphify_*
 graphify-out/cache/

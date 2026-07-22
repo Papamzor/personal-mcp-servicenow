@@ -1,159 +1,166 @@
-# MCP Server Architecture Overview (v3.0)
+# MCP Server Architecture Overview (v4.3)
 
-This diagram shows the architecture of the Personal MCP ServiceNow server after the v3.0 consolidation: 5 generic tools replace 24 per-table wrappers, centralized URL encoding, performance parameters, and deterministic pagination.
+Layered view of the Personal MCP ServiceNow server after the v3 generic-tool consolidation, the v4 package splits (`filter/`, `http_layer/`, `oauth/`), v4.1 shim deletion, v4.1–4.2 KB/perf work, and v4.3 MCPB packaging.
 
 ```mermaid
 graph TB
     subgraph "MCP Client"
-        A[Claude/Client] --> B[MCP Protocol - stdio]
+        A[Claude / agent] --> B[MCP Protocol<br/>stdio or SSE]
     end
 
     subgraph "MCP Server Core"
-        B --> C[tools.py - FastMCP Server]
-        C --> D[Tool Registration - 32 tools]
+        B --> C[tools.py — FastMCP]
+        C --> MW[AuthMiddleware + AuditMiddleware]
+        MW --> D[Tool registration — 39 tools]
     end
 
     subgraph "Tool Categories"
-        D --> E[Utility Tools - 5 tools]
-        D --> F[Intelligent Query Tools - 5 tools]
-        D --> G[Generic Tool Wrappers - 5 tools]
-        D --> H[Consolidated Tools - 15 tools]
-        D --> I[CMDB Tools - 6 tools]
+        D --> E[Utility / auth — 5]
+        D --> F[Intelligent query — 6]
+        D --> G[Generic wrappers — 5]
+        D --> H[Consolidated — priority, KB read, SLA]
+        D --> I[CMDB — 6]
+        D --> J[VTB CRUD — 2]
+        D --> K[KB write — 5]
     end
 
-    subgraph "Tool Implementation Layer"
-        E --> L[utility_tools.py]
+    subgraph "Implementation modules"
+        E --> L[utility_tools.py / table_tools.py]
         F --> AI[intelligent_query_tools.py]
         G --> GW[generic_tool_wrappers.py]
         H --> CT[consolidated_tools.py]
         I --> CMDB[cmdb_tools.py]
-
-        AI --> NLP[filter/intelligence.py - QueryIntelligence]
-        GW --> GTT[generic_table_tools.py - Core Engine]
+        J --> VTB[vtb_task_tools.py]
+        K --> KB[kb_article_tools.py]
+        GW --> GTT[generic_table_tools.py]
         CT --> GTT
+        AI --> GTT
+        AI --> NLP[filter/intelligence.py]
     end
 
-    subgraph "Filter Pipeline (v4.0)"
-        NLP --> FV[filter/validator.py<br/>validate_and_correct_filters]
-        FV --> FB[filter/builder.py<br/>ServiceNowQueryBuilder]
-        AI --> FEXP[filter/explainer.py<br/>QueryExplainer]
-        GTT --> FMOD[filter/models.py<br/>TableFilterParams, SmartQueryParams]
+    subgraph "filter/ package"
+        NLP --> FV[filter/validator.py]
+        FV --> FB[filter/builder.py]
+        AI --> FEXP[filter/explainer.py]
+        GTT --> FMOD[filter/models.py<br/>TableFilterParams]
     end
 
-    subgraph "HTTP Layer (v4.0 Sprint 3)"
-        GTT --> PAG[_make_paginated_request<br/>+ _inject_sort_order]
-        PAG --> DISP[http_layer/request_dispatcher.py<br/>make_nws_request]
+    subgraph "http_layer/"
+        GTT --> PAG[_make_paginated_request]
+        PAG --> DISP[request_dispatcher<br/>make_nws_request]
+        VTB --> DISP
+        KB --> DISP
         L --> DISP
-        DISP -->|GET| URL[http_layer/url_builder.py<br/>ensure_query_encoded<br/>+ add_default_params]
-        DISP -->|GET response| RESP[http_layer/response_parser.py<br/>extract_display_values]
-        DISP --> EXEC[oauth/request_executor.py<br/>+ retry on 401]
+        DISP -->|GET| URL[url_builder<br/>encode + default params]
+        DISP -->|GET response| RESP[response_parser<br/>display_value flatten]
+        DISP -->|POST/PATCH| WRITE[oauth client write path<br/>no GET transforms]
     end
 
-    subgraph "OAuth (v4.0 Sprint 3)"
-        EXEC --> CLI[oauth/client.py<br/>ServiceNowOAuthClient façade]
-        CLI --> TOK[oauth/token_store.py<br/>token cache + refresh]
-        CLI --> SN[ServiceNow Instance - OAuth 2.0]
+    subgraph "oauth/"
+        DISP --> EXEC[request_executor<br/>auth + 401 retry]
+        EXEC --> CLI[client.py façade]
+        CLI --> TOK[token_store]
+        EXEC --> POOL[http_pool<br/>pooled AsyncClient]
+        TOK --> POOL
+        CLI --> SN[ServiceNow OAuth + Table API]
     end
 
-    subgraph "Support Modules"
-        GTT --> CONST[constants.py<br/>TABLE_CONFIGS, fields, errors]
-        GTT --> UTILS[utils.py - extract_keywords]
+    subgraph "Support"
+        GTT --> CONST[constants.py]
+        GTT --> UTILS[utils.py]
         CT --> DATE[date_utils.py]
+        C --> COERCE[param_coercion.py]
     end
 
     style GW fill:#e8f5e8,stroke:#4caf50,stroke-width:3px
     style GTT fill:#e1f5fe,stroke:#2196f3,stroke-width:3px
-    style AI fill:#fff3e0,stroke:#ff9800,stroke-width:2px
-    style API fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    style DISP fill:#fce4ec,stroke:#e91e63,stroke-width:2px
+    style CLI fill:#fff3e0,stroke:#ff9800,stroke-width:2px
 ```
 
-## Architecture Components
+## Architecture components
 
-### Core Infrastructure
-- **MCP Client**: External clients (Claude) communicating via MCP protocol over stdio
-- **FastMCP Server**: Tool registration and routing for 32 tools
-- **Generic Tool Wrappers**: 5 parameterized tools replace 24 per-table wrappers
+### Core
+- **Transport**: stdio (Claude Desktop / MCPB) or SSE (`MCP_TRANSPORT=sse`, Docker)
+- **FastMCP** in `tools.py`: registers 39 tools; `AuthMiddleware` (SSE bearer) then `AuditMiddleware` (structured JSON logs to stderr)
+- **`param_coercion`**: stringified JSON dict params coerced at the tool boundary (MCP clients sometimes send JSON as strings)
 
-### Tool Layer
-- **generic_tool_wrappers.py** (v3.0): `search_records`, `get_record`, `get_record_summary`, `find_similar`, `filter_records` — each takes a `table` parameter and validates against `TABLE_CONFIGS`
-- **consolidated_tools.py**: Priority incidents (date logic), knowledge tools (category filtering), 5 SLA tools (preset dispatcher: `query_slas_by_status`, `query_slas_custom`, `query_slas_by_task`, `get_sla_details`, `similar_slas_for_text`)
-- **intelligent_query_tools.py**: NLP-based query processing with confidence scoring
-- **cmdb_tools.py**: 6 CMDB tools with 100+ CI table types
+### Tool layer
+| Module | Role |
+|--------|------|
+| `generic_tool_wrappers.py` | 5 table-parameterized tools; validates `table` against `TABLE_CONFIGS` |
+| `consolidated_tools.py` | Priority incidents, knowledge read tools, 5 SLA tools |
+| `vtb_task_tools.py` | `create_private_task` / `update_private_task` (PATCH) |
+| `kb_article_tools.py` | Update, publish, batch publish, retire, duplicate check |
+| `cmdb_tools.py` | 6 CMDB tools; concurrent CI table probes on detail lookup |
+| `intelligent_query_tools.py` | NL search + filter explain/build/templates/examples + `get_query_syntax_help` |
+| `utility_tools.py` / `table_tools.py` | Connectivity and auth diagnostics |
 
-### HTTP Layer (v4.0 Sprint 3)
-- **`http_layer/request_dispatcher.make_nws_request()`**: Orchestrator. Dispatches GET vs write methods. GET applies URL + response transforms; writes bypass both.
-- **`http_layer/url_builder.add_default_params()`**: Injects `sysparm_display_value=true`, `sysparm_exclude_reference_link=true`, `sysparm_no_count=true` on GET only. Token-optimization invariant.
-- **`http_layer/url_builder.ensure_query_encoded()`**: Centralized URL encoding for `sysparm_query`, preserves SN operators.
-- **`http_layer/response_parser.extract_display_values()`**: Flattens `{display_value, value}` envelopes on GET responses.
-- **`Table_Tools/generic_table_tools._make_paginated_request()`**: Offset-based pagination with `_inject_sort_order()` appending `^ORDERBYDESCsys_created_on` by default.
+### `filter/` (v4.0 Sprint 1; shims removed v4.1)
+- **builder**: `ServiceNowQueryBuilder` — OR / date-range / exclusion constructors
+- **validator**: validate + `validate_and_correct_filters` (only bridge allowed to call builder from NL path)
+- **intelligence**: `QueryIntelligence` — regex NL → filters; **does not** import builder
+- **explainer**: human-readable explanation + size estimation
+- **models**: `TableFilterParams`, `QueryValidationResult` (`SmartQueryParams` removed in v4.1)
 
-### OAuth Subsystems (v4.0 Sprint 3)
-- **`oauth/client.ServiceNowOAuthClient`**: Façade. Composes TokenStore + RequestExecutor. Inlines `get_auth_headers` so test patches on `_get_valid_token` reach every authenticated request.
-- **`oauth/token_store.TokenStore`**: Access-token cache + lifecycle + refresh call. Injectable `fetch_token_fn` for test-patch routing through façade.
-- **`oauth/request_executor.RequestExecutor`**: Authenticated HTTP + 401-retry. Takes a `get_auth_headers` callable so client-level patches propagate.
-- **`oauth/exceptions`**: 4-class hierarchy — `ServiceNowOAuthError` + Authentication/Connection/Authorization variants.
+### `http_layer/` (v4.0 Sprint 3)
+- **`make_nws_request`**: GET applies `ensure_query_encoded` + `add_default_params` + `extract_display_values`
+- **Writes (POST/PATCH/DELETE)**: bypass all three — locked by negative tests in `tests/test_http_layer.py`
+- **Default GET params**: `sysparm_display_value=true`, `sysparm_exclude_reference_link=true`, `sysparm_no_count=true`
+- **Pagination**: `_make_paginated_request` + deterministic `^ORDERBYDESCsys_created_on` unless an ORDERBY already exists
+
+### `oauth/` (v4.0 Sprint 3 + v4.2 pool)
+- **singleton** (`oauth/singleton.py`): process-wide client + `make_oauth_request`
+- **client**: façade over TokenStore + RequestExecutor
+- **token_store**: cache + refresh buffer before expiry
+- **request_executor**: authenticated HTTP + single 401 → refresh → retry
+- **http_pool** (v4.2): shared keep-alive `httpx.AsyncClient`
+- **exceptions**: OAuth / Authentication / Connection / Authorization
 
 ### Configuration
-- **constants.py**: `TABLE_CONFIGS` (8 tables), `ESSENTIAL_FIELDS`, `DETAIL_FIELDS`, error messages, priority values
+- `constants.py`: `TABLE_CONFIGS`, `ESSENTIAL_FIELDS`, `DETAIL_FIELDS`, error strings, category filters
+- Env vars or `~/.config/mcp-servicenow/config.json` via `config_loader.py`
 
-### Filter Pipeline (v4.0 Sprint 1)
-- **filter/builder.py**: `ServiceNowQueryBuilder` — static OR / date-range / exclusion / complete-filter constructors
-- **filter/validator.py**: `validate_query_filters`, per-field validators, `validate_and_correct_filters` (auto-correction owns the only intelligence → builder bridge), `debug_query_construction`
-- **filter/intelligence.py**: `QueryIntelligence` — regex-based NL → filter conversion. Does not import builder.
-- **filter/explainer.py**: `QueryExplainer` — human-readable explanation + result-size estimation
-- **filter/models.py**: `TableFilterParams`, `SmartQueryParams` (Pydantic) and `QueryValidationResult` container
-- **query_validation.py / query_intelligence.py**: backwards-compat shims, deleted in v4.1
+## Supported tables
 
-## v4.0 Changes (in progress)
+| Table | Prefix / notes |
+|-------|----------------|
+| `incident` | INC; optional category exclusion |
+| `change_request` | CHG |
+| `sc_req_item` | RITM; optional catalog exclusion |
+| `sc_task` | SCTASK |
+| `universal_request` | UR |
+| `kb_knowledge` | KB; no priority field |
+| `vtb_task` | VTB; only table with generic-path CRUD tools |
+| `task_sla` | stage instead of state; no number prefix |
 
-### Sprint 2 — SLA tool collapse (shipped)
-- 10 SLA tools → 5 via `query_slas_by_status` preset dispatcher + `query_slas_custom` escape hatch
-- Tool count: 37 → 32
-- Bug fix: `get_sla_details(sys_id)` now routes via `sys_id={sys_id}` (v3 routed via `number={sys_id}` against a table with no `number` field, returning 10K-row dumps)
-- Offline token-footprint regression suite: `tests/test_token_footprint.py`
+## Tool inventory (39 tools — v4.3)
 
-### Sprint 1 — Filter pipeline consolidation (in progress)
-- `query_validation.py` + `query_intelligence.py` + `TableFilterParams`/`SmartQueryParams` from `generic_table_tools.py` collapsed into `filter/` package
-- Auto-correction logic moved from intelligence to validator → no backref `intelligence → builder`
-- Old modules retained as shims, deleted in v4.1
+| # | Tools | Source |
+|---|--------|--------|
+| 1–5 | `nowtest`, `now_test_oauth`, `now_auth_info`, `nowtestauth`, `nowtest_auth_input` | utility / table_tools |
+| 6–10 | `search_records`, `get_record_summary`, `get_record`, `find_similar`, `filter_records` | generic_tool_wrappers |
+| 11 | `get_priority_incidents` | consolidated_tools |
+| 12–15 | `similar_knowledge_for_text`, `get_knowledge_by_category`, `get_active_knowledge_articles`, `get_kb_articles_by_state` | consolidated_tools |
+| 16–17 | `create_private_task`, `update_private_task` | vtb_task_tools |
+| 18–22 | `update_knowledge_article`, `publish_knowledge_article`, `publish_knowledge_articles`, `retire_knowledge_article`, `check_kb_duplicates` | kb_article_tools |
+| 23–27 | `similar_slas_for_text`, `get_sla_details`, `query_slas_by_task`, `query_slas_by_status`, `query_slas_custom` | consolidated_tools |
+| 28–33 | `find_cis_by_type`, `search_cis_by_attributes`, `get_ci_details`, `similar_cis_for_ci`, `get_all_ci_types`, `quick_ci_search` | cmdb_tools |
+| 34–39 | `intelligent_search`, `explain_servicenow_filters`, `build_smart_servicenow_filter`, `get_servicenow_filter_templates`, `get_query_examples`, `get_query_syntax_help` | intelligent_query_tools |
 
-### Sprint 3 — OAuth + HTTP split (shipped)
-- `ServiceNowOAuthClient` split into TokenStore + RequestExecutor + façade (`oauth/`)
-- `make_nws_request` split into `url_builder` + `response_parser` + `request_dispatcher` (`http_layer/`)
-- Read/write divergence locked in `tests/test_http_layer.py` (13 tests, including 3 critical write-path negative tests)
-- `service_now_api_oauth.py` and `oauth_client.py` retained as backwards-compat shims (deleted in v4.1)
+## Version lineage (short)
 
-## v3.0 Changes
+| Release | What changed |
+|---------|----------------|
+| **v3** | 5 generic tools replace 24 wrappers; perf params + encoding + ORDERBY pagination |
+| **v4.0** | SLA collapse (10→5); `filter/`, `http_layer/`, `oauth/` packages; shims temporary |
+| **v4.1** | Shims deleted; KB write tools + `get_kb_articles_by_state`; `get_query_syntax_help`; `filter_records` truncation metadata |
+| **v4.2** | Pooled httpx; single OR-combined LIKE text search; CMDB concurrency / encoding |
+| **v4.3** | Claude Desktop `.mcpb` packaging (no Nuitka release path) |
 
-### Files Added
-- `Table_Tools/generic_tool_wrappers.py` — 5 generic MCP-facing tools
+## Key invariants
 
-### Files Enhanced
-- `service_now_api_oauth.py` — performance params + URL encoding
-- `generic_table_tools.py` — deterministic sort order for pagination
-- `consolidated_tools.py` — removed 24 wrappers, kept unique logic
-- `vtb_task_tools.py` — PUT to PATCH, removed dead code
-
-### Key Metrics (v3.0)
-- 37 tools (down from 55)
-- 537 tests passing, 80% coverage
-- All functions under CC 15
-
-## Key Metrics (v4.0, current)
-- 32 tools
-- 575 tests passing, ~83% overall coverage
-- `filter/` package coverage: 98.16%
-- `oauth/` + `http_layer/` package coverage: 92.98%
-
-## Tool Inventory (32 tools — v4.0)
-
-| # | Tool | Source |
-|---|------|--------|
-| 1-5 | `search_records`, `get_record_summary`, `get_record`, `find_similar`, `filter_records` | generic_tool_wrappers.py |
-| 6 | `get_priority_incidents` | consolidated_tools.py |
-| 7-9 | `similar_knowledge_for_text`, `get_knowledge_by_category`, `get_active_knowledge_articles` | consolidated_tools.py |
-| 10-11 | `create_private_task`, `update_private_task` | vtb_task_tools.py |
-| 12-21 | 10 SLA tools | consolidated_tools.py |
-| 22-27 | 6 CMDB tools | cmdb_tools.py |
-| 28-32 | 5 intelligent query tools | intelligent_query_tools.py |
-| 33-37 | 5 auth/utility tools | utility_tools.py, table_tools.py |
+1. **GET** always applies encode + default sysparm + display-value flatten.
+2. **Write methods** never apply those GET transforms.
+3. **filter/intelligence** must not import **filter/builder** (auto-correct only via validator).
+4. **Stdout** is reserved for MCP JSON-RPC; logs and prints go to **stderr**.

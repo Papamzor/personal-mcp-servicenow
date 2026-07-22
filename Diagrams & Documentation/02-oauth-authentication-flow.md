@@ -1,56 +1,98 @@
-# OAuth 2.0 Authentication Flow
+# OAuth 2.0 Authentication Flow (v4.3)
 
-This sequence diagram illustrates how the MCP server handles OAuth 2.0 Client Credentials authentication with ServiceNow, including automatic token management and refresh.
+How the server obtains and uses ServiceNow OAuth 2.0 **client credentials** tokens, including cache, refresh buffer, and 401 retry.
 
-> **v4.0 update**: the v3 `oauth_client.py` class was split into `oauth/token_store.py` + `oauth/request_executor.py` composed by a façade at `oauth/client.py`. The `oauth_client.py` shim retains the module-level singleton (`get_oauth_client`, `make_oauth_request`) for backwards compat. Sequence below collapses the subsystems under the façade for readability — see `01-architecture-overview.md` for the layered view.
+## Package layout
+
+| Module | Responsibility |
+|--------|----------------|
+| `oauth/singleton.py` | Process-wide client: `get_oauth_client()`, `make_oauth_request()` |
+| `oauth/client.py` | `ServiceNowOAuthClient` façade |
+| `oauth/token_store.py` | Access-token cache + refresh (injectable fetch function) |
+| `oauth/request_executor.py` | Authenticated HTTP + 401 → refresh → one retry |
+| `oauth/http_pool.py` | Shared keep-alive `httpx.AsyncClient` (v4.2) |
+| `oauth/exceptions.py` | `ServiceNowOAuthError` + Authentication / Connection / Authorization |
+| `http_layer/request_dispatcher.py` | Calls OAuth for GET and write paths via `make_nws_request` |
+
+v3 `oauth_client.py` / `service_now_api_oauth.py` shims were **removed in v4.1**. Import from `oauth` and `http_layer` only.
 
 ```mermaid
 sequenceDiagram
     participant Client as MCP Client
-    participant Server as MCP Server
-    participant OAuth as oauth/client.py (façade)
-    participant Store as oauth/token_store.py
-    participant SN as ServiceNow API
-    
-    Client->>Server: Tool Request
-    Server->>OAuth: Check Token Status
-    
-    alt Token Valid
-        OAuth->>Server: Return Cached Token
-    else Token Expired/Missing
-        OAuth->>SN: POST /oauth_token.do
-        Note over OAuth,SN: Client Credentials Flow<br/>grant_type=client_credentials<br/>client_id + client_secret
-        SN->>OAuth: Access Token + Expires
-        OAuth->>OAuth: Cache Token & Expiry
-        OAuth->>Server: Return New Token
+    participant Tool as Tool / generic_table_tools
+    participant HTTP as http_layer.make_nws_request
+    participant Exec as request_executor
+    participant Store as token_store
+    participant Pool as http_pool
+    participant SN as ServiceNow
+
+    Client->>Tool: Tool call
+    Tool->>HTTP: make_nws_request(url, method)
+    HTTP->>Exec: authenticated request
+
+    Exec->>Store: get valid access token
+    alt Token valid (not near expiry)
+        Store-->>Exec: cached bearer token
+    else Missing / near expiry
+        Store->>Pool: POST /oauth_token.do
+        Note over Store,SN: grant_type=client_credentials<br/>client_id + client_secret
+        Pool->>SN: token request
+        SN-->>Pool: access_token + expires_in
+        Pool-->>Store: token body
+        Store-->>Exec: new bearer token
     end
-    
-    Server->>SN: API Request with Bearer Token
-    alt Success
-        SN->>Server: Response Data
-        Server->>Client: Processed Results
-    else Auth Error
-        SN->>Server: 401 Unauthorized
-        Server->>OAuth: Force Token Refresh
-        OAuth->>SN: POST /oauth_token.do
-        SN->>OAuth: New Access Token
-        Server->>SN: Retry API Request
-        SN->>Server: Response Data
-        Server->>Client: Processed Results
+
+    Exec->>Pool: API request Authorization: Bearer …
+    Pool->>SN: Table API / other REST
+    alt 2xx
+        SN-->>Exec: response body
+        Exec-->>HTTP: result
+        Note over HTTP: GET: encode query, default params,<br/>flatten display_value envelopes<br/>Write: raw JSON, raise_for_status
+        HTTP-->>Tool: data
+        Tool-->>Client: tool result
+    else 401 Unauthorized
+        SN-->>Exec: 401
+        Exec->>Store: force refresh
+        Store->>Pool: POST /oauth_token.do
+        SN-->>Store: new token
+        Exec->>Pool: retry once with new token
+        SN-->>Exec: response
+        Exec-->>HTTP: result
+        HTTP-->>Tool: data
+        Tool-->>Client: tool result
     end
 ```
 
-## Authentication Features
+## Behaviour details
 
-- **Client Credentials Flow**: Secure machine-to-machine authentication
-- **Automatic Token Management**: Tokens cached until near expiry
-- **Thread-Safe Operations**: Async locks prevent concurrent token requests
-- **Error Recovery**: Automatic retry on authentication failures
-- **Environment Configuration**: Credentials loaded from `.env` file
+### Client credentials
+- Config from environment (`SERVICENOW_INSTANCE`, `SERVICENOW_CLIENT_ID`, `SERVICENOW_CLIENT_SECRET`) or config file (env wins).
+- Basic auth is **not** supported.
+- Token endpoint: `{instance}/oauth_token.do`.
 
-## Security Benefits
+### Token lifecycle
+- Tokens are cached in memory on the process-wide client.
+- Refresh is requested **before** hard expiry (`TOKEN_REFRESH_BUFFER_MINUTES`) to avoid edge-of-life 401s.
+- Concurrent refresh is serialized so only one token request races.
 
-- No hardcoded credentials in source code
-- Tokens automatically expire and refresh
-- Bearer token authentication (more secure than Basic Auth)
-- Encrypted HTTPS communication with ServiceNow
+### HTTP client pool (v4.2)
+- One shared `httpx.AsyncClient` for token fetch, data requests, and 401 retry.
+- Reduces TLS/handshake cost vs a new client per call.
+- Tests reset the pool in `conftest.py`; production closes via `shutdown_http_client()` / atexit.
+
+### Read vs write through the same OAuth path
+Both use authenticated HTTP, but **`make_nws_request`** branches:
+
+| Method | URL encoding + default sysparm | Display-value flatten | Errors |
+|--------|--------------------------------|------------------------|--------|
+| GET | Yes | Yes | Soft fail / empty depending on caller |
+| POST / PATCH / DELETE | No | No | `raise_for_status` so VTB/KB map 4xx/5xx |
+
+### SSE auth (separate from ServiceNow OAuth)
+When `MCP_TRANSPORT=sse`, `AuthMiddleware` can require a shared-secret bearer on the **MCP** channel. That is independent of ServiceNow client credentials. ServiceNow auth is always OAuth as above.
+
+## Security notes
+
+- Secrets live in env / config / Key Vault — never in the repo or `.mcpb` staging whitelist.
+- Logs (audit middleware) redact parameter names matching password/secret/token/key/auth/credential.
+- All ServiceNow traffic is HTTPS.

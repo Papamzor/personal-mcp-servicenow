@@ -10,7 +10,6 @@ Excluded paths:
 - ``.venv/``, ``graphify-out/``, ``docs/``, ``tests/`` — not in the server runtime
 - ``scripts/`` — local benchmarking/utility scripts
 - hidden/cache files (name starts with ``.``, e.g. ``.graphify_*.py``) — generated artifacts, not runtime modules
-- ``nuitka_build.py`` — build harness
 - ``personal_mcp_servicenow_main.py`` — CLI setup wizard, runs before stdio takeover
 """
 from __future__ import annotations
@@ -22,7 +21,7 @@ from typing import List, Tuple
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 EXCLUDED_DIRS = {".venv", "graphify-out", "docs", "tests", "scripts", "v3.0", "v4.0"}
-EXCLUDED_FILES = {"nuitka_build.py", "personal_mcp_servicenow_main.py"}
+EXCLUDED_FILES = {"personal_mcp_servicenow_main.py"}
 
 
 def _is_stderr_target(file_kwarg: ast.expr) -> bool:
