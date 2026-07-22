@@ -215,6 +215,38 @@ class TestUpdateKnowledgeArticle:
 
             mock_sys_id.assert_called_once_with("KB0001234", workflow_state="draft")
 
+    @pytest.mark.asyncio
+    async def test_rejects_non_updatable_fields(self):
+        result = await update_knowledge_article(
+            "KB0001234", {"workflow_state": "published", "sys_id": "x"}
+        )
+        assert "Rejected non-updatable field(s)" in result
+        assert "workflow_state" in result
+        assert "sys_id" in result
+
+    @pytest.mark.asyncio
+    async def test_accepts_meta_and_meta_description(self):
+        with patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_sys_id, \
+             patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
+            mock_sys_id.return_value = "abc123"
+            mock_request.return_value = {
+                "result": {
+                    "number": "KB0001234",
+                    "meta": "leave, absence, policy",
+                    "meta_description": "How to request leave",
+                }
+            }
+            payload = {
+                "meta": "leave, absence, policy",
+                "meta_description": "How to request leave",
+            }
+
+            result = await update_knowledge_article("KB0001234", payload)
+
+            assert result["meta"] == "leave, absence, policy"
+            assert result["meta_description"] == "How to request leave"
+            assert mock_request.call_args.kwargs["json_data"] == payload
+
 
 class TestGetKbArticleMeta:
 
