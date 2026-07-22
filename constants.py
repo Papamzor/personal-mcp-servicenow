@@ -155,8 +155,11 @@ ERROR_KB_PUBLISH_NOT_CONFIRMED = (
 # workflow_state is deliberately excluded: it is a ServiceNow-managed field
 # that publish/retire transition via the qonv workflow endpoint, never a
 # direct Table API write (see kb_article_tools._call_kb_workflow). sys_* and
-# other metadata fields are likewise never caller-settable.
-KB_UPDATABLE_FIELDS = ["short_description", "text", "kb_category"]
+# number are likewise never caller-settable. meta / meta_description are the
+# kb_knowledge SEO keyword and description fields (ServiceNow Table API names).
+KB_UPDATABLE_FIELDS = [
+    "short_description", "text", "kb_category", "meta", "meta_description",
+]
 
 # Table-specific error messages
 TABLE_ERROR_MESSAGES = {
@@ -186,7 +189,7 @@ DETAIL_FIELDS = {
     "incident": ["number", "short_description", "description", "priority", "state", "category", "sys_created_on", "sys_updated_on", "opened_at", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id", "major_incident_state"],
     "change_request": ["number", "short_description", "description", "priority", "state", "sys_created_on", "sys_updated_on", "opened_at", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "type", "urgency", "impact", "risk", "start_date", "end_date", "implementation_plan", "backout_plan", "test_plan", "u_communication"],
     "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "sys_updated_on", "assigned_to", "assignment_group", "comments", "u_reference_1", "company", "cmdb_ci"],
-    "kb_knowledge": ["number", "short_description", "text", "kb_category", "workflow_state", "sys_created_on", "assigned_to"],
+    "kb_knowledge": ["number", "short_description", "text", "kb_category", "workflow_state", "sys_created_on", "assigned_to", "meta", "meta_description"],
     "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
     "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on", "breach_time", "business_time_left", "duration", "has_breached", "business_duration", "business_elapsed_time", "planned_end_time"],
     "sc_req_item": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "cat_item", "request", "stage"],
@@ -215,7 +218,10 @@ DETAILED_VTB_TASK_FIELDS = COMMON_VTB_TASK_FIELDS + [
     "parent"
 ]
 
-KB_WRITE_RESPONSE_FIELDS = {"number", "sys_id", "short_description", "workflow_state"}
+KB_WRITE_RESPONSE_FIELDS = {
+    "number", "sys_id", "short_description", "workflow_state",
+    "meta", "meta_description",
+}
 
 # Field lists for KB read queries (ordered tuples — sysparm_fields order is stable).
 KB_META_FIELDS = ("sys_id", "short_description")
