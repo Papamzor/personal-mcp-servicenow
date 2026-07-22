@@ -185,25 +185,20 @@ class TestUnwrapWriteResponse:
 class TestHttpErrorHandler:
     """Test HTTP error handling function."""
 
-    def test_handle_http_error_401(self):
-        result = _handle_http_error(_make_http_status_error(401), "creation")
-        assert "Authentication failed" in result
-
-    def test_handle_http_error_403(self):
-        result = _handle_http_error(_make_http_status_error(403), "update")
-        assert "Access denied" in result
-
-    def test_handle_http_error_400(self):
-        result = _handle_http_error(_make_http_status_error(400), "creation")
-        assert "Invalid request" in result
-
-    def test_handle_http_error_404(self):
-        result = _handle_http_error(_make_http_status_error(404), "retrieval")
-        assert "not found" in result
-
-    def test_handle_http_error_unknown(self):
-        result = _handle_http_error(_make_http_status_error(503), "update")
-        assert "server error" in result.lower()
+    @pytest.mark.parametrize(
+        "status_code, operation, expected, case_insensitive",
+        [
+            (401, "creation", "Authentication failed", False),
+            (403, "update", "Access denied", False),
+            (400, "creation", "Invalid request", False),
+            (404, "retrieval", "not found", False),
+            (503, "update", "server error", True),
+        ],
+    )
+    def test_handle_http_error(self, status_code, operation, expected, case_insensitive):
+        result = _handle_http_error(_make_http_status_error(status_code), operation)
+        haystack = result.lower() if case_insensitive else result
+        assert expected in haystack
 
 
 class TestTaskDataPreparation:

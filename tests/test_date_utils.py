@@ -366,7 +366,7 @@ class TestBuildLastNDaysFilter:
 
             result = build_last_n_days_filter(1)
 
-            assert "sys_created_on>=2026-01-27 00:00:00" == result
+            assert result == "sys_created_on>=2026-01-27 00:00:00"
 
     def test_30_day_filter(self):
         """Test filter for last 30 days."""
@@ -375,7 +375,7 @@ class TestBuildLastNDaysFilter:
 
             result = build_last_n_days_filter(30)
 
-            assert "sys_created_on>=2025-12-29 00:00:00" == result
+            assert result == "sys_created_on>=2025-12-29 00:00:00"
 
     def test_no_javascript_syntax(self):
         """Verify filter doesn't use JavaScript syntax."""
