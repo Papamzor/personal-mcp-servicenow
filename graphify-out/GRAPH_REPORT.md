@@ -1,13 +1,18 @@
-# Graph Report - personal-mcp-servicenow  (2026-07-22)
+# Graph Report - personal-mcp-servicenow  (2026-08-02)
 
 ## Corpus Check
-- 63 files · ~62,783 words
+- 63 files · ~63,113 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2470 nodes · 3512 edges · 188 communities detected
-- Extraction: 72% EXTRACTED · 28% INFERRED · 0% AMBIGUOUS · INFERRED: 986 edges (avg confidence: 0.75)
+- 3340 nodes · 4635 edges · 411 communities (169 shown, 242 thin omitted)
+- Extraction: 73% EXTRACTED · 27% INFERRED · 0% AMBIGUOUS · INFERRED: 1261 edges (avg confidence: 0.75)
 - Token cost: 0 input · 0 output
+
+## Graph Freshness
+- Built from commit: `a31edead`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - [[_COMMUNITY_Community 0|Community 0]]
@@ -198,30 +203,251 @@
 - [[_COMMUNITY_Community 185|Community 185]]
 - [[_COMMUNITY_Community 186|Community 186]]
 - [[_COMMUNITY_Community 187|Community 187]]
+- [[_COMMUNITY_Community 188|Community 188]]
+- [[_COMMUNITY_Community 189|Community 189]]
+- [[_COMMUNITY_Community 190|Community 190]]
+- [[_COMMUNITY_Community 191|Community 191]]
+- [[_COMMUNITY_Community 192|Community 192]]
+- [[_COMMUNITY_Community 193|Community 193]]
+- [[_COMMUNITY_Community 194|Community 194]]
+- [[_COMMUNITY_Community 195|Community 195]]
+- [[_COMMUNITY_Community 196|Community 196]]
+- [[_COMMUNITY_Community 197|Community 197]]
+- [[_COMMUNITY_Community 198|Community 198]]
+- [[_COMMUNITY_Community 199|Community 199]]
+- [[_COMMUNITY_Community 200|Community 200]]
+- [[_COMMUNITY_Community 201|Community 201]]
+- [[_COMMUNITY_Community 202|Community 202]]
+- [[_COMMUNITY_Community 203|Community 203]]
+- [[_COMMUNITY_Community 204|Community 204]]
+- [[_COMMUNITY_Community 205|Community 205]]
+- [[_COMMUNITY_Community 206|Community 206]]
+- [[_COMMUNITY_Community 207|Community 207]]
+- [[_COMMUNITY_Community 208|Community 208]]
+- [[_COMMUNITY_Community 209|Community 209]]
+- [[_COMMUNITY_Community 210|Community 210]]
+- [[_COMMUNITY_Community 211|Community 211]]
+- [[_COMMUNITY_Community 212|Community 212]]
+- [[_COMMUNITY_Community 213|Community 213]]
+- [[_COMMUNITY_Community 214|Community 214]]
+- [[_COMMUNITY_Community 215|Community 215]]
+- [[_COMMUNITY_Community 216|Community 216]]
+- [[_COMMUNITY_Community 217|Community 217]]
+- [[_COMMUNITY_Community 218|Community 218]]
+- [[_COMMUNITY_Community 219|Community 219]]
+- [[_COMMUNITY_Community 220|Community 220]]
+- [[_COMMUNITY_Community 221|Community 221]]
+- [[_COMMUNITY_Community 222|Community 222]]
+- [[_COMMUNITY_Community 223|Community 223]]
+- [[_COMMUNITY_Community 224|Community 224]]
+- [[_COMMUNITY_Community 225|Community 225]]
+- [[_COMMUNITY_Community 226|Community 226]]
+- [[_COMMUNITY_Community 227|Community 227]]
+- [[_COMMUNITY_Community 228|Community 228]]
+- [[_COMMUNITY_Community 229|Community 229]]
+- [[_COMMUNITY_Community 230|Community 230]]
+- [[_COMMUNITY_Community 231|Community 231]]
+- [[_COMMUNITY_Community 232|Community 232]]
+- [[_COMMUNITY_Community 233|Community 233]]
+- [[_COMMUNITY_Community 234|Community 234]]
+- [[_COMMUNITY_Community 235|Community 235]]
+- [[_COMMUNITY_Community 236|Community 236]]
+- [[_COMMUNITY_Community 237|Community 237]]
+- [[_COMMUNITY_Community 238|Community 238]]
+- [[_COMMUNITY_Community 239|Community 239]]
+- [[_COMMUNITY_Community 240|Community 240]]
+- [[_COMMUNITY_Community 241|Community 241]]
+- [[_COMMUNITY_Community 242|Community 242]]
+- [[_COMMUNITY_Community 243|Community 243]]
+- [[_COMMUNITY_Community 244|Community 244]]
+- [[_COMMUNITY_Community 245|Community 245]]
+- [[_COMMUNITY_Community 246|Community 246]]
+- [[_COMMUNITY_Community 247|Community 247]]
+- [[_COMMUNITY_Community 248|Community 248]]
+- [[_COMMUNITY_Community 249|Community 249]]
+- [[_COMMUNITY_Community 250|Community 250]]
+- [[_COMMUNITY_Community 251|Community 251]]
+- [[_COMMUNITY_Community 252|Community 252]]
+- [[_COMMUNITY_Community 253|Community 253]]
+- [[_COMMUNITY_Community 254|Community 254]]
+- [[_COMMUNITY_Community 255|Community 255]]
+- [[_COMMUNITY_Community 256|Community 256]]
+- [[_COMMUNITY_Community 257|Community 257]]
+- [[_COMMUNITY_Community 258|Community 258]]
+- [[_COMMUNITY_Community 259|Community 259]]
+- [[_COMMUNITY_Community 260|Community 260]]
+- [[_COMMUNITY_Community 261|Community 261]]
+- [[_COMMUNITY_Community 262|Community 262]]
+- [[_COMMUNITY_Community 263|Community 263]]
+- [[_COMMUNITY_Community 264|Community 264]]
+- [[_COMMUNITY_Community 265|Community 265]]
+- [[_COMMUNITY_Community 266|Community 266]]
+- [[_COMMUNITY_Community 267|Community 267]]
+- [[_COMMUNITY_Community 268|Community 268]]
+- [[_COMMUNITY_Community 269|Community 269]]
+- [[_COMMUNITY_Community 270|Community 270]]
+- [[_COMMUNITY_Community 271|Community 271]]
+- [[_COMMUNITY_Community 272|Community 272]]
+- [[_COMMUNITY_Community 273|Community 273]]
+- [[_COMMUNITY_Community 274|Community 274]]
+- [[_COMMUNITY_Community 275|Community 275]]
+- [[_COMMUNITY_Community 276|Community 276]]
+- [[_COMMUNITY_Community 277|Community 277]]
+- [[_COMMUNITY_Community 278|Community 278]]
+- [[_COMMUNITY_Community 279|Community 279]]
+- [[_COMMUNITY_Community 280|Community 280]]
+- [[_COMMUNITY_Community 281|Community 281]]
+- [[_COMMUNITY_Community 282|Community 282]]
+- [[_COMMUNITY_Community 283|Community 283]]
+- [[_COMMUNITY_Community 284|Community 284]]
+- [[_COMMUNITY_Community 285|Community 285]]
+- [[_COMMUNITY_Community 286|Community 286]]
+- [[_COMMUNITY_Community 287|Community 287]]
+- [[_COMMUNITY_Community 288|Community 288]]
+- [[_COMMUNITY_Community 289|Community 289]]
+- [[_COMMUNITY_Community 290|Community 290]]
+- [[_COMMUNITY_Community 291|Community 291]]
+- [[_COMMUNITY_Community 292|Community 292]]
+- [[_COMMUNITY_Community 293|Community 293]]
+- [[_COMMUNITY_Community 294|Community 294]]
+- [[_COMMUNITY_Community 295|Community 295]]
+- [[_COMMUNITY_Community 296|Community 296]]
+- [[_COMMUNITY_Community 297|Community 297]]
+- [[_COMMUNITY_Community 298|Community 298]]
+- [[_COMMUNITY_Community 299|Community 299]]
+- [[_COMMUNITY_Community 300|Community 300]]
+- [[_COMMUNITY_Community 301|Community 301]]
+- [[_COMMUNITY_Community 302|Community 302]]
+- [[_COMMUNITY_Community 303|Community 303]]
+- [[_COMMUNITY_Community 304|Community 304]]
+- [[_COMMUNITY_Community 305|Community 305]]
+- [[_COMMUNITY_Community 306|Community 306]]
+- [[_COMMUNITY_Community 307|Community 307]]
+- [[_COMMUNITY_Community 308|Community 308]]
+- [[_COMMUNITY_Community 309|Community 309]]
+- [[_COMMUNITY_Community 310|Community 310]]
+- [[_COMMUNITY_Community 311|Community 311]]
+- [[_COMMUNITY_Community 312|Community 312]]
+- [[_COMMUNITY_Community 313|Community 313]]
+- [[_COMMUNITY_Community 314|Community 314]]
+- [[_COMMUNITY_Community 315|Community 315]]
+- [[_COMMUNITY_Community 316|Community 316]]
+- [[_COMMUNITY_Community 317|Community 317]]
+- [[_COMMUNITY_Community 318|Community 318]]
+- [[_COMMUNITY_Community 319|Community 319]]
+- [[_COMMUNITY_Community 320|Community 320]]
+- [[_COMMUNITY_Community 321|Community 321]]
+- [[_COMMUNITY_Community 322|Community 322]]
+- [[_COMMUNITY_Community 323|Community 323]]
+- [[_COMMUNITY_Community 324|Community 324]]
+- [[_COMMUNITY_Community 325|Community 325]]
+- [[_COMMUNITY_Community 326|Community 326]]
+- [[_COMMUNITY_Community 327|Community 327]]
+- [[_COMMUNITY_Community 328|Community 328]]
+- [[_COMMUNITY_Community 329|Community 329]]
+- [[_COMMUNITY_Community 330|Community 330]]
+- [[_COMMUNITY_Community 331|Community 331]]
+- [[_COMMUNITY_Community 332|Community 332]]
+- [[_COMMUNITY_Community 333|Community 333]]
+- [[_COMMUNITY_Community 334|Community 334]]
+- [[_COMMUNITY_Community 335|Community 335]]
+- [[_COMMUNITY_Community 336|Community 336]]
+- [[_COMMUNITY_Community 337|Community 337]]
+- [[_COMMUNITY_Community 338|Community 338]]
+- [[_COMMUNITY_Community 339|Community 339]]
+- [[_COMMUNITY_Community 340|Community 340]]
+- [[_COMMUNITY_Community 341|Community 341]]
+- [[_COMMUNITY_Community 342|Community 342]]
+- [[_COMMUNITY_Community 343|Community 343]]
+- [[_COMMUNITY_Community 344|Community 344]]
+- [[_COMMUNITY_Community 345|Community 345]]
+- [[_COMMUNITY_Community 346|Community 346]]
+- [[_COMMUNITY_Community 347|Community 347]]
+- [[_COMMUNITY_Community 348|Community 348]]
+- [[_COMMUNITY_Community 349|Community 349]]
+- [[_COMMUNITY_Community 350|Community 350]]
+- [[_COMMUNITY_Community 351|Community 351]]
+- [[_COMMUNITY_Community 352|Community 352]]
+- [[_COMMUNITY_Community 353|Community 353]]
+- [[_COMMUNITY_Community 354|Community 354]]
+- [[_COMMUNITY_Community 355|Community 355]]
+- [[_COMMUNITY_Community 356|Community 356]]
+- [[_COMMUNITY_Community 357|Community 357]]
+- [[_COMMUNITY_Community 358|Community 358]]
+- [[_COMMUNITY_Community 359|Community 359]]
+- [[_COMMUNITY_Community 360|Community 360]]
+- [[_COMMUNITY_Community 361|Community 361]]
+- [[_COMMUNITY_Community 362|Community 362]]
+- [[_COMMUNITY_Community 363|Community 363]]
+- [[_COMMUNITY_Community 364|Community 364]]
+- [[_COMMUNITY_Community 365|Community 365]]
+- [[_COMMUNITY_Community 366|Community 366]]
+- [[_COMMUNITY_Community 367|Community 367]]
+- [[_COMMUNITY_Community 368|Community 368]]
+- [[_COMMUNITY_Community 369|Community 369]]
+- [[_COMMUNITY_Community 370|Community 370]]
+- [[_COMMUNITY_Community 371|Community 371]]
+- [[_COMMUNITY_Community 372|Community 372]]
+- [[_COMMUNITY_Community 373|Community 373]]
+- [[_COMMUNITY_Community 374|Community 374]]
+- [[_COMMUNITY_Community 375|Community 375]]
+- [[_COMMUNITY_Community 376|Community 376]]
+- [[_COMMUNITY_Community 377|Community 377]]
+- [[_COMMUNITY_Community 378|Community 378]]
+- [[_COMMUNITY_Community 379|Community 379]]
+- [[_COMMUNITY_Community 380|Community 380]]
+- [[_COMMUNITY_Community 381|Community 381]]
+- [[_COMMUNITY_Community 382|Community 382]]
+- [[_COMMUNITY_Community 383|Community 383]]
+- [[_COMMUNITY_Community 384|Community 384]]
+- [[_COMMUNITY_Community 385|Community 385]]
+- [[_COMMUNITY_Community 386|Community 386]]
+- [[_COMMUNITY_Community 387|Community 387]]
+- [[_COMMUNITY_Community 388|Community 388]]
+- [[_COMMUNITY_Community 389|Community 389]]
+- [[_COMMUNITY_Community 390|Community 390]]
+- [[_COMMUNITY_Community 391|Community 391]]
+- [[_COMMUNITY_Community 392|Community 392]]
+- [[_COMMUNITY_Community 393|Community 393]]
+- [[_COMMUNITY_Community 394|Community 394]]
+- [[_COMMUNITY_Community 395|Community 395]]
+- [[_COMMUNITY_Community 396|Community 396]]
+- [[_COMMUNITY_Community 397|Community 397]]
+- [[_COMMUNITY_Community 398|Community 398]]
+- [[_COMMUNITY_Community 399|Community 399]]
+- [[_COMMUNITY_Community 400|Community 400]]
+- [[_COMMUNITY_Community 401|Community 401]]
+- [[_COMMUNITY_Community 402|Community 402]]
+- [[_COMMUNITY_Community 403|Community 403]]
+- [[_COMMUNITY_Community 404|Community 404]]
+- [[_COMMUNITY_Community 405|Community 405]]
+- [[_COMMUNITY_Community 406|Community 406]]
+- [[_COMMUNITY_Community 407|Community 407]]
+- [[_COMMUNITY_Community 408|Community 408]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `QueryValidationResult` - 82 edges
 2. `ServiceNowOAuthClient` - 59 edges
-3. `RequestExecutor` - 50 edges
-4. `make_nws_request()` - 36 edges
-5. `TestQueryBuilding` - 34 edges
-6. `ServiceNowConnectionError` - 31 edges
-7. `ServiceNowQueryBuilder` - 30 edges
-8. `TableFilterParams` - 22 edges
-9. `query_table_with_filters()` - 22 edges
-10. `TestDateParsing` - 22 edges
+3. `RequestExecutor` - 52 edges
+4. `ServiceNowOAuthClient` - 50 edges
+5. `make_nws_request()` - 43 edges
+6. `TestQueryBuilding` - 34 edges
+7. `QueryValidationResult` - 32 edges
+8. `ServiceNowConnectionError` - 31 edges
+9. `ServiceNowQueryBuilder` - 30 edges
+10. `validate_priority_filter()` - 26 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Natural-language to ServiceNow filter conversion.  Pure NL parsing — does not` --uses--> `QueryValidationResult`  [INFERRED]
-  filter\intelligence.py → filter\models.py
-- `Smart query building and validation for ServiceNow filters.` --uses--> `QueryValidationResult`  [INFERRED]
-  filter\intelligence.py → filter\models.py
-- `Build intelligent filter from natural language query.` --uses--> `QueryValidationResult`  [INFERRED]
-  filter\intelligence.py → filter\models.py
-- `Get all available filter templates.` --uses--> `QueryValidationResult`  [INFERRED]
-  filter\intelligence.py → filter\models.py
-- `TableFilterParams` --calls--> `test_combined_filtering_integration()`  [INFERRED]
-  filter\models.py → tests\test_filtering.py
+- `make_nws_request()` --calls--> `test_make_nws_request_success()`  [INFERRED]
+  http_layer/request_dispatcher.py → tests/test_service_now_api.py
+- `make_nws_request()` --calls--> `test_make_nws_request_encodes_query()`  [INFERRED]
+  http_layer/request_dispatcher.py → tests/test_service_now_api.py
+- `make_nws_request()` --calls--> `test_make_nws_request_write_delegates_to_oauth_client()`  [INFERRED]
+  http_layer/request_dispatcher.py → tests/test_service_now_api.py
+- `make_nws_request()` --calls--> `test_make_nws_request_patch_propagates_status_error()`  [INFERRED]
+  http_layer/request_dispatcher.py → tests/test_service_now_api.py
+- `RequestExecutor` --uses--> `TestWriteKbArticle`  [INFERRED]
+  oauth/request_executor.py → tests/test_kb_article_tools.py
 
 ## Hyperedges (group relationships)
 - **v4.0 Three-Package Architectural Split** — pkg_filter, pkg_http_layer, pkg_oauth, version_v4_0, sprint1_filter_pipeline, sprint3_http_oauth_split [EXTRACTED 1.00]
@@ -240,1082 +466,695 @@
 - **SLA Five-Tool Surface After Consolidation** — tool_query_slas_by_status, tool_query_slas_by_task, tool_query_slas_custom, tool_get_sla_details, tool_similar_slas_for_text, concept_sla_status_presets, table_task_sla [EXTRACTED 1.00]
 - **MCPB Build Release and Install Chain** — script_build_mcpb, concept_mcpb_bundle, concept_manifest_json, concept_server_type_uv, concept_version_three_way_sync, concept_github_release_workflow, concept_claude_desktop, version_v4_3 [EXTRACTED 1.00]
 
-## Communities
+## Communities (411 total, 242 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.02
-Nodes (131): Helper class for building ServiceNow queries with proper syntax., ServiceNowQueryBuilder, Check for template match and return template data., Parse language patterns and update filters., Merge two priority values with OR syntax., Parse exclusion patterns and return exclusion filters., Try to parse date range from query., Build keyword-based fallback filter. (+123 more)
+Cohesion: 0.04
+Nodes (62): OAuth 2.0 Client Credentials implementation for ServiceNow.      Composes thre, ServiceNowOAuthClient, Comprehensive tests for oauth_client.py Target: 90%+ line coverage, 75%+ branch, Test token caching and refresh functionality., Test making authenticated API requests., Test connection testing functionality., Test retry with fresh token functionality., Test response processing. (+54 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.02
-Nodes (125): _apply_context_filters(), build_intelligent_filter(), _build_keyword_fallback(), build_smart_filter(), _determine_sql_condition(), _explain_assigned_to_filter(), _explain_custom_query_filter(), _explain_date_filter() (+117 more)
+Cohesion: 0.05
+Nodes (47): QueryValidationResult, Container for query validation results., build_smart_filter(), Build intelligent filter from natural language query., Comprehensive tests for query_intelligence.py Target: 85%+ line coverage, 60%+, Test complete natural language parsing., Test filter validation and auto-correction., Test the main intelligent filter building function. (+39 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.02
-Nodes (142): 401 Refresh and Single Retry, add_default_params, _apply_domain_filters, Filter Backref Discipline, CMDB Concurrent CI Table Probe, query_table_intelligently debug Opt-In, DETAIL_FIELDS, E2E Natural Language Test Prompts (+134 more)
+Cohesion: 0.06
+Nodes (39): Return Authorization + JSON headers for an API request.          Inlined (rath, OAuth 2.0 Client Credentials implementation for ServiceNow.      Composes thre, ServiceNowOAuthClient, Drop the cached token, re-authenticate, retry once., Make an authenticated request to ServiceNow API.          When ``raise_for_sta, Decode a successful response payload., test_executor_re_raises_timeout_when_raise_for_status_true(), test_executor_swallows_timeout_when_raise_for_status_false() (+31 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.02
-Nodes (119): get_sla_details(), query_slas_by_task(), Get a single SLA record by its sys_id.      v4.0 routes via a `sys_id={sla_sys, Get all SLA records attached to a given task number., Exception, _append_to_query(), _apply_domain_filters(), _apply_incident_category_filter() (+111 more)
-
-### Community 4 - "Community 4"
-Cohesion: 0.02
-Nodes (113): ServiceNowOAuthClient — orchestrator façade.  Composes ``TokenStore`` + ``Requ, Return Authorization + JSON headers for an API request.          Inlined (rath, Make an authenticated request to ServiceNow API.          Delegates to Request, Test the OAuth connection by making a simple API call., OAuth 2.0 Client Credentials implementation for ServiceNow.      Composes thre, ServiceNowOAuthClient, _close_pool_atexit(), get_pooled_client() (+105 more)
-
-### Community 5 - "Community 5"
-Cohesion: 0.02
-Nodes (89): _build_similar_ci_response(), _extract_ci_search_attributes(), _filter_and_limit_ci_results(), find_cis_by_type(), get_all_ci_types(), get_ci_details(), _probe_ci_table(), quick_ci_search() (+81 more)
-
-### Community 6 - "Community 6"
-Cohesion: 0.02
-Nodes (78): _sla_filter_breached(), _sla_filter_performance(), build_date_filter(), build_last_n_days_filter(), get_current_month_range(), get_last_n_days_range(), get_this_week_range(), get_today_range() (+70 more)
-
-### Community 7 - "Community 7"
-Cohesion: 0.03
-Nodes (95): _build_metadata(), _build_priority_result_message(), _build_sla_status_filter(), _format_deduped_kb_row(), get_active_knowledge_articles(), _get_error_message(), get_kb_articles_by_state(), get_knowledge_by_category() (+87 more)
-
-### Community 8 - "Community 8"
-Cohesion: 0.03
-Nodes (92): _call_kb_publish_workflow(), _call_kb_workflow(), _check_kb_duplicates(), _check_single_kb_duplicate(), _fire_publish(), _get_kb_article_meta(), _get_kb_article_sys_id(), _handle_kb_error() (+84 more)
-
-### Community 9 - "Community 9"
-Cohesion: 0.03
-Nodes (55): _build_priority_filter(), _build_query_condition(), _build_query_string(), _handle_bare_or_value_condition(), _handle_complete_query_condition(), _handle_exact_match_condition(), _handle_operator_condition(), _handle_servicenow_filter_condition() (+47 more)
-
-### Community 10 - "Community 10"
-Cohesion: 0.03
-Nodes (49): _clean_priority_input(), _format_single_priority(), _handle_caller_exclusion_condition(), _handle_priority_condition(), _normalize_priority_value(), _parse_caller_exclusions(), _parse_priority_list(), _process_comma_separated_priorities() (+41 more)
-
-### Community 11 - "Community 11"
-Cohesion: 0.04
-Nodes (60): test_create_private_task_maps_http_status_to_error_message(), test_update_private_task_resolves_sys_id_then_patches(), Test private task tools with CRUD operations., Set up test fixtures., Test creating a new private task., Test updating an existing private task., TestPrivateTaskTools, _make_http_status_error() (+52 more)
-
-### Community 12 - "Community 12"
-Cohesion: 0.04
-Nodes (45): _handle_date_range_condition(), _iso_range_from_month_names(), _month_name_to_num(), _parse_between_format(), _parse_cross_month_range(), _parse_date_range_from_text(), _parse_iso_date_range(), _parse_month_range_format() (+37 more)
-
-### Community 13 - "Community 13"
-Cohesion: 0.04
-Nodes (49): OAuth-domain exception hierarchy., Exception raised when authentication fails., Exception raised when connection to ServiceNow fails., Exception raised when authorization is denied., Base exception for ServiceNow OAuth operations., ServiceNowAuthenticationError, ServiceNowAuthorizationError, ServiceNowConnectionError (+41 more)
-
-### Community 14 - "Community 14"
-Cohesion: 0.04
-Nodes (47): _analyze_filter_issues(), _calculate_date_factor(), _calculate_priority_factor(), _check_date_filter_issue(), _check_priority_filter_issue(), _determine_size_category(), _estimate_result_size(), explain_existing_filter() (+39 more)
-
-### Community 15 - "Community 15"
-Cohesion: 0.04
-Nodes (36): build_complete_filter(), build_date_range_filter(), build_exclusion_filter(), build_priority_or_filter(), build_relative_date_filter(), ServiceNow query-string builder.  Static helpers that emit syntactically-corre, Test proper BETWEEN syntax generation., Specific tests for ServiceNowQueryBuilder class. (+28 more)
-
-### Community 16 - "Community 16"
-Cohesion: 0.05
-Nodes (48): filter_records(), find_similar(), get_record(), get_record_summary(), Generic MCP tool wrappers that replace 24 table-specific 1-line functions.  Ea, Query a ServiceNow table with field-value filters.      Supports suffix operat, Return an error dict if *table* is not in TABLE_CONFIGS, else None., Search records in a ServiceNow table by text similarity.      Tokenises *query (+40 more)
-
-### Community 17 - "Community 17"
 Cohesion: 0.04
 Nodes (49): ServiceNow Query Syntax Guide, Common Mistakes to Avoid, ❌ Separate API Calls for OR Logic, DON'T DO THIS - Results don't combine properly, ❌ Incorrect OR Syntax, DON'T DO THIS - ServiceNow won't understand this format, ❌ Incomplete Date Ranges, DON'T DO THIS - May return unexpected results (+41 more)
 
-### Community 18 - "Community 18"
-Cohesion: 0.05
-Nodes (47): 39 MCP Tools Inventory, Azure Container Apps + Key Vault Hosting, Basic Auth Removed (OAuth Only), Claude Desktop Integration, Cognitive Complexity Limit CC15, Docker SSE Deployment, FastMCP Framework, GitHub Actions release.yaml (+39 more)
+### Community 4 - "Community 4"
+Cohesion: 0.04
+Nodes (34): now_auth_info(), now_test_oauth(), nowtest(), Get information about current authentication configuration., Test function to verify mcp is running., Test OAuth 2.0 connection to ServiceNow., nowtest_auth_input(), nowtestauth() (+26 more)
 
-### Community 19 - "Community 19"
-Cohesion: 0.07
-Nodes (37): ConfigError, get_config_dir(), get_config_file_path(), get_setup_instructions(), load_config(), load_config_from_env(), load_config_from_file(), Configuration loader for MCP ServiceNow.  Supports loading credentials from: (+29 more)
+### Community 5 - "Community 5"
+Cohesion: 0.06
+Nodes (38): Exception raised when connection to ServiceNow fails., ServiceNowConnectionError, Exception raised when connection to ServiceNow fails., ServiceNowConnectionError, get_auth_info(), Get information about current authentication method., Test OAuth client creation fails with missing environment variables., Test API client integration with OAuth. (+30 more)
 
-### Community 20 - "Community 20"
-Cohesion: 0.05
-Nodes (37): BaseModel, build_and_validate_smart_filter(), explain_filter_query(), Explain what a filter query will do and provide suggestions.          Args:, Build and validate an intelligent filter without executing the query., get_filter_templates(), Get all available filter templates., build_smart_servicenow_filter() (+29 more)
+### Community 6 - "Community 6"
+Cohesion: 0.06
+Nodes (29): _build_query_condition(), _handle_bare_or_value_condition(), _handle_complete_query_condition(), _handle_exact_match_condition(), _normalize_operator(), Rewrite GlideRecord-only operators to their encoded-query equivalents.      ``, Handle complete query condition., Handle values with ^OR where the first segment is a bare value (missing field na (+21 more)
 
-### Community 21 - "Community 21"
+### Community 7 - "Community 7"
+Cohesion: 0.06
+Nodes (26): Test query construction debugging functionality., Test basic query construction debugging., Test priority filtering detection in debug., Test date BETWEEN syntax detection in debug., Test caller exclusion detection in debug., Test detection of old date syntax as potential issue., Test detection of unencoded spaces as potential issue., Test recommendation for overly complex queries. (+18 more)
+
+### Community 8 - "Community 8"
+Cohesion: 0.06
+Nodes (31): OAuth-domain exception hierarchy., Exception raised when authentication fails., Exception raised when authorization is denied., Base exception for ServiceNow OAuth operations., ServiceNowAuthenticationError, ServiceNowAuthorizationError, ServiceNowOAuthError, Filter pipeline — ServiceNow query construction, validation, NL parsing, explana (+23 more)
+
+### Community 9 - "Community 9"
 Cohesion: 0.05
 Nodes (42): ServiceNow OAuth 2.0 Setup Guide, Test OAuth connection, Get authentication info, Step 2: Test API Functionality, These should now use OAuth automatically, Step 3: Monitor Token Usage, Prerequisites, Part 4: Security Considerations (+34 more)
 
-### Community 22 - "Community 22"
-Cohesion: 0.06
-Nodes (24): nowtest_auth_input(), nowtestauth(), Get ServiceNow table schema information for a given table., Test function to verify authentication with ServiceNow standard API., Test server connectivity and authentication tools., Set up test fixtures., Test basic server connectivity., Test OAuth authentication test. (+16 more)
+### Community 10 - "Community 10"
+Cohesion: 0.08
+Nodes (39): test_update_private_task_resolves_sys_id_then_patches(), _make_http_status_error(), Comprehensive tests for vtb_task_tools.py OAuth-only authentication flow. Targe, Test HTTP error handling function., Test sys_id retrieval function., Test the unified write helper that wraps make_nws_request., Test create_private_task function with OAuth authentication., Test update_private_task function with OAuth authentication. (+31 more)
 
-### Community 23 - "Community 23"
+### Community 11 - "Community 11"
+Cohesion: 0.07
+Nodes (19): Add a warning message., Add a suggestion for improvement., True if the query is invalid or has warnings., Comprehensive tests for query_validation.py module.  Tests the ServiceNow quer, Test the QueryValidationResult class., Test initializing valid QueryValidationResult., Test initializing invalid QueryValidationResult., Test adding warnings to QueryValidationResult. (+11 more)
+
+### Community 12 - "Community 12"
+Cohesion: 0.08
+Nodes (38): get_priority_incidents(), query_slas_by_status(), Get incidents by priority with optional date range filtering.      Uses simple, Query SLA records by a named status preset.      Args:         status: one of, Tests for consolidated_tools.py — priority incidents, knowledge-specific, and SL, Test knowledge tool functions., Test get_priority_incidents function., Test enhanced get_priority_incidents with date filtering. (+30 more)
+
+### Community 13 - "Community 13"
+Cohesion: 0.06
+Nodes (24): Test utility and helper functions., Test cross verification function structure., Test building pagination parameters with defaults., Test building pagination parameters with custom values., Test suggestions for zero results., Test suggestions for low priority query results., Test suggestions for high result count., Test no suggestions for normal result count. (+16 more)
+
+### Community 14 - "Community 14"
+Cohesion: 0.06
+Nodes (24): Test result count validation functionality., Test validation passes for normal incident count., Test validation warns about low P1/P2 incident count., Test validation doesn't warn for non-incident tables., Test validation doesn't warn for non-priority incident queries., Test validation only warns for high priority (1,2) incidents., TestResultCountValidation, Test result count validation functionality. (+16 more)
+
+### Community 15 - "Community 15"
+Cohesion: 0.07
+Nodes (38): build_intelligent_filter(), parse_natural_language(), Check for template match and return template data., Parse language patterns and update filters., Merge two priority values with OR syntax., Parse exclusion patterns and return exclusion filters., Try to parse date range from query., Build keyword-based fallback filter. (+30 more)
+
+### Community 16 - "Community 16"
+Cohesion: 0.08
+Nodes (36): Helper class for building ServiceNow queries with proper syntax., ServiceNowQueryBuilder, Add a suggestion for improvement., _analyze_caller_exclusion(), _analyze_date_filtering(), _analyze_javascript_functions(), _analyze_original_filters(), _analyze_priority_filtering() (+28 more)
+
+### Community 17 - "Community 17"
+Cohesion: 0.05
+Nodes (20): Test building relative date filter for this week., Test building relative date filter for last 7 days., Test building relative date filter with unknown period (fallback)., Test building exclusion filter with single ID., Test building exclusion filter with multiple IDs., Test building complete filter with priorities only., Test building complete filter with date range only., Test building complete filter with date period only. (+12 more)
+
+### Community 18 - "Community 18"
+Cohesion: 0.06
+Nodes (19): Test extracting display values from non-dict input., Test that URLs without sysparm_query pass through unchanged., Test that spaces in query values are percent-encoded., Test that ServiceNow operators (=, ^, <, >, etc.) are preserved., Test that # in query is encoded to prevent URL fragment issues., Test that already-encoded URLs are not double-encoded., Test that other URL parameters are not affected by encoding., Test adding params to URL with no existing query string. (+11 more)
+
+### Community 19 - "Community 19"
+Cohesion: 0.06
+Nodes (19): Test extracting display values from non-dict input., Test that URLs without sysparm_query pass through unchanged., Test that spaces in query values are percent-encoded., Test that ServiceNow operators (=, ^, <, >, etc.) are preserved., Test that # in query is encoded to prevent URL fragment issues., Test that already-encoded URLs are not double-encoded., Test that other URL parameters are not affected by encoding., Test adding params to URL with no existing query string. (+11 more)
+
+### Community 20 - "Community 20"
+Cohesion: 0.09
+Nodes (34): Exception, find_similar_records(), get_records_by_priority(), _make_paginated_request(), query_table_by_text(), query_table_with_generic_filters(), Generic function to get records by priority for any table that supports priority, Generic function to query any table with filters. (+26 more)
+
+### Community 21 - "Community 21"
 Cohesion: 0.1
 Nodes (28): AuditMiddleware, Audit logging middleware for MCP tool calls.  Emits one structured JSON log li, _sanitize(), _summarize(), _user_from_headers(), AuthMiddleware, Shared-secret bearer auth middleware for MCP tool calls.  Guards ``on_call_too, Middleware (+20 more)
 
+### Community 22 - "Community 22"
+Cohesion: 0.1
+Nodes (26): get_sla_details(), query_slas_by_task(), Get a single SLA record by its sys_id.      v4.0 routes via a `sys_id={sla_sys, Get all SLA records attached to a given task number., Pydantic models and result containers for the filter pipeline., Generic filter parameters for table queries., True if the query is invalid or has warnings., TableFilterParams (+18 more)
+
+### Community 23 - "Community 23"
+Cohesion: 0.11
+Nodes (20): Validate a date parameter and return an error dict if invalid, or None if valid., _validate_date_param(), Validate date format is either "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS".      Arg, validate_date_format(), Validate date format is either "YYYY-MM-DD" or "YYYY-MM-DD HH:MM:SS".      Arg, validate_date_format(), Test date format validation., Test valid YYYY-MM-DD format. (+12 more)
+
 ### Community 24 - "Community 24"
+Cohesion: 0.1
+Nodes (32): check_test_environment(), main(), Show coverage results if available., Main test runner function., Run a command and return success status., Run all tests with coverage reporting and JUnit XML output., Run a specific test module., Run only integration tests. (+24 more)
+
+### Community 25 - "Community 25"
+Cohesion: 0.1
+Nodes (21): _merge_filters(), Merge additional filters, deprecated kwargs, and date filters into one dict., build_date_filter(), Build ServiceNow date filter using simple >= and <= operators.      This repla, build_date_filter(), Build ServiceNow date filter using simple >= and <= operators.      This repla, Tests for date utilities module. Tests date validation, normalization, and date, Test date filter building. (+13 more)
+
+### Community 26 - "Community 26"
 Cohesion: 0.06
 Nodes (7): Tests for param_coercion.py — JSON-string coercion at the MCP tool param bounda, Regression tests for the double-encoding bug found in E2E: some MCP     clients, TestDoubleEncoding, TestJsonDict, TestJsonList, TestOptJsonDict, TestOptJsonList
 
-### Community 25 - "Community 25"
-Cohesion: 0.12
-Nodes (14): Test query construction debugging functionality., Test basic query construction debugging., Test priority filtering detection in debug., Test date BETWEEN syntax detection in debug., Test caller exclusion detection in debug., Test detection of old date syntax as potential issue., Test detection of unencoded spaces as potential issue., Test recommendation for overly complex queries. (+6 more)
+### Community 27 - "Community 27"
+Cohesion: 0.09
+Nodes (18): Test priority filter validation functionality., Test validating single priority filter., Test validating proper OR syntax., Test validation warns about comma syntax., Test validation warns about OR syntax without priority= prefix., Test validation suggests numeric format for text priorities., Test validation with mixed numeric and text format., TestPriorityFilterValidation (+10 more)
 
-### Community 26 - "Community 26"
+### Community 28 - "Community 28"
+Cohesion: 0.08
+Nodes (20): _clean_priority_input(), _format_single_priority(), _normalize_priority_value(), _process_comma_separated_priorities(), Convert P-notation to number (e.g., 'P1' -> '1', '2' -> '2')., Clean brackets, quotes from priority input., Process comma-separated priority list into OR syntax., Format single priority value. (+12 more)
+
+### Community 29 - "Community 29"
+Cohesion: 0.09
+Nodes (19): _merge_priority_filters(), _parse_language_patterns(), Test priority filter handling., Test merging same priority values., Test merging different priority values., Test merging into existing OR filter., Test that duplicate priorities are not added., Test natural language pattern parsing. (+11 more)
+
+### Community 30 - "Community 30"
+Cohesion: 0.09
+Nodes (23): _check_kb_duplicates(), Return KB articles matching short_description exactly across live workflow state, Check for duplicate KB articles without publishing.      For each number: look, Tests for kb_article_tools.py — KB article write path (update / publish / retire, test_case_insensitive_exact_match(), test_duplicate_in_draft_state_detected(), test_empty_result_returns_empty_list(), test_mixed_states_only_live_returned() (+15 more)
+
+### Community 31 - "Community 31"
+Cohesion: 0.09
+Nodes (17): Add a warning message., Test date range filter validation functionality., Test validating proper BETWEEN syntax., Test validation warns about old comparison syntax., Test validation warns about BETWEEN without JavaScript functions., Test validation warns about missing @ separator., Test validation provides suggestion for Week 35 2025., TestDateRangeFilterValidation (+9 more)
+
+### Community 32 - "Community 32"
+Cohesion: 0.1
+Nodes (16): Test the main validate_query_filters function., Test validating empty filters., Test validating filters with priority only., Test validating filters with date only., Test validating filters with both priority and date issues., Test that validation ignores other (non-validated, non-reference) fields gracefu, TestQueryFiltersValidation, Test the main validate_query_filters function. (+8 more)
+
+### Community 33 - "Community 33"
+Cohesion: 0.09
+Nodes (25): Authenticated HTTP request execution with 401 retry.  Owns the actual ``httpx., Make authenticated HTTP requests with token-refresh on 401., RequestExecutor, Verify Semaphore prevents more than `concurrency` in-flight publishes., Verify write ops use make_nws_request write path (not GET path)., Verify Semaphore prevents more than `concurrency` in-flight publishes., Verify write ops use make_nws_request write path (not GET path)., _verify_kb_published is the source of truth for publish success. (+17 more)
+
+### Community 34 - "Community 34"
+Cohesion: 0.11
+Nodes (27): Filter Backref Discipline, IntelligentQueryParams, QueryValidationResult, ReDoS Protection, Regex Rule-Based NLP (Not External LLM), v4.0 Backwards-Compat Shim Deletion, TableFilterParams, validate_and_correct_filters (+19 more)
+
+### Community 35 - "Community 35"
+Cohesion: 0.1
+Nodes (25): _append_to_query(), _apply_domain_filters(), _apply_incident_category_filter(), _apply_sc_catalog_filter(), _build_additional_filters(), _build_url_with_params(), _format_priority_results(), get_record_description() (+17 more)
+
+### Community 36 - "Community 36"
+Cohesion: 0.09
+Nodes (16): _handle_caller_exclusion_condition(), _parse_caller_exclusions(), Parse caller exclusion list and convert to NOT EQUALS syntax.          Handles, Handle caller exclusions., Test multiple caller exclusions by sys_id., Test handling of empty filter cases., Test caller exclusion by name lookup., Test caller exclusion parsing. (+8 more)
+
+### Community 37 - "Community 37"
+Cohesion: 0.11
+Nodes (23): make_nws_request(), Read/write request dispatcher for the ServiceNow REST API.  This is the v4.0 r, Path + stable query hash for stderr logs — never the raw sysparm_query., Make a request to the ServiceNow API using OAuth 2.0 authentication.      For, _redact_url(), http_layer regression tests for v4.0 Sprint 3 split.  These tests lock the fou, GET path: encoding + perf params + display flattening all apply., Critical negative tests — write path MUST NOT touch read-path mutations. (+15 more)
+
+### Community 38 - "Community 38"
+Cohesion: 0.09
+Nodes (22): filter_records(), Query a ServiceNow table with field-value filters.      Supports suffix operat, End-to-end integration tests that exercise real product code paths.  These tes, create_private_task → make_nws_request(method=POST) → oauth_client (raise_for_st, HTTPStatusError raised at the OAuth boundary surfaces as a domain error string., search_records → query_table_by_text → make_nws_request → make_oauth_request., test_filter_records_applies_sc_catalog_filter(), test_filter_records_skips_category_filter_when_flag_off() (+14 more)
+
+### Community 39 - "Community 39"
+Cohesion: 0.09
+Nodes (16): _explain_custom_query_filter(), _explain_date_filter(), _explain_priority_filter(), _explain_state_filter(), _generate_filter_explanation(), Test filter explanation generation., Test explaining single priority filter., Test explaining OR priority filter. (+8 more)
+
+### Community 40 - "Community 40"
+Cohesion: 0.1
+Nodes (25): Claude Desktop Integration, GitHub Actions release.yaml, manifest.json MCPB Manifest, MCP_TRANSPORT Environment Variable, Claude Desktop .mcpb Bundle, mcpb CLI (@anthropic-ai/mcpb), MCPB Staging Whitelist (No Secrets), Nuitka Release Path Deprecated (+17 more)
+
+### Community 41 - "Community 41"
+Cohesion: 0.08
+Nodes (13): Test result size estimation., Test priority factor with no priority filter., Test priority factor with P1., Test priority factor with OR (reduces selectivity)., Test date factor with no date filter., Test date factor for today only., Test date factor for last week., Test size category determination for small result set. (+5 more)
+
+### Community 42 - "Community 42"
+Cohesion: 0.08
+Nodes (13): Test filter explanation generation., Test explaining single priority filter., Test explaining OR priority filter., Test explaining last week date filter (real gs.beginningOfLastWeek value)., Test explaining days ago date filter., Test explaining state exclusion filter., Test explaining normal state filter., Test explaining unassigned filter. (+5 more)
+
+### Community 43 - "Community 43"
+Cohesion: 0.12
+Nodes (20): find_similar(), get_record(), get_record_summary(), Generic MCP tool wrappers that replace 24 table-specific 1-line functions.  Ea, Return an error dict if *table* is not in TABLE_CONFIGS, else None., Search records in a ServiceNow table by text similarity.      Tokenises *query, Get the short_description for a single record by its number.      Supported ta, Get full detail fields for a single known record by number.      Use when you (+12 more)
+
+### Community 44 - "Community 44"
+Cohesion: 0.13
+Nodes (16): _determine_sql_condition(), _generate_sql_equivalent(), _generate_sql_for_complete_query(), _generate_sql_for_equal(), _generate_sql_for_greater_equal(), _generate_sql_for_not_equal(), _generate_sql_for_or_condition(), Natural-language to ServiceNow filter conversion.  Pure NL parsing — does not (+8 more)
+
+### Community 45 - "Community 45"
 Cohesion: 0.16
 Nodes (21): assert_no_leaks(), assert_versions_aligned(), clean_staging(), copy_package_dirs(), copy_root_files(), fail(), main(), Build the Claude Desktop Extension (.mcpb) bundle.  A .mcpb is a zip of ``mani (+13 more)
 
-### Community 27 - "Community 27"
-Cohesion: 0.11
-Nodes (11): Test input validation and error handling for CMDB tools., Test CI number format validation., Test CI type parameter validation., Test search attributes parameter validation., Test search term validation for quick search., Integration tests for CMDB tools workflow., Set up integration test fixtures., Test complete CMDB discovery workflow. (+3 more)
+### Community 46 - "Community 46"
+Cohesion: 0.13
+Nodes (16): get_last_n_days_range(), get_this_week_range(), Get start and end dates for the last N days (including today).      Args:, Get start (Monday) and end (Sunday) of the current week.      Returns:, get_last_n_days_range(), get_this_week_range(), Get start and end dates for the last N days (including today).      Args:, Get start (Monday) and end (Sunday) of the current week.      Returns: (+8 more)
 
-### Community 28 - "Community 28"
+### Community 47 - "Community 47"
+Cohesion: 0.12
+Nodes (14): _analyze_filter_issues(), _check_date_filter_issue(), _check_priority_filter_issue(), explain_filter(), Test QueryExplainer functionality., Test detection of comma-separated priority issue., Test that correct priority filter has no issue., Test detection of incomplete date range. (+6 more)
+
+### Community 48 - "Community 48"
+Cohesion: 0.1
+Nodes (22): 39 MCP Tools Inventory, Azure Container Apps + Key Vault Hosting, Basic Auth Removed (OAuth Only), Cognitive Complexity Limit CC15, Docker SSE Deployment, FastMCP Framework, Model Context Protocol (MCP), OAuth 2.0 Client Credentials (+14 more)
+
+### Community 49 - "Community 49"
+Cohesion: 0.14
+Nodes (22): get_sla_details sys_id Bug Fix, KB Version Collapse by Number, SLA Five-Tool Surface, task_sla Has No number Field, task_sla Uses stage Not state, tiktoken Token Footprint Suite, consolidated_tools.py, date_utils.py (+14 more)
+
+### Community 50 - "Community 50"
+Cohesion: 0.12
+Nodes (20): _call_kb_publish_workflow(), _call_kb_workflow(), _fire_publish(), Fire the publish workflow. Returns None on success, error string on fire-time fa, Update fields on a knowledge article by article number (e.g. KB0001234)., Retire a knowledge article via the ServiceNow workflow endpoint.      Args:, retire_knowledge_article(), update_knowledge_article() (+12 more)
+
+### Community 51 - "Community 51"
+Cohesion: 0.13
+Nodes (13): _calculate_priority_factor(), _determine_size_category(), _estimate_result_size(), Test result size estimation., Test priority factor with no priority filter., Test priority factor with P1., Test priority factor with OR (reduces selectivity)., Test size category determination for small result set. (+5 more)
+
+### Community 52 - "Community 52"
+Cohesion: 0.1
+Nodes (11): Test finding CIs with invalid type., Test searching CIs by name attribute., Test searching CIs by IP address attribute., Test searching CIs by multiple attributes., Test suite for CMDB tools functionality., Test CI details retrieval for non-existent CI., Set up test fixtures for async tests., Test quick CI search functionality. (+3 more)
+
+### Community 53 - "Community 53"
+Cohesion: 0.12
+Nodes (13): get_ci_details(), Search Configuration Items by multiple attributes.          Args:         nam, Get comprehensive details for a specific Configuration Item.      Args:, search_cis_by_attributes(), Test searching CIs by name attribute., Test searching CIs by IP address attribute., Test searching CIs by multiple attributes., Test successful CI details retrieval. (+5 more)
+
+### Community 54 - "Community 54"
+Cohesion: 0.16
+Nodes (17): _build_keyword_fallback(), _extract_content_keywords(), extract_keywords(), _extract_record_numbers(), Extract relevant keywords from input text using lightweight regex patterns., Extract ServiceNow record numbers from text., Extract content keywords using basic text processing., Refine input text for search queries. (+9 more)
+
+### Community 55 - "Community 55"
+Cohesion: 0.12
+Nodes (13): _format_deduped_kb_row(), get_kb_articles_by_state(), Consolidated tools with unique logic that cannot be replaced by generic wrappers, Render a de-duplicated KB row in the public response shape., List kb_knowledge articles de-duplicated by article number.      ServiceNow KB, Find SLAs whose related task descriptions match the given text., similar_slas_for_text(), test_category_passed_to_server_side_filter() (+5 more)
+
+### Community 56 - "Community 56"
+Cohesion: 0.18
+Nodes (13): _sla_filter_breached(), _sla_filter_performance(), build_last_n_days_filter(), Build ServiceNow filter for records from the last N days.      This replaces t, build_last_n_days_filter(), Build ServiceNow filter for records from the last N days.      This replaces t, Test build_last_n_days_filter helper function., Test filter uses sys_created_on by default. (+5 more)
+
+### Community 57 - "Community 57"
+Cohesion: 0.11
+Nodes (10): Test QueryExplainer functionality., Test detection of comma-separated priority issue., Test that correct priority filter has no issue., Test detection of incomplete date range., Test that complete date range has no issue., Test analyzing filters with multiple issues., Test analyzing filters with no issues., Test basic filter explanation. (+2 more)
+
+### Community 58 - "Community 58"
+Cohesion: 0.11
+Nodes (14): test_create_private_task_maps_http_status_to_error_message(), test_create_private_task_routes_through_unified_pipeline(), Test private task tools with CRUD operations., Set up test fixtures., Test creating a new private task., Test updating an existing private task., TestPrivateTaskTools, test_create_private_task_missing_short_description() (+6 more)
+
+### Community 59 - "Community 59"
+Cohesion: 0.15
+Nodes (11): _match_filter_template(), _try_template_match(), Test matching p1 and p2 template., Test that non-matching queries return None., Test template matching functionality., Test matching high priority last week template., Test matching critical recent template., Test matching unassigned recent template. (+3 more)
+
+### Community 60 - "Community 60"
 Cohesion: 0.11
 Nodes (17): ServiceNow MCP Server — Codebase Guide, oauth/ (v4.0 Sprint 3), Table_Tools/, Supported Tables, Tool Inventory (39 tools — v4.1 KB expansion + query-syntax help), Query Flow, Testing, Development Conventions (+9 more)
 
-### Community 29 - "Community 29"
-Cohesion: 0.2
-Nodes (16): check_test_environment(), main(), Show coverage results if available., Main test runner function., Run a command and return success status., Run all tests with coverage reporting and JUnit XML output., Run a specific test module., Run only integration tests. (+8 more)
+### Community 61 - "Community 61"
+Cohesion: 0.14
+Nodes (13): get_today_range(), get_yesterday_range(), Date utilities for ServiceNow MCP incident queries. Provides date validation, n, Get start and end of today (same date for both).      Returns:         Tuple, Get start and end of yesterday (same date for both).      Returns:         Tu, get_today_range(), get_yesterday_range(), Date utilities for ServiceNow MCP incident queries. Provides date validation, n (+5 more)
 
-### Community 30 - "Community 30"
+### Community 62 - "Community 62"
+Cohesion: 0.12
+Nodes (11): _handle_date_range_condition(), _parse_date_range_from_text(), Parse date range from natural language text with ReDoS protection.      Handle, Handle date range parsing for sys_created_on field., _try_date_range_parsing(), Test handling of invalid date format inputs., Test parsing of ISO date range format., Test handling of invalid date format inputs. (+3 more)
+
+### Community 63 - "Community 63"
+Cohesion: 0.16
+Nodes (16): Configuration loader for MCP ServiceNow.  Supports loading credentials from:, get_config_dir(), get_config_file_path(), get_setup_instructions(), load_config_from_file(), Configuration loader for MCP ServiceNow.  Supports loading credentials from:, Save configuration to config file., Lock a file down to the current user on Windows via icacls.      ``os.chmod`` (+8 more)
+
+### Community 64 - "Community 64"
+Cohesion: 0.16
+Nodes (10): build_complete_filter(), Test building complete filter with priorities only., Test building complete filter with date range only., Test building complete filter with date period only., Test building complete filter with caller exclusions only., Test building complete filter with all components., Test that date_range takes precedence over date_period., Test that additional filters don't duplicate existing fields. (+2 more)
+
+### Community 65 - "Community 65"
+Cohesion: 0.14
+Nodes (17): _apply_domain_filters, filter_records Truncation Metadata, ORDERBYDESC sys_created_on Sort Injection, _make_paginated_request, query_table_by_text, v3 Five Generic Wrappers Consolidation, generic_table_tools.py Core Query Engine, generic_tool_wrappers.py (+9 more)
+
+### Community 66 - "Community 66"
+Cohesion: 0.18
+Nodes (17): 401 Refresh and Single Retry, get_oauth_client Singleton, make_oauth_request, ServiceNow REST Table API, TOKEN_REFRESH_BUFFER_MINUTES, http_layer/request_dispatcher.py, oauth/ Package, oauth/client.py ServiceNowOAuthClient (+9 more)
+
+### Community 67 - "Community 67"
+Cohesion: 0.12
+Nodes (13): get_active_knowledge_articles(), Find knowledge articles based on input text., Get active knowledge articles., similar_knowledge_for_text(), test_get_active_knowledge_articles(), test_similar_knowledge_for_text_simple(), test_similar_knowledge_with_category(), test_similar_knowledge_with_kb_base() (+5 more)
+
+### Community 68 - "Community 68"
+Cohesion: 0.19
+Nodes (11): normalize_date_to_full_format(), Normalize date string to full format with time component.      Args:, normalize_date_to_full_format(), Normalize date string to full format with time component.      Args:, Test date normalization., Test normalizing simple date for start (adds 00:00:00)., Test normalizing simple date for end (adds 23:59:59)., Test full datetime is unchanged for start. (+3 more)
+
+### Community 69 - "Community 69"
 Cohesion: 0.17
 Nodes (10): Pre-validate input to prevent ReDoS attacks., _validate_regex_input(), Test ReDoS (Regular Expression Denial of Service) protection., Test validation accepts valid strings., Test validation rejects non-strings., Test validation rejects overly long strings., Test validation rejects strings with too many spaces., Test validation rejects strings with too many dashes. (+2 more)
 
-### Community 31 - "Community 31"
+### Community 70 - "Community 70"
+Cohesion: 0.17
+Nodes (10): _inject_sort_order(), Inject a sort directive into the URL's sysparm_query if no ORDERBY is present., Test _inject_sort_order() helper., Test sort directive is appended to existing sysparm_query., Test URL is returned unchanged when ORDERBY already exists., Test sysparm_query is created when URL has no query param., Test sysparm_query is created when URL has no params at all., Test sort is appended correctly to a multi-condition query. (+2 more)
+
+### Community 71 - "Community 71"
+Cohesion: 0.12
+Nodes (10): _encode_query_string(), URL encode query string while preserving ServiceNow JavaScript functions and ope, Test that URL encoding preserves JavaScript functions., Test URL encoding while preserving ServiceNow syntax., Test edge cases and error handling., Test priority parsing with special characters., Test building query with suffix operators., Test that encoding preserves important ServiceNow characters. (+2 more)
+
+### Community 72 - "Community 72"
+Cohesion: 0.12
+Nodes (9): Test multiple caller exclusions by sys_id., Test ServiceNowQueryBuilder query validation., Test proper BETWEEN syntax generation., Test TableFilterParams object creation and validation., Test single priority value parsing., Test suite for ServiceNow filtering functionality using unittest., Test relative date filtering using ServiceNowQueryBuilder., Test parsing P-notation priority lists. (+1 more)
+
+### Community 73 - "Community 73"
+Cohesion: 0.12
+Nodes (9): Test ServiceNowQueryBuilder query validation., Test TableFilterParams object creation and validation., Test single priority value parsing., Test suite for ServiceNow filtering functionality using unittest., Set up test fixtures before each test method., Test parsing of Week 35 2025 date range., Test parsing of month range format., Test parsing P-notation priority lists. (+1 more)
+
+### Community 74 - "Community 74"
+Cohesion: 0.12
+Nodes (9): Test matching p1 and p2 template., Test that non-matching queries return None., Test template matching functionality., Test matching high priority last week template., Test matching critical recent template., Test matching unassigned recent template., Test matching resolved this month template., Test matching active p1 p2 template. (+1 more)
+
+### Community 75 - "Community 75"
+Cohesion: 0.14
+Nodes (15): get_oauth_client(), _hydrate_env_from_config(), make_oauth_request(), Module-level OAuth client singleton + convenience request helpers.  Canonical, Populate SERVICENOW_* env vars from the setup-wizard config file.      The OAu, Get or create the global OAuth client instance., Convenience function for making OAuth-authenticated GET requests., test_get_oauth_client_creates_instance() (+7 more)
+
+### Community 76 - "Community 76"
+Cohesion: 0.17
+Nodes (14): ConfigError, load_config(), load_config_from_env(), load_config_from_file(), Raised when configuration is invalid or missing., Load configuration from environment variables., Load configuration from config file., Load configuration with priority:     1. Environment variables (highest)     2 (+6 more)
+
+### Community 77 - "Community 77"
+Cohesion: 0.17
+Nodes (16): add_default_params, ensure_query_encoded, extract_display_values, GET Path Token-Optimization Invariants, make_nws_request, Three Critical Negative Write-Path Tests, sysparm_display_value=true, sysparm_exclude_reference_link=true (+8 more)
+
+### Community 78 - "Community 78"
+Cohesion: 0.15
+Nodes (14): BaseModel, FilterExplanationParams, get_query_examples(), get_query_syntax_help(), intelligent_search(), IntelligentQueryParams, MCP tool wrappers for intelligent query functionality. These tools provide natu, Parameters for intelligent natural language queries. (+6 more)
+
+### Community 79 - "Community 79"
+Cohesion: 0.18
+Nodes (10): Response payload transformation for ServiceNow read responses.  When ``sysparm, extract_display_values(), extract_field_value(), process_item_dict(), Response payload transformation for ServiceNow read responses.  When ``sysparm, Extract the display value if available, otherwise return the raw value., Process a single record dict and flatten its display-value envelopes., Walk a ServiceNow list response and flatten every row's envelopes. (+2 more)
+
+### Community 80 - "Community 80"
+Cohesion: 0.13
+Nodes (15): _publish_with_verify(), Return the published row for *article_number*, or None if not yet published., Fire the publish workflow then verify by polling for a Published row.      Tre, _verify_kb_published(), test_fire_anyio_timeout_but_verify_finds_published(), test_fire_http_error_but_verify_finds_published(), test_fire_success_verify_finds_published(), test_fire_timeout_but_verify_finds_published() (+7 more)
+
+### Community 81 - "Community 81"
+Cohesion: 0.13
+Nodes (14): Tests for generic_tool_wrappers.py — the 5 generic MCP tools., Test filter_records generic tool., Test search_records generic tool., Test get_record_summary generic tool., Test get_record generic tool., Test find_similar generic tool., test_sys_updated_on_field_accepted_for_incident(), test_vtb_task_table() (+6 more)
+
+### Community 82 - "Community 82"
+Cohesion: 0.18
+Nodes (9): _apply_context_filters(), Test context-based filter application., Test applying date range from context., Test applying single caller exclusion from context., Test applying multiple caller exclusions from context., Test applying exclude resolved from context., Test applying user-assigned filter from context., Test that empty context returns empty filters. (+1 more)
+
+### Community 83 - "Community 83"
+Cohesion: 0.14
+Nodes (9): _handle_operator_condition(), _has_operator_in_value(), Check if value already contains a comparison operator or ServiceNow text operato, Handle direct operator syntax., Test detecting operators in value., Test detecting ServiceNow text/date operators at start of value., Test non-operator values., Newly recognized encoded-query operators are detected. (+1 more)
+
+### Community 84 - "Community 84"
+Cohesion: 0.14
+Nodes (11): _build_debug_extras(), _build_debug_info(), _build_query_string(), _determine_filter_sources(), Build the complete query string from filters., Determine the source of each filter. Complexity: 4, Build debug information dictionary. Complexity: 2, Recompute filter-source attribution + encoded-query debug block.      Only inv (+3 more)
+
+### Community 85 - "Community 85"
+Cohesion: 0.14
+Nodes (9): Helper class for building ServiceNow queries with proper syntax., ServiceNowQueryBuilder, Specific tests for ServiceNowQueryBuilder class., Set up test fixtures., Test QueryBuilder initialization., Test OR filter building., Test NOT EQUALS filter building., Set up test fixtures before each test method. (+1 more)
+
+### Community 86 - "Community 86"
+Cohesion: 0.19
+Nodes (8): add_default_params(), ensure_query_encoded(), URL construction for ServiceNow read requests.  Owns the two read-path mutatio, Ensure ``sysparm_query`` value in URL is percent-encoded for ServiceNow., Add default performance and display parameters to a ServiceNow API URL.      T, Token-optimization invariants the GET path depends on., TestUrlBuilder, URL construction for ServiceNow read requests.  Owns the two read-path mutatio
+
+### Community 87 - "Community 87"
+Cohesion: 0.14
+Nodes (8): Test SQL equivalent generation., Test SQL generation for empty filters., Test SQL generation for single filter., Test SQL generation for OR conditions., Test SQL generation for not equal., Test SQL generation for greater than or equal., Test SQL generation for complete query., TestSQLGeneration
+
+### Community 88 - "Community 88"
+Cohesion: 0.14
+Nodes (8): Test natural language pattern parsing., Test parsing critical/P1 patterns., Test parsing high/P2 patterns., Test parsing time-based patterns., Test parsing state patterns., Test parsing assignment patterns., Test parsing 'last N days' pattern with lambda., TestLanguagePatternParsing
+
+### Community 89 - "Community 89"
+Cohesion: 0.14
+Nodes (8): Test context-based filter application., Test applying date range from context., Test applying single caller exclusion from context., Test applying multiple caller exclusions from context., Test applying exclude resolved from context., Test applying user-assigned filter from context., Test that empty context returns empty filters., TestContextFilters
+
+### Community 90 - "Community 90"
+Cohesion: 0.21
+Nodes (8): ConfigError, Raised when configuration is invalid or missing., Validate configuration is complete.      Raises:         ConfigError: If requ, validate_config(), Basic auth is unusable by every request path — reject it loudly., Tests for validate_config function., Omitted auth_type validates as OAuth, not basic., TestValidateConfig
+
+### Community 91 - "Community 91"
+Cohesion: 0.15
+Nodes (14): QueryExplainer, Determine size category from factors., Provide rough estimate of expected result size., Explains existing filters and suggests improvements., Return (issue, suggestion) if the priority filter has comma syntax., Return (issue, suggestion) if the date filter is open-ended., Return (issues, suggestions) for the given filter dict., Explain what an existing filter does and suggest improvements. (+6 more)
+
+### Community 92 - "Community 92"
+Cohesion: 0.23
+Nodes (13): Filter explanation + result-size estimation.  Wraps QueryIntelligence's explan, _analyze_filter_issues(), _calculate_date_factor(), _calculate_priority_factor(), _check_date_filter_issue(), _check_priority_filter_issue(), _determine_size_category(), _estimate_result_size() (+5 more)
+
+### Community 93 - "Community 93"
+Cohesion: 0.14
+Nodes (8): Test edge cases and error handling scenarios., Test ServiceNowQueryBuilder handles None inputs gracefully., Test ServiceNowQueryBuilder handles empty lists gracefully., Test priority filter validation with empty string., Test date range filter validation with empty string., Test result count validation with edge values., Test debug_query_construction handles None inputs., TestEdgeCasesAndErrorHandling
+
+### Community 94 - "Community 94"
+Cohesion: 0.17
+Nodes (13): _check_single_kb_duplicate(), _get_kb_article_meta(), _get_kb_article_sys_id(), Lookup meta then check duplicates for one article. Used by check_kb_duplicates f, Fetch sys_id + short_description in one GET — avoids a second round-trip in publ, test_empty_result_returns_none(), test_no_workflow_state_filter_when_none(), test_none_response_returns_none() (+5 more)
+
+### Community 95 - "Community 95"
 Cohesion: 0.22
 Nodes (12): _find_offending_prints(), _is_stderr_target(), _iter_runtime_modules(), Lint guard: server runtime code must never print to stdout.  MCP stdio transpo, Self-check: the AST scanner must NOT flag stderr-routed prints., True when the ``file=`` argument resolves to ``sys.stderr``., Return (lineno, source-snippet) for every print call in *path* not routed to std, Every print in the server runtime must be routed to sys.stderr. (+4 more)
 
-### Community 32 - "Community 32"
+### Community 96 - "Community 96"
+Cohesion: 0.15
+Nodes (7): build_relative_date_filter(), Test relative date filtering using ServiceNowQueryBuilder., Test building relative date filter for this week., Test building relative date filter for last 7 days., Test building relative date filter with unknown period (fallback)., Test building relative date filter for last week., Test building relative date filter for today.
+
+### Community 97 - "Community 97"
+Cohesion: 0.17
+Nodes (7): Test main parser with week format., Test main parser with month range., Test main parser with ISO format., Test main parser rejects invalid input., Test main parser returns None for non-matching text., Test date parsing functions., TestDateParsing
+
+### Community 98 - "Community 98"
+Cohesion: 0.17
+Nodes (8): _handle_priority_condition(), _parse_priority_list(), Parse priority list and convert to proper OR syntax.          Handles formats, Handle priority list parsing., Test parsing comma-separated priority lists., Test parsing array-like priority lists., Test parsing comma-separated priority lists., Test parsing array-like priority lists.
+
+### Community 99 - "Community 99"
+Cohesion: 0.18
+Nodes (9): build_and_validate_smart_filter(), Build and validate an intelligent filter without executing the query., build_smart_servicenow_filter(), Convert natural language to ServiceNow filters without executing the query., Test intelligent query functions., Test explaining filter query., Test building and validating smart filter., Test building smart filter when no filters generated. (+1 more)
+
+### Community 100 - "Community 100"
+Cohesion: 0.21
+Nodes (8): extract_display_values(), extract_field_value(), process_item_dict(), Extract the display value if available, otherwise return the raw value., Process a single record dict and flatten its display-value envelopes., Walk a ServiceNow list response and flatten every row's envelopes., Display-value flattening — the other half of the token-saving story., TestResponseParser
+
+### Community 101 - "Community 101"
+Cohesion: 0.17
+Nodes (8): Make an authenticated request to ServiceNow API.          Delegates to Request, Test the OAuth connection by making a simple API call., Make an authenticated request to ServiceNow API.          Delegates to Request, Test the OAuth connection by making a simple API call., Test OAuth connection and return status., test_oauth_connection(), test_test_connection_failure(), test_test_connection_success()
+
+### Community 102 - "Community 102"
+Cohesion: 0.2
+Nodes (9): load_config(), load_config_from_env(), Load configuration from environment variables., Load configuration with priority:     1. Environment variables (highest)     2, Tests for load_config function., Environment variables should override config file., Basic auth credentials are no longer part of the config surface., Should load from config file when env vars not set. (+1 more)
+
+### Community 103 - "Community 103"
+Cohesion: 0.17
+Nodes (12): ServiceNow Encoded Query Syntax, SmartQueryParams (Removed v4.1), kb_article_tools.py, vtb_task_tools.py, write_helpers.py, Rationale: SmartQueryParams Dead Code Never Instantiated, check_kb_duplicates, create_private_task (+4 more)
+
+### Community 104 - "Community 104"
+Cohesion: 0.17
+Nodes (12): DETAIL_FIELDS, ESSENTIAL_FIELDS, TABLE_CONFIGS Supported Tables, vtb_task Only Generic-Path CRUD Table, constants.py, change_request Table, incident Table, kb_knowledge Table (+4 more)
+
+### Community 105 - "Community 105"
+Cohesion: 0.18
+Nodes (10): Tests for CLI argument handling., --help should print usage and exit 0., --version should print version and exit 0., test_help_flag(), test_version_flag(), Tests for CLI argument handling., --help should print usage and exit 0., --version should print version and exit 0. (+2 more)
+
+### Community 106 - "Community 106"
+Cohesion: 0.24
+Nodes (10): _build_similar_ci_response(), _extract_ci_search_attributes(), _filter_and_limit_ci_results(), _probe_ci_table(), Fetch a CI by number from one table; return the first row or None., Extract search attributes from CI data. Complexity: 4, Filter out original CI and limit results. Complexity: 3, Build response for similar CIs. Complexity: 2 (+2 more)
+
+### Community 107 - "Community 107"
+Cohesion: 0.24
+Nodes (6): Token-optimization invariants the GET path depends on., TestUrlBuilder, add_default_params(), ensure_query_encoded(), Ensure ``sysparm_query`` value in URL is percent-encoded for ServiceNow., Add default performance and display parameters to a ServiceNow API URL.      T
+
+### Community 108 - "Community 108"
+Cohesion: 0.25
+Nodes (10): main(), parse_args(), Parse command line arguments., Run interactive setup wizard., run_setup(), main(), parse_args(), Parse command line arguments. (+2 more)
+
+### Community 109 - "Community 109"
+Cohesion: 0.24
+Nodes (7): _handle_exclusion_filter(), Test exclusion filter handling., Test exclusion of known entity LogicMonitor., Test exclusion of LogicMonitor Integration (with spaces)., Test exclusion of unknown entity., Test field mapping for exclusions., TestExclusionFilters
+
+### Community 110 - "Community 110"
+Cohesion: 0.2
+Nodes (11): CMDB Concurrent CI Table Probe, query_table_intelligently debug Opt-In, E2E Natural Language Test Prompts, OR-Combined LIKE Text Search, SLA Status Preset Enum, E2E Test Prompts Doc, cmdb_tools.py, Rationale: critical/performance Curated Fields Preserve Token Budget (+3 more)
+
+### Community 111 - "Community 111"
+Cohesion: 0.27
+Nodes (6): _build_metadata(), _build_priority_result_message(), Build human-readable result message for priority queries., Build enhanced response with metadata., Test the result message builder., TestBuildPriorityResultMessage
+
+### Community 112 - "Community 112"
+Cohesion: 0.24
+Nodes (7): get_current_month_range(), Get start and end dates for the current calendar month.      Returns:, get_current_month_range(), Get start and end dates for the current calendar month.      Returns:, Test current month range calculation for January., Test current month range for February (non-leap year)., Test current month range for December (year boundary).
+
+### Community 113 - "Community 113"
+Cohesion: 0.2
+Nodes (7): _handle_servicenow_filter_condition(), _is_complete_servicenow_filter(), Check if value is already a complete ServiceNow filter (e.g., priority=1^ORprior, Handle complete ServiceNow filters., Test detecting complete ServiceNow filters with ^OR and proper field=value struc, Test non-complete filters., Test that values with ^OR but no field=value before ^OR are rejected.
+
+### Community 114 - "Community 114"
+Cohesion: 0.2
+Nodes (8): _iso_range_from_month_names(), _month_name_to_num(), _parse_year_at_end_format(), Resolve an English month name (full or 3+ letter abbrev) to its 1-12 number., Build an (ISO start, ISO end) date tuple from month-name components.      Retu, Parse 'Month DD to Month DD YYYY' format (year at end). Complexity: 3, Test parsing 'Month DD to Month DD YYYY' format., Test parsing with 'from' prefix.
+
+### Community 115 - "Community 115"
+Cohesion: 0.2
+Nodes (6): Test input validation and error handling for CMDB tools., Test CI number format validation., Test CI type parameter validation., Test search attributes parameter validation., Test search term validation for quick search., TestCMDBToolsValidation
+
+### Community 116 - "Community 116"
+Cohesion: 0.2
+Nodes (6): Test input validation and error handling for CMDB tools., Test CI number format validation., Test CI type parameter validation., Test search attributes parameter validation., Test search term validation for quick search., TestCMDBToolsValidation
+
+### Community 117 - "Community 117"
+Cohesion: 0.2
+Nodes (4): test_make_nws_request_encodes_query(), test_make_nws_request_patch_propagates_status_error(), test_make_nws_request_success(), test_make_nws_request_write_delegates_to_oauth_client()
+
+### Community 118 - "Community 118"
 Cohesion: 0.36
 Nodes (9): _load_manifest(), _load_pyproject(), _main_version(), Packaging-consistency tests for the .mcpb bundle sources.  These guard the inv, _requirements_entries(), test_manifest_entry_point_exists(), test_manifest_env_mapping_covers_required_config(), test_requirements_mirrored_in_pyproject() (+1 more)
 
-### Community 33 - "Community 33"
+### Community 119 - "Community 119"
+Cohesion: 0.2
+Nodes (6): Test exclusion filter handling., Test exclusion of known entity LogicMonitor., Test exclusion of LogicMonitor Integration (with spaces)., Test exclusion of unknown entity., Test field mapping for exclusions., TestExclusionFilters
+
+### Community 120 - "Community 120"
+Cohesion: 0.2
+Nodes (6): Test priority filter handling., Test merging same priority values., Test merging different priority values., Test merging into existing OR filter., Test that duplicate priorities are not added., TestPriorityFilters
+
+### Community 121 - "Community 121"
+Cohesion: 0.24
+Nodes (7): Test task data preparation function., Test preparing task data with minimal required fields., Test preparing task data with optional fields., Test that extra fields not in optional list are ignored., TestTaskDataPreparation, _prepare_task_create_data(), Prepare and validate data for task creation.
+
+### Community 122 - "Community 122"
+Cohesion: 0.2
+Nodes (3): test_basic_init(), TestOAuthClientExtended, TestOAuthClientExtended
+
+### Community 123 - "Community 123"
+Cohesion: 0.31
+Nodes (4): _pick_canonical_kb_row(), De-duplicate kb_knowledge rows by `number`, keeping the highest-priority workflo, De-dup helper picks highest-priority workflow_state per number., TestPickCanonicalKbRow
+
+### Community 124 - "Community 124"
+Cohesion: 0.22
+Nodes (5): Integration tests for CMDB tools workflow., Set up integration test fixtures., Test complete CMDB discovery workflow., Test complete CMDB search workflow., TestCMDBToolsIntegration
+
+### Community 125 - "Community 125"
+Cohesion: 0.44
+Nodes (4): _handle_kb_error(), _make_http_status_error(), test_http_status_error_mapped(), TestHandleKbError
+
+### Community 127 - "Community 127"
+Cohesion: 0.25
+Nodes (8): get_config_dir(), Get the configuration directory path based on platform., Tests for config_loader module., test_macos_config_dir(), test_windows_config_dir(), Tests for config_loader module., Tests for get_config_dir function., TestGetConfigDir
+
+### Community 128 - "Community 128"
+Cohesion: 0.28
+Nodes (6): _parse_exclusion_patterns(), Test exclusion pattern parsing., Test parsing 'exclude caller' patterns., Test parsing 'without caller' patterns., Test that queries without exclusions return None., TestExclusionPatternParsing
+
+### Community 129 - "Community 129"
+Cohesion: 0.31
+Nodes (8): Graphify God-Node Analysis Source of Refactor, Keep a Changelog Format, Semantic Versioning, MCPB Build and Release Guide, Migration Guide v3 to v4, Rationale: Graphify God-Node Clusters Drove v4 Split, Project README, v4.0 Architectural Refactor
+
+### Community 130 - "Community 130"
 Cohesion: 0.32
 Nodes (7): coerce_json_dict(), coerce_json_list(), Param-boundary JSON coercion for MCP tool signatures.  LLM-driven MCP clients, Peel repeated JSON-string layers (handles single- AND double-encoded input)., Coerce a (possibly double-encoded) stringified JSON array to a native list., Coerce a (possibly double-encoded) stringified JSON object to a native dict., _unwrap_json_str()
 
-### Community 34 - "Community 34"
-Cohesion: 0.33
-Nodes (5): Tests for CLI argument handling., --help should print usage and exit 0., --version should print version and exit 0., test_help_flag(), test_version_flag()
-
-### Community 35 - "Community 35"
-Cohesion: 0.5
-Nodes (3): Shared pytest fixtures.  The v4.2 connection-pooling refactor introduced a pro, Drop the cached pooled client before and after each test., _reset_http_pool()
-
-### Community 36 - "Community 36"
-Cohesion: 1.0
-Nodes (1): Constants used throughout the ServiceNow MCP server.
-
-### Community 37 - "Community 37"
-Cohesion: 1.0
-Nodes (1): Build OR filter for multiple priorities.
-
-### Community 38 - "Community 38"
-Cohesion: 1.0
-Nodes (1): Build date range filter for ServiceNow using proper BETWEEN syntax.
-
-### Community 39 - "Community 39"
-Cohesion: 1.0
-Nodes (1): Build ServiceNow relative date filter with proper BETWEEN syntax.
-
-### Community 40 - "Community 40"
-Cohesion: 1.0
-Nodes (1): Build exclusion filter for multiple IDs using NOT EQUALS.
-
-### Community 41 - "Community 41"
-Cohesion: 1.0
-Nodes (1): Build a complete ServiceNow filter string with proper syntax.          Args:
-
-### Community 42 - "Community 42"
-Cohesion: 1.0
-Nodes (1): v4.0 fix: routes via sys_id={sys_id}, not the broken number={sys_id}.
-
-### Community 43 - "Community 43"
-Cohesion: 1.0
-Nodes (1): Token-budget invariant: 'critical' returns 7-field curated view, not full row.
-
-### Community 44 - "Community 44"
-Cohesion: 1.0
-Nodes (1): Test combined filtering with mocked API call.
-
-### Community 45 - "Community 45"
-Cohesion: 1.0
-Nodes (1): Test querying table by text with results.
-
-### Community 46 - "Community 46"
-Cohesion: 1.0
-Nodes (1): Search path must build short_descriptionLIKE..., never CONTAINS (invalid in enco
-
-### Community 47 - "Community 47"
-Cohesion: 1.0
-Nodes (1): Test querying table by text with no results.
-
-### Community 48 - "Community 48"
-Cohesion: 1.0
-Nodes (1): Test getting record description successfully.
-
-### Community 49 - "Community 49"
-Cohesion: 1.0
-Nodes (1): Test getting record description when not found.
-
-### Community 50 - "Community 50"
-Cohesion: 1.0
-Nodes (1): Test getting record details successfully.
-
-### Community 51 - "Community 51"
-Cohesion: 1.0
-Nodes (1): Test finding similar records successfully.
-
-### Community 52 - "Community 52"
-Cohesion: 1.0
-Nodes (1): Test finding similar records when no description found.
-
-### Community 53 - "Community 53"
-Cohesion: 1.0
-Nodes (1): Test querying table with filters.
-
-### Community 54 - "Community 54"
-Cohesion: 1.0
-Nodes (1): Test querying table with filters returning no results.
-
-### Community 55 - "Community 55"
-Cohesion: 1.0
-Nodes (1): Bare reference-field value returning empty attaches a dot-walk hint.
-
-### Community 56 - "Community 56"
-Cohesion: 1.0
-Nodes (1): When _make_paginated_request returns exactly max_results, truncated=True.
-
-### Community 57 - "Community 57"
-Cohesion: 1.0
-Nodes (1): When _make_paginated_request returns fewer than max_results, truncated=False.
-
-### Community 58 - "Community 58"
-Cohesion: 1.0
-Nodes (1): Test getting records by priority.
-
-### Community 59 - "Community 59"
-Cohesion: 1.0
-Nodes (1): Test getting records by priority for unsupported table.
-
-### Community 60 - "Community 60"
-Cohesion: 1.0
-Nodes (1): Test generic filter querying.
-
-### Community 61 - "Community 61"
-Cohesion: 1.0
-Nodes (1): Test intelligent querying with results.
-
-### Community 62 - "Community 62"
-Cohesion: 1.0
-Nodes (1): Test intelligent querying with fallback to text search.
-
-### Community 63 - "Community 63"
-Cohesion: 1.0
-Nodes (1): Test exception handling in find_similar_records.
-
-### Community 64 - "Community 64"
-Cohesion: 1.0
-Nodes (1): Test getting records by priority with additional filters.
-
-### Community 65 - "Community 65"
-Cohesion: 1.0
-Nodes (1): Test exception handling in get_records_by_priority.
-
-### Community 66 - "Community 66"
-Cohesion: 1.0
-Nodes (1): Test exception handling in query_table_with_generic_filters.
-
-### Community 67 - "Community 67"
-Cohesion: 1.0
-Nodes (1): Test that default sort order is injected into paginated requests.
-
-### Community 68 - "Community 68"
-Cohesion: 1.0
-Nodes (1): Test that a custom sort directive is respected.
-
-### Community 69 - "Community 69"
-Cohesion: 1.0
-Nodes (1): Test that sort is not injected when default_sort is empty.
-
-### Community 70 - "Community 70"
-Cohesion: 1.0
-Nodes (1): Test that an existing ORDERBY in the URL is not replaced.
-
-### Community 71 - "Community 71"
-Cohesion: 1.0
-Nodes (1): Verify vtb_task works through generic filter (ServiceNow API path).
-
-### Community 72 - "Community 72"
-Cohesion: 1.0
-Nodes (1): sys_updated_on is a DETAIL_FIELDS entry for incident; filter_records         mu
-
-### Community 73 - "Community 73"
-Cohesion: 1.0
-Nodes (1): Write responses have a single-record shape; flattening would corrupt them.
-
-### Community 74 - "Community 74"
-Cohesion: 1.0
-Nodes (1): Write must pass ``raise_for_status=True`` so callers map status codes.
-
-### Community 75 - "Community 75"
-Cohesion: 1.0
-Nodes (1): Service-catalog tables get sensitive-record exclusions injected automatically.
-
-### Community 76 - "Community 76"
-Cohesion: 1.0
-Nodes (1): Toggle on the incident-category gate to confirm both branches wire up.
-
-### Community 77 - "Community 77"
-Cohesion: 1.0
-Nodes (1): Test initialization with valid configuration.
-
-### Community 78 - "Community 78"
-Cohesion: 1.0
-Nodes (1): Test initialization fails when SERVICENOW_INSTANCE is missing.
-
-### Community 79 - "Community 79"
-Cohesion: 1.0
-Nodes (1): Test initialization fails when CLIENT_ID is missing.
-
-### Community 80 - "Community 80"
-Cohesion: 1.0
-Nodes (1): Test initialization fails when CLIENT_SECRET is missing.
-
-### Community 81 - "Community 81"
-Cohesion: 1.0
-Nodes (1): Test Basic Auth header generation.
-
-### Community 82 - "Community 82"
-Cohesion: 1.0
-Nodes (1): Test successful token request.
-
-### Community 83 - "Community 83"
-Cohesion: 1.0
-Nodes (1): Test token request with 401 authentication error.
-
-### Community 84 - "Community 84"
-Cohesion: 1.0
-Nodes (1): Test token request with 403 authorization error.
-
-### Community 85 - "Community 85"
-Cohesion: 1.0
-Nodes (1): Test token request with 500 server error.
-
-### Community 86 - "Community 86"
-Cohesion: 1.0
-Nodes (1): Test token request with connection error.
-
-### Community 87 - "Community 87"
-Cohesion: 1.0
-Nodes (1): Test token request with timeout error.
-
-### Community 88 - "Community 88"
-Cohesion: 1.0
-Nodes (1): Test token request with JSON decode error.
-
-### Community 89 - "Community 89"
-Cohesion: 1.0
-Nodes (1): Test getting token when none exists.
-
-### Community 90 - "Community 90"
-Cohesion: 1.0
-Nodes (1): Test using cached token when still valid.
-
-### Community 91 - "Community 91"
-Cohesion: 1.0
-Nodes (1): Test refreshing token when expired.
-
-### Community 92 - "Community 92"
-Cohesion: 1.0
-Nodes (1): Test getting authorization headers.
-
-### Community 93 - "Community 93"
-Cohesion: 1.0
-Nodes (1): Test clearing token cache.
-
-### Community 94 - "Community 94"
-Cohesion: 1.0
-Nodes (1): Test successful authenticated request.
-
-### Community 95 - "Community 95"
-Cohesion: 1.0
-Nodes (1): Test authenticated request with 401 and successful retry.
-
-### Community 96 - "Community 96"
-Cohesion: 1.0
-Nodes (1): Test authenticated request with non-401 HTTP error.
-
-### Community 97 - "Community 97"
-Cohesion: 1.0
-Nodes (1): Test authenticated request with connection error.
-
-### Community 98 - "Community 98"
-Cohesion: 1.0
-Nodes (1): Test authenticated request with timeout.
-
-### Community 99 - "Community 99"
-Cohesion: 1.0
-Nodes (1): Test authenticated request with JSON decode error.
-
-### Community 100 - "Community 100"
-Cohesion: 1.0
-Nodes (1): Test successful connection test.
-
-### Community 101 - "Community 101"
-Cohesion: 1.0
-Nodes (1): Test failed connection test.
-
-### Community 102 - "Community 102"
-Cohesion: 1.0
-Nodes (1): Test that get_oauth_client creates instance.
-
-### Community 103 - "Community 103"
-Cohesion: 1.0
-Nodes (1): Test that get_oauth_client returns same instance.
-
-### Community 104 - "Community 104"
-Cohesion: 1.0
-Nodes (1): Test convenience make_oauth_request function.
-
-### Community 105 - "Community 105"
-Cohesion: 1.0
-Nodes (1): Test successful retry with fresh token.
-
-### Community 106 - "Community 106"
-Cohesion: 1.0
-Nodes (1): Test retry with fresh token that fails.
-
-### Community 107 - "Community 107"
-Cohesion: 1.0
-Nodes (1): retry_with_fresh_token re-raises HTTPStatusError when raise_for_status=True.
-
-### Community 108 - "Community 108"
-Cohesion: 1.0
-Nodes (1): raise_for_status=True propagates 4xx/5xx errors instead of returning None.
-
-### Community 109 - "Community 109"
-Cohesion: 1.0
-Nodes (1): Test processing successful response.
-
-### Community 110 - "Community 110"
-Cohesion: 1.0
-Nodes (1): Test parsing that matches a template.
-
-### Community 111 - "Community 111"
-Cohesion: 1.0
-Nodes (1): Test parsing without template match.
-
-### Community 112 - "Community 112"
-Cohesion: 1.0
-Nodes (1): Test keyword fallback when no patterns match.
-
-### Community 113 - "Community 113"
-Cohesion: 1.0
-Nodes (1): Test parsing with date range.
-
-### Community 114 - "Community 114"
-Cohesion: 1.0
-Nodes (1): Test parsing with exclusion patterns.
-
-### Community 115 - "Community 115"
-Cohesion: 1.0
-Nodes (1): Test that comma-separated priorities are corrected to OR syntax.
-
-### Community 116 - "Community 116"
-Cohesion: 1.0
-Nodes (1): Test that time components are added to dates.
-
-### Community 117 - "Community 117"
-Cohesion: 1.0
-Nodes (1): Test that correct filters are not changed.
-
-### Community 118 - "Community 118"
-Cohesion: 1.0
-Nodes (1): Test basic intelligent filter building.
-
-### Community 119 - "Community 119"
-Cohesion: 1.0
-Nodes (1): Test intelligent filter building with context.
-
-### Community 120 - "Community 120"
-Cohesion: 1.0
-Nodes (1): Test build_smart_filter convenience function.
-
-### Community 121 - "Community 121"
-Cohesion: 1.0
-Nodes (1): Test build_smart_filter with context.
-
-### Community 122 - "Community 122"
-Cohesion: 1.0
-Nodes (1): Test explain_existing_filter convenience function.
-
-### Community 123 - "Community 123"
-Cohesion: 1.0
-Nodes (1): Test handling of empty query.
-
-### Community 124 - "Community 124"
-Cohesion: 1.0
-Nodes (1): Test handling of whitespace-only query.
-
-### Community 125 - "Community 125"
-Cohesion: 1.0
-Nodes (1): Test handling when no keywords can be extracted.
-
-### Community 126 - "Community 126"
-Cohesion: 1.0
-Nodes (1): Test successful API request includes all default params.
-
-### Community 127 - "Community 127"
-Cohesion: 1.0
-Nodes (1): Test that make_nws_request encodes sysparm_query before sending.
-
-### Community 128 - "Community 128"
-Cohesion: 1.0
-Nodes (1): Test API request with error returns None.
-
-### Community 129 - "Community 129"
-Cohesion: 1.0
-Nodes (1): POST/PATCH route through oauth_client with raise_for_status=True.
-
-### Community 130 - "Community 130"
-Cohesion: 1.0
-Nodes (1): PATCH bubbling HTTPStatusError reaches the caller intact.
-
 ### Community 131 - "Community 131"
-Cohesion: 1.0
-Nodes (1): Test OAuth connection test with successful result.
+Cohesion: 0.39
+Nodes (7): ServiceNow query-string builder.  Static helpers that emit syntactically-corre, build_complete_filter(), build_date_range_filter(), build_exclusion_filter(), build_priority_or_filter(), build_relative_date_filter(), ServiceNow query-string builder.  Static helpers that emit syntactically-corre
 
 ### Community 132 - "Community 132"
-Cohesion: 1.0
-Nodes (1): Test getting authentication information successfully.
+Cohesion: 0.25
+Nodes (7): _close_pool_atexit(), get_pooled_client(), Process-wide pooled ``httpx.AsyncClient`` for all ServiceNow traffic.  Before, Return the shared keep-alive client, creating it on first use., Close the pooled client and drop the reference. Idempotent., Best-effort close on interpreter exit to avoid unclosed-client warnings., shutdown_http_client()
 
 ### Community 133 - "Community 133"
-Cohesion: 1.0
-Nodes (1): Test successful sys_id retrieval.
+Cohesion: 0.25
+Nodes (8): _build_fallback_response(), _build_intelligence_response(), query_table_intelligently(), Build successful intelligence response. Debug extras attached only on opt-in., Build fallback keyword search response. Debug block attached only on opt-in., Query table using natural language with intelligent filter conversion.      Ar, test_query_table_intelligently_fallback(), test_query_table_intelligently_with_results()
 
 ### Community 134 - "Community 134"
-Cohesion: 1.0
-Nodes (1): Test sys_id retrieval when task not found.
+Cohesion: 0.25
+Nodes (5): _build_priority_filter(), Helper function to build OR-based priority filter with cognitive complexity < 15, Test building priority filter with single priority., Test building priority filter with multiple priorities., Test building priority filter with empty list.
 
 ### Community 135 - "Community 135"
-Cohesion: 1.0
-Nodes (1): Test sys_id retrieval with no data.
+Cohesion: 0.25
+Nodes (5): Test generic table operations., Set up test fixtures., Test text-based table query., Test getting record description., TestGenericTableTools
 
 ### Community 136 - "Community 136"
-Cohesion: 1.0
-Nodes (1): Test sys_id retrieval with invalid response.
+Cohesion: 0.25
+Nodes (5): _parse_cross_month_range(), Parse 'Month DD YYYY to Month DD YYYY' format. Complexity: 3, Test parsing cross-month range., Test parsing with 'from' prefix., Test parsing with invalid month name.
 
 ### Community 137 - "Community 137"
-Cohesion: 1.0
-Nodes (1): Test successful private task creation.
+Cohesion: 0.25
+Nodes (5): _parse_month_range_format(), Parse 'Month DD-DD, YYYY' format. Complexity: 3, Test parsing valid month range format., Test parsing month range with different month names., Test parsing invalid month name returns None.
 
 ### Community 138 - "Community 138"
-Cohesion: 1.0
-Nodes (1): Test task creation fails without short_description.
+Cohesion: 0.25
+Nodes (5): _parse_week_format(), Parse 'Week X YYYY' format. Complexity: 3, Test parsing invalid week format returns None., Test parsing valid week format., Test parsing 'week X of YYYY' format.
 
 ### Community 139 - "Community 139"
-Cohesion: 1.0
-Nodes (1): Test task creation with all optional fields.
+Cohesion: 0.25
+Nodes (5): Integration tests for CMDB tools workflow., Set up integration test fixtures., Test complete CMDB discovery workflow., Test complete CMDB search workflow., TestCMDBToolsIntegration
 
 ### Community 140 - "Community 140"
-Cohesion: 1.0
-Nodes (1): Test successful private task update.
+Cohesion: 0.25
+Nodes (5): Test filter template functionality., Test that FILTER_TEMPLATES constant is properly defined., Test that all expected templates exist., Test that templates have proper structure., TestQueryIntelligenceTemplates
 
 ### Community 141 - "Community 141"
-Cohesion: 1.0
-Nodes (1): Test update fails without update data.
+Cohesion: 0.25
+Nodes (5): Test filter template functionality., Test that FILTER_TEMPLATES constant is properly defined., Test that all expected templates exist., Test that templates have proper structure., TestQueryIntelligenceTemplates
 
 ### Community 142 - "Community 142"
-Cohesion: 1.0
-Nodes (1): Test update fails when task not found.
+Cohesion: 0.25
+Nodes (6): get_filter_templates(), Get all available filter templates., get_servicenow_filter_templates(), Get predefined filter templates for common ServiceNow queries.          These, Test convenience function for getting templates., Test convenience function for getting templates.
 
 ### Community 143 - "Community 143"
-Cohesion: 1.0
-Nodes (1): Publish a knowledge article via the ServiceNow workflow endpoint.      Runs a
+Cohesion: 0.25
+Nodes (5): Test exclusion pattern parsing., Test parsing 'exclude caller' patterns., Test parsing 'without caller' patterns., Test that queries without exclusions return None., TestExclusionPatternParsing
 
 ### Community 144 - "Community 144"
-Cohesion: 1.0
-Nodes (1): Lookup meta then check duplicates for one article. Used by check_kb_duplicates f
+Cohesion: 0.36
+Nodes (4): Test the response unwrapper helper., TestUnwrapWriteResponse, Extract the inner result payload from a write response., _unwrap_write_response()
 
 ### Community 145 - "Community 145"
-Cohesion: 1.0
-Nodes (1): Check for duplicate KB articles without publishing.      For each number: look
+Cohesion: 0.25
+Nodes (8): get_config_file_path(), get_setup_instructions(), Save configuration to config file., Lock a file down to the current user on Windows via icacls.      ``os.chmod``, Return setup instructions for users., Get the full path to the config file., _restrict_windows_acl(), save_config()
 
 ### Community 146 - "Community 146"
-Cohesion: 1.0
-Nodes (1): Normalize publish_knowledge_article output into a flat batch-result row.
+Cohesion: 0.36
+Nodes (4): Validate configuration is complete.      Raises:         ConfigError: If requ, validate_config(), Tests for validate_config function., TestValidateConfig
 
 ### Community 147 - "Community 147"
-Cohesion: 1.0
-Nodes (1): Publish multiple KB articles in one tool call.      Runs full publish flow per
+Cohesion: 0.25
+Nodes (5): Specific tests for ServiceNowQueryBuilder class., Set up test fixtures., Test QueryBuilder initialization., Test OR filter building., TestServiceNowQueryBuilder
 
 ### Community 148 - "Community 148"
-Cohesion: 1.0
-Nodes (1): Retire a knowledge article via the ServiceNow workflow endpoint.      Args:
+Cohesion: 0.38
+Nodes (4): _get_error_message(), Get table-specific error message with cognitive complexity < 15., Test helper functions., TestHelperFunctions
 
 ### Community 149 - "Community 149"
-Cohesion: 1.0
-Nodes (1): Test OAuth environment variable configuration.
+Cohesion: 0.29
+Nodes (6): Shared pytest fixtures.  The v4.2 connection-pooling refactor introduced a pro, Drop the cached pooled client before and after each test., _reset_http_pool(), Shared pytest fixtures.  The v4.2 connection-pooling refactor introduced a pro, Drop the cached pooled client before and after each test., _reset_http_pool()
 
 ### Community 150 - "Community 150"
-Cohesion: 1.0
-Nodes (1): Set up test fixtures.
+Cohesion: 0.29
+Nodes (7): explain_existing_filter(), Explain what an existing filter does., explain_filter_query(), Explain what a filter query will do and provide suggestions.          Args:, explain_servicenow_filters(), Explain what ServiceNow filters will do and identify potential issues., test_explain_existing_filter_wrapper()
 
 ### Community 151 - "Community 151"
-Cohesion: 1.0
-Nodes (1): Test that required OAuth environment variables are configured.
+Cohesion: 0.29
+Nodes (4): _calculate_date_factor(), Test date factor with no date filter., Test date factor for today only., Test date factor for last week.
 
 ### Community 152 - "Community 152"
-Cohesion: 1.0
-Nodes (1): Test environment setup with mocked values.
+Cohesion: 0.29
+Nodes (4): build_priority_or_filter(), Test building priority filter with single priority., Test building priority filter with multiple priorities., Test building priority filter with empty list.
 
 ### Community 153 - "Community 153"
-Cohesion: 1.0
-Nodes (1): Test that environment variables have expected formats.
+Cohesion: 0.29
+Nodes (4): build_exclusion_filter(), Test NOT EQUALS filter building., Test building exclusion filter with single ID., Test building exclusion filter with multiple IDs.
 
 ### Community 154 - "Community 154"
-Cohesion: 1.0
-Nodes (1): Test OAuth client creation and configuration.
+Cohesion: 0.33
+Nodes (5): get_knowledge_by_category(), Get knowledge articles by category., test_get_knowledge_by_category(), test_get_knowledge_by_category_with_kb_base(), Test getting knowledge articles by category.
 
 ### Community 155 - "Community 155"
-Cohesion: 1.0
-Nodes (1): Test successful OAuth client creation.
+Cohesion: 0.33
+Nodes (5): _build_sla_status_filter(), Translate an SLA status preset into a (filter_dict, fields) pair., Test SLA tool functions., Every preset listed in SLA_STATUS_VALUES must be dispatchable., TestSLATools
 
 ### Community 156 - "Community 156"
-Cohesion: 1.0
-Nodes (1): Test OAuth client configuration properties.
+Cohesion: 0.33
+Nodes (4): _parse_iso_date_range(), Parse 'YYYY-MM-DD to YYYY-MM-DD' format. Complexity: 2, Test parsing ISO date range., Test parsing invalid ISO format returns None.
 
 ### Community 157 - "Community 157"
-Cohesion: 1.0
-Nodes (1): Test OAuth client creation fails with missing environment variables.
+Cohesion: 0.33
+Nodes (4): _parse_between_format(), Parse 'between Month DD, YYYY and Month DD, YYYY' format. Complexity: 3, Test parsing 'between...and' format., Test parsing invalid between format.
 
 ### Community 158 - "Community 158"
-Cohesion: 1.0
-Nodes (1): Test API client integration with OAuth.
+Cohesion: 0.33
+Nodes (4): quick_ci_search(), Quick search for CIs by name, IP, or number.          Args:         search_te, Test quick CI search functionality., Test quick CI search with no results.
 
 ### Community 159 - "Community 159"
-Cohesion: 1.0
-Nodes (1): Test that get_auth_info correctly detects OAuth configuration.
+Cohesion: 0.33
+Nodes (4): get_all_ci_types(), Get all available CI types/classes in the CMDB.          Returns:         Dic, Test successful retrieval of all CI types., Test error handling for get_all_ci_types.
 
 ### Community 160 - "Community 160"
-Cohesion: 1.0
-Nodes (1): Test get_auth_info when OAuth credentials are not available.
-
-### Community 161 - "Community 161"
-Cohesion: 1.0
-Nodes (1): Test OAuth token retrieval with mocked client.
+Cohesion: 0.33
+Nodes (4): find_cis_by_type(), Find all Configuration Items of a specific type.      Args:         ci_type:, Test finding CIs with invalid type., Test finding CIs by server type.
 
 ### Community 162 - "Community 162"
-Cohesion: 1.0
-Nodes (1): Test OAuth token handling and validation.
+Cohesion: 0.33
+Nodes (6): publish_knowledge_article(), Publish a knowledge article via the ServiceNow workflow endpoint.      Runs a, test_duplicate_found_blocks_publish(), test_publish_routes_through_make_nws_request(), test_publish_targets_draft_workflow_state(), test_success_posts_to_scripted_rest_publish()
 
 ### Community 163 - "Community 163"
-Cohesion: 1.0
-Nodes (1): Test validation of valid OAuth token format.
+Cohesion: 0.33
+Nodes (6): publish_knowledge_articles(), Publish multiple KB articles in one tool call.      Runs full publish flow per, test_concurrency_cap_respected(), test_empty_list_returns_empty_result(), test_mixed_batch_yields_per_article_status(), test_over_20_returns_error()
 
 ### Community 164 - "Community 164"
-Cohesion: 1.0
-Nodes (1): Test validation of malformed OAuth token.
+Cohesion: 0.47
+Nodes (3): _normalize_publish_result(), Normalize publish_knowledge_article output into a flat batch-result row., TestNormalizePublishResult
 
 ### Community 165 - "Community 165"
-Cohesion: 1.0
-Nodes (1): Test token expiration logic.
-
-### Community 166 - "Community 166"
-Cohesion: 1.0
-Nodes (1): Test OAuth error handling scenarios.
-
-### Community 167 - "Community 167"
-Cohesion: 1.0
-Nodes (1): Test handling of network errors during OAuth.
-
-### Community 168 - "Community 168"
-Cohesion: 1.0
-Nodes (1): Test OAuth behavior with invalid credentials.
+Cohesion: 0.4
+Nodes (5): query_slas_custom(), Custom SLA query — escape hatch for filter shapes the presets do not cover., test_query_slas_custom_basic(), test_query_slas_custom_with_days(), test_query_slas_custom_with_fields_override()
 
 ### Community 169 - "Community 169"
-Cohesion: 1.0
-Nodes (1): Regression tests for the double-encoding bug found in E2E: some MCP     clients
+Cohesion: 0.4
+Nodes (3): _explain_assigned_to_filter(), Test explaining unassigned filter., Test explaining assigned to specific user.
 
 ### Community 170 - "Community 170"
-Cohesion: 1.0
-Nodes (1): Test task data preparation function.
+Cohesion: 0.4
+Nodes (3): build_date_range_filter(), Test proper BETWEEN syntax generation., Test building date range filter with proper BETWEEN syntax.
 
 ### Community 171 - "Community 171"
-Cohesion: 1.0
-Nodes (1): Test preparing task data with minimal required fields.
-
-### Community 172 - "Community 172"
-Cohesion: 1.0
-Nodes (1): Test preparing task data with optional fields.
-
-### Community 173 - "Community 173"
-Cohesion: 1.0
-Nodes (1): Test that extra fields not in optional list are ignored.
-
-### Community 174 - "Community 174"
-Cohesion: 1.0
-Nodes (1): Test sys_id retrieval function.
-
-### Community 175 - "Community 175"
-Cohesion: 1.0
-Nodes (1): Test successful sys_id retrieval.
-
-### Community 176 - "Community 176"
-Cohesion: 1.0
-Nodes (1): Test sys_id retrieval when task not found.
-
-### Community 177 - "Community 177"
-Cohesion: 1.0
-Nodes (1): Test sys_id retrieval with no data.
-
-### Community 178 - "Community 178"
-Cohesion: 1.0
-Nodes (1): Test sys_id retrieval with invalid response.
-
-### Community 179 - "Community 179"
-Cohesion: 1.0
-Nodes (1): Test create_private_task function with OAuth authentication.
-
-### Community 180 - "Community 180"
-Cohesion: 1.0
-Nodes (1): Test successful private task creation.
-
-### Community 181 - "Community 181"
-Cohesion: 1.0
-Nodes (1): Test task creation fails without short_description.
-
-### Community 182 - "Community 182"
-Cohesion: 1.0
-Nodes (1): Test task creation with all optional fields.
-
-### Community 183 - "Community 183"
-Cohesion: 1.0
-Nodes (1): Test update_private_task function with OAuth authentication.
-
-### Community 184 - "Community 184"
-Cohesion: 1.0
-Nodes (1): Test successful private task update.
-
-### Community 185 - "Community 185"
-Cohesion: 1.0
-Nodes (1): Test update fails without update data.
-
-### Community 186 - "Community 186"
-Cohesion: 1.0
-Nodes (1): Test update fails when task not found.
-
-### Community 187 - "Community 187"
-Cohesion: 1.0
-Nodes (1): utility_tools.py / table_tools.py
+Cohesion: 0.5
+Nodes (3): Test edge cases and error conditions., Test merging priority that already has complete syntax., TestEdgeCases
 
 ## Knowledge Gaps
-- **1073 isolated node(s):** `Audit logging middleware for MCP tool calls.  Emits one structured JSON log li`, `Shared-secret bearer auth middleware for MCP tool calls.  Guards ``on_call_too`, `Configuration loader for MCP ServiceNow.  Supports loading credentials from:`, `Raised when configuration is invalid or missing.`, `Get the configuration directory path based on platform.` (+1068 more)
+- **1493 isolated node(s):** `Audit logging middleware for MCP tool calls.  Emits one structured JSON log li`, `Shared-secret bearer auth middleware for MCP tool calls.  Guards ``on_call_too`, `Configuration loader for MCP ServiceNow.  Supports loading credentials from:`, `Raised when configuration is invalid or missing.`, `Get the configuration directory path based on platform.` (+1488 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **Thin community `Community 36`** (2 nodes): `constants.py`, `Constants used throughout the ServiceNow MCP server.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 37`** (1 nodes): `Build OR filter for multiple priorities.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 38`** (1 nodes): `Build date range filter for ServiceNow using proper BETWEEN syntax.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 39`** (1 nodes): `Build ServiceNow relative date filter with proper BETWEEN syntax.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 40`** (1 nodes): `Build exclusion filter for multiple IDs using NOT EQUALS.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 41`** (1 nodes): `Build a complete ServiceNow filter string with proper syntax.          Args:`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 42`** (1 nodes): `v4.0 fix: routes via sys_id={sys_id}, not the broken number={sys_id}.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 43`** (1 nodes): `Token-budget invariant: 'critical' returns 7-field curated view, not full row.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 44`** (1 nodes): `Test combined filtering with mocked API call.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 45`** (1 nodes): `Test querying table by text with results.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 46`** (1 nodes): `Search path must build short_descriptionLIKE..., never CONTAINS (invalid in enco`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 47`** (1 nodes): `Test querying table by text with no results.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 48`** (1 nodes): `Test getting record description successfully.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 49`** (1 nodes): `Test getting record description when not found.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 50`** (1 nodes): `Test getting record details successfully.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 51`** (1 nodes): `Test finding similar records successfully.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 52`** (1 nodes): `Test finding similar records when no description found.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 53`** (1 nodes): `Test querying table with filters.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 54`** (1 nodes): `Test querying table with filters returning no results.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 55`** (1 nodes): `Bare reference-field value returning empty attaches a dot-walk hint.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 56`** (1 nodes): `When _make_paginated_request returns exactly max_results, truncated=True.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 57`** (1 nodes): `When _make_paginated_request returns fewer than max_results, truncated=False.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 58`** (1 nodes): `Test getting records by priority.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 59`** (1 nodes): `Test getting records by priority for unsupported table.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 60`** (1 nodes): `Test generic filter querying.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 61`** (1 nodes): `Test intelligent querying with results.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 62`** (1 nodes): `Test intelligent querying with fallback to text search.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 63`** (1 nodes): `Test exception handling in find_similar_records.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 64`** (1 nodes): `Test getting records by priority with additional filters.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 65`** (1 nodes): `Test exception handling in get_records_by_priority.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 66`** (1 nodes): `Test exception handling in query_table_with_generic_filters.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 67`** (1 nodes): `Test that default sort order is injected into paginated requests.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 68`** (1 nodes): `Test that a custom sort directive is respected.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 69`** (1 nodes): `Test that sort is not injected when default_sort is empty.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 70`** (1 nodes): `Test that an existing ORDERBY in the URL is not replaced.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 71`** (1 nodes): `Verify vtb_task works through generic filter (ServiceNow API path).`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 72`** (1 nodes): `sys_updated_on is a DETAIL_FIELDS entry for incident; filter_records         mu`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 73`** (1 nodes): `Write responses have a single-record shape; flattening would corrupt them.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 74`** (1 nodes): `Write must pass ``raise_for_status=True`` so callers map status codes.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 75`** (1 nodes): `Service-catalog tables get sensitive-record exclusions injected automatically.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 76`** (1 nodes): `Toggle on the incident-category gate to confirm both branches wire up.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 77`** (1 nodes): `Test initialization with valid configuration.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 78`** (1 nodes): `Test initialization fails when SERVICENOW_INSTANCE is missing.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 79`** (1 nodes): `Test initialization fails when CLIENT_ID is missing.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 80`** (1 nodes): `Test initialization fails when CLIENT_SECRET is missing.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 81`** (1 nodes): `Test Basic Auth header generation.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 82`** (1 nodes): `Test successful token request.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 83`** (1 nodes): `Test token request with 401 authentication error.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 84`** (1 nodes): `Test token request with 403 authorization error.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 85`** (1 nodes): `Test token request with 500 server error.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 86`** (1 nodes): `Test token request with connection error.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 87`** (1 nodes): `Test token request with timeout error.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 88`** (1 nodes): `Test token request with JSON decode error.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 89`** (1 nodes): `Test getting token when none exists.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 90`** (1 nodes): `Test using cached token when still valid.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 91`** (1 nodes): `Test refreshing token when expired.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 92`** (1 nodes): `Test getting authorization headers.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 93`** (1 nodes): `Test clearing token cache.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 94`** (1 nodes): `Test successful authenticated request.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 95`** (1 nodes): `Test authenticated request with 401 and successful retry.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 96`** (1 nodes): `Test authenticated request with non-401 HTTP error.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 97`** (1 nodes): `Test authenticated request with connection error.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 98`** (1 nodes): `Test authenticated request with timeout.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 99`** (1 nodes): `Test authenticated request with JSON decode error.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 100`** (1 nodes): `Test successful connection test.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 101`** (1 nodes): `Test failed connection test.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 102`** (1 nodes): `Test that get_oauth_client creates instance.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 103`** (1 nodes): `Test that get_oauth_client returns same instance.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 104`** (1 nodes): `Test convenience make_oauth_request function.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 105`** (1 nodes): `Test successful retry with fresh token.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 106`** (1 nodes): `Test retry with fresh token that fails.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 107`** (1 nodes): `retry_with_fresh_token re-raises HTTPStatusError when raise_for_status=True.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 108`** (1 nodes): `raise_for_status=True propagates 4xx/5xx errors instead of returning None.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 109`** (1 nodes): `Test processing successful response.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 110`** (1 nodes): `Test parsing that matches a template.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 111`** (1 nodes): `Test parsing without template match.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 112`** (1 nodes): `Test keyword fallback when no patterns match.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 113`** (1 nodes): `Test parsing with date range.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 114`** (1 nodes): `Test parsing with exclusion patterns.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 115`** (1 nodes): `Test that comma-separated priorities are corrected to OR syntax.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 116`** (1 nodes): `Test that time components are added to dates.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 117`** (1 nodes): `Test that correct filters are not changed.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 118`** (1 nodes): `Test basic intelligent filter building.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 119`** (1 nodes): `Test intelligent filter building with context.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 120`** (1 nodes): `Test build_smart_filter convenience function.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 121`** (1 nodes): `Test build_smart_filter with context.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 122`** (1 nodes): `Test explain_existing_filter convenience function.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 123`** (1 nodes): `Test handling of empty query.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 124`** (1 nodes): `Test handling of whitespace-only query.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 125`** (1 nodes): `Test handling when no keywords can be extracted.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 126`** (1 nodes): `Test successful API request includes all default params.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 127`** (1 nodes): `Test that make_nws_request encodes sysparm_query before sending.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 128`** (1 nodes): `Test API request with error returns None.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 129`** (1 nodes): `POST/PATCH route through oauth_client with raise_for_status=True.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 130`** (1 nodes): `PATCH bubbling HTTPStatusError reaches the caller intact.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 131`** (1 nodes): `Test OAuth connection test with successful result.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 132`** (1 nodes): `Test getting authentication information successfully.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 133`** (1 nodes): `Test successful sys_id retrieval.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 134`** (1 nodes): `Test sys_id retrieval when task not found.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 135`** (1 nodes): `Test sys_id retrieval with no data.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 136`** (1 nodes): `Test sys_id retrieval with invalid response.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 137`** (1 nodes): `Test successful private task creation.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 138`** (1 nodes): `Test task creation fails without short_description.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 139`** (1 nodes): `Test task creation with all optional fields.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 140`** (1 nodes): `Test successful private task update.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 141`** (1 nodes): `Test update fails without update data.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 142`** (1 nodes): `Test update fails when task not found.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 143`** (1 nodes): `Publish a knowledge article via the ServiceNow workflow endpoint.      Runs a`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 144`** (1 nodes): `Lookup meta then check duplicates for one article. Used by check_kb_duplicates f`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 145`** (1 nodes): `Check for duplicate KB articles without publishing.      For each number: look`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 146`** (1 nodes): `Normalize publish_knowledge_article output into a flat batch-result row.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 147`** (1 nodes): `Publish multiple KB articles in one tool call.      Runs full publish flow per`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 148`** (1 nodes): `Retire a knowledge article via the ServiceNow workflow endpoint.      Args:`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 149`** (1 nodes): `Test OAuth environment variable configuration.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 150`** (1 nodes): `Set up test fixtures.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 151`** (1 nodes): `Test that required OAuth environment variables are configured.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 152`** (1 nodes): `Test environment setup with mocked values.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 153`** (1 nodes): `Test that environment variables have expected formats.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 154`** (1 nodes): `Test OAuth client creation and configuration.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 155`** (1 nodes): `Test successful OAuth client creation.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 156`** (1 nodes): `Test OAuth client configuration properties.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 157`** (1 nodes): `Test OAuth client creation fails with missing environment variables.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 158`** (1 nodes): `Test API client integration with OAuth.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 159`** (1 nodes): `Test that get_auth_info correctly detects OAuth configuration.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 160`** (1 nodes): `Test get_auth_info when OAuth credentials are not available.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 161`** (1 nodes): `Test OAuth token retrieval with mocked client.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 162`** (1 nodes): `Test OAuth token handling and validation.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 163`** (1 nodes): `Test validation of valid OAuth token format.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 164`** (1 nodes): `Test validation of malformed OAuth token.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 165`** (1 nodes): `Test token expiration logic.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 166`** (1 nodes): `Test OAuth error handling scenarios.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 167`** (1 nodes): `Test handling of network errors during OAuth.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 168`** (1 nodes): `Test OAuth behavior with invalid credentials.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 169`** (1 nodes): `Regression tests for the double-encoding bug found in E2E: some MCP     clients`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 170`** (1 nodes): `Test task data preparation function.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 171`** (1 nodes): `Test preparing task data with minimal required fields.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 172`** (1 nodes): `Test preparing task data with optional fields.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 173`** (1 nodes): `Test that extra fields not in optional list are ignored.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 174`** (1 nodes): `Test sys_id retrieval function.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 175`** (1 nodes): `Test successful sys_id retrieval.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 176`** (1 nodes): `Test sys_id retrieval when task not found.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 177`** (1 nodes): `Test sys_id retrieval with no data.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 178`** (1 nodes): `Test sys_id retrieval with invalid response.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 179`** (1 nodes): `Test create_private_task function with OAuth authentication.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 180`** (1 nodes): `Test successful private task creation.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 181`** (1 nodes): `Test task creation fails without short_description.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 182`** (1 nodes): `Test task creation with all optional fields.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 183`** (1 nodes): `Test update_private_task function with OAuth authentication.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 184`** (1 nodes): `Test successful private task update.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 185`** (1 nodes): `Test update fails without update data.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 186`** (1 nodes): `Test update fails when task not found.`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 187`** (1 nodes): `utility_tools.py / table_tools.py`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **242 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `make_nws_request()` connect `Community 5` to `Community 3`, `Community 4`, `Community 8`, `Community 11`, `Community 22`?**
-  _High betweenness centrality (0.169) - this node is a cross-community bridge._
-- **Why does `Test package for ServiceNow MCP server.  This package contains unittest-based` connect `Community 13` to `Community 0`, `Community 3`, `Community 4`, `Community 14`?**
-  _High betweenness centrality (0.116) - this node is a cross-community bridge._
-- **Why does `query_table_with_filters()` connect `Community 3` to `Community 0`, `Community 9`, `Community 16`, `Community 7`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+- **Why does `make_nws_request()` connect `Community 37` to `Community 2`, `Community 4`, `Community 10`, `Community 20`, `Community 30`, `Community 158`, `Community 160`, `Community 159`, `Community 35`, `Community 50`, `Community 53`, `Community 75`, `Community 79`, `Community 80`, `Community 86`, `Community 94`, `Community 100`, `Community 106`, `Community 107`, `Community 117`?**
+  _High betweenness centrality (0.189) - this node is a cross-community bridge._
+- **Why does `Test package for ServiceNow MCP server.  This package contains unittest-based` connect `Community 8` to `Community 2`, `Community 5`, `Community 15`, `Community 16`, `Community 22`, `Community 91`?**
+  _High betweenness centrality (0.136) - this node is a cross-community bridge._
+- **Why does `ServiceNowOAuthClient` connect `Community 2` to `Community 33`, `Community 101`, `Community 5`, `Community 8`, `Community 75`, `Community 122`, `Community 126`?**
+  _High betweenness centrality (0.107) - this node is a cross-community bridge._
 - **Are the 76 inferred relationships involving `QueryValidationResult` (e.g. with `QueryIntelligence` and `Natural-language to ServiceNow filter conversion.  Pure NL parsing — does not`) actually correct?**
   _`QueryValidationResult` has 76 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 47 inferred relationships involving `ServiceNowOAuthClient` (e.g. with `RequestExecutor` and `Module-level OAuth client singleton + convenience request helpers.  Canonical`) actually correct?**
+- **Are the 47 inferred relationships involving `ServiceNowOAuthClient` (e.g. with `Test package for ServiceNow MCP server.  This package contains unittest-based` and `RequestExecutor`) actually correct?**
   _`ServiceNowOAuthClient` has 47 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 44 inferred relationships involving `RequestExecutor` (e.g. with `ServiceNowOAuthClient` and `ServiceNowOAuthClient — orchestrator façade.  Composes ``TokenStore`` + ``Requ`) actually correct?**
-  _`RequestExecutor` has 44 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 33 inferred relationships involving `make_nws_request()` (e.g. with `ensure_query_encoded()` and `add_default_params()`) actually correct?**
-  _`make_nws_request()` has 33 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 46 inferred relationships involving `RequestExecutor` (e.g. with `ServiceNowOAuthClient` and `TestHandleKbError`) actually correct?**
+  _`RequestExecutor` has 46 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 38 inferred relationships involving `ServiceNowOAuthClient` (e.g. with `RequestExecutor` and `get_oauth_client()`) actually correct?**
+  _`ServiceNowOAuthClient` has 38 INFERRED edges - model-reasoned connections that need verification._

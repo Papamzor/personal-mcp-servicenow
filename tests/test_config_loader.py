@@ -32,14 +32,29 @@ class TestLoadConfig:
 
         with patch.dict(os.environ, {
             'SERVICENOW_INSTANCE': 'env-instance.service-now.com',
-            'SERVICENOW_AUTH_TYPE': 'basic',
-            'SERVICENOW_USERNAME': 'env-user',
-            'SERVICENOW_PASSWORD': 'env-pass'
+            'SERVICENOW_AUTH_TYPE': 'oauth',
+            'SERVICENOW_CLIENT_ID': 'env-client-id',
+            'SERVICENOW_CLIENT_SECRET': 'env-secret'
         }):
             config = load_config()
             assert config['instance'] == 'env-instance.service-now.com'
-            assert config['auth_type'] == 'basic'
-            assert config['username'] == 'env-user'
+            assert config['auth_type'] == 'oauth'
+            assert config['client_id'] == 'env-client-id'
+
+    def test_basic_auth_env_vars_not_loaded(self):
+        """Basic auth credentials are no longer part of the config surface."""
+        from config_loader import load_config
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch('config_loader.get_config_dir', return_value=tmpdir):
+                with patch.dict(os.environ, {
+                    'SERVICENOW_INSTANCE': 'env-instance.service-now.com',
+                    'SERVICENOW_USERNAME': 'env-user',
+                    'SERVICENOW_PASSWORD': 'env-pass'
+                }):
+                    config = load_config()
+                    assert 'username' not in config
+                    assert 'password' not in config
 
     def test_config_file_loading(self):
         """Should load from config file when env vars not set."""
@@ -79,23 +94,35 @@ class TestValidateConfig:
         # Should not raise
         validate_config(config)
 
-    def test_valid_basic_config(self):
+    def test_auth_type_defaults_to_oauth(self):
+        """Omitted auth_type validates as OAuth, not basic."""
         from config_loader import validate_config
+        config = {
+            'instance': 'test.service-now.com',
+            'client_id': 'abc123',
+            'client_secret': 'secret'
+        }
+        # Should not raise
+        validate_config(config)
+
+    def test_basic_auth_type_rejected(self):
+        """Basic auth is unusable by every request path — reject it loudly."""
+        from config_loader import validate_config, ConfigError
         config = {
             'instance': 'test.service-now.com',
             'auth_type': 'basic',
             'username': 'user',
             'password': 'pass'
         }
-        # Should not raise
-        validate_config(config)
+        with pytest.raises(ConfigError, match="Unsupported 'auth_type'"):
+            validate_config(config)
 
     def test_missing_instance_raises(self):
         from config_loader import validate_config, ConfigError
         config = {
-            'auth_type': 'basic',
-            'username': 'user',
-            'password': 'pass'
+            'auth_type': 'oauth',
+            'client_id': 'abc123',
+            'client_secret': 'secret'
         }
         with pytest.raises(ConfigError, match='instance'):
             validate_config(config)
@@ -108,4 +135,14 @@ class TestValidateConfig:
             'client_secret': 'secret'
         }
         with pytest.raises(ConfigError, match='client_id'):
+            validate_config(config)
+
+    def test_oauth_missing_client_secret_raises(self):
+        from config_loader import validate_config, ConfigError
+        config = {
+            'instance': 'test.service-now.com',
+            'auth_type': 'oauth',
+            'client_id': 'abc123'
+        }
+        with pytest.raises(ConfigError, match='client_secret'):
             validate_config(config)
