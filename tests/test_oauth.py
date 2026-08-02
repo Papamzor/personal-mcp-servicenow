@@ -17,6 +17,8 @@ import sys
 # Add the project root to the path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from oauth.exceptions import ServiceNowConnectionError
+
 
 class TestOAuthEnvironmentSetup(unittest.TestCase):
     """Test OAuth environment variable configuration."""
@@ -109,7 +111,7 @@ class TestOAuthClientCreation(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             try:
                 from oauth import ServiceNowOAuthClient
-                with self.assertRaises(Exception):
+                with self.assertRaises(ValueError):
                     ServiceNowOAuthClient()
             except ImportError:
                 self.skipTest("oauth_client module not available")
@@ -242,17 +244,17 @@ class TestOAuthErrorHandling(unittest.TestCase):
     def test_oauth_network_error_handling(self, mock_oauth_client):
         """Test handling of network errors during OAuth."""
         mock_client_instance = MagicMock()
-        mock_client_instance.get_token.side_effect = Exception("Network error")
+        mock_client_instance.get_token.side_effect = ServiceNowConnectionError("Network error")
         mock_oauth_client.return_value = mock_client_instance
-        
+
         try:
             from oauth import ServiceNowOAuthClient
-            
+
             client = ServiceNowOAuthClient()
-            
-            with self.assertRaises(Exception) as context:
+
+            with self.assertRaises(ServiceNowConnectionError) as context:
                 client.get_token()
-            
+
             self.assertIn("Network error", str(context.exception))
             
         except ImportError:

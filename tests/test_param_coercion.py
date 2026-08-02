@@ -7,7 +7,7 @@ validate tool arguments, so these tests exercise the real coercion path.
 import json
 
 import pytest
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 
 from param_coercion import JsonDict, JsonList, OptJsonDict, OptJsonList
 
@@ -20,12 +20,14 @@ class TestJsonList:
         assert TypeAdapter(JsonList).validate_python(["a"]) == ["a"]
 
     def test_stringified_json_object_raises(self):
-        with pytest.raises(Exception):
-            TypeAdapter(JsonList).validate_python('{"k":"v"}')
+        adapter = TypeAdapter(JsonList)
+        with pytest.raises(ValidationError):
+            adapter.validate_python('{"k":"v"}')
 
     def test_malformed_json_string_raises(self):
-        with pytest.raises(Exception):
-            TypeAdapter(JsonList).validate_python("not json")
+        adapter = TypeAdapter(JsonList)
+        with pytest.raises(ValidationError):
+            adapter.validate_python("not json")
 
 
 class TestOptJsonList:
@@ -39,12 +41,14 @@ class TestOptJsonList:
         assert TypeAdapter(OptJsonList).validate_python(["z"]) == ["z"]
 
     def test_stringified_json_object_raises(self):
-        with pytest.raises(Exception):
-            TypeAdapter(OptJsonList).validate_python('{"k":"v"}')
+        adapter = TypeAdapter(OptJsonList)
+        with pytest.raises(ValidationError):
+            adapter.validate_python('{"k":"v"}')
 
     def test_malformed_json_string_raises(self):
-        with pytest.raises(Exception):
-            TypeAdapter(OptJsonList).validate_python("not json")
+        adapter = TypeAdapter(OptJsonList)
+        with pytest.raises(ValidationError):
+            adapter.validate_python("not json")
 
 
 class TestJsonDict:
@@ -55,12 +59,14 @@ class TestJsonDict:
         assert TypeAdapter(JsonDict).validate_python({"a": 1}) == {"a": 1}
 
     def test_stringified_json_array_raises(self):
-        with pytest.raises(Exception):
-            TypeAdapter(JsonDict).validate_python('["a","b"]')
+        adapter = TypeAdapter(JsonDict)
+        with pytest.raises(ValidationError):
+            adapter.validate_python('["a","b"]')
 
     def test_malformed_json_string_raises(self):
-        with pytest.raises(Exception):
-            TypeAdapter(JsonDict).validate_python("not json")
+        adapter = TypeAdapter(JsonDict)
+        with pytest.raises(ValidationError):
+            adapter.validate_python("not json")
 
 
 class TestOptJsonDict:
@@ -74,12 +80,14 @@ class TestOptJsonDict:
         assert TypeAdapter(OptJsonDict).validate_python({"a": 1}) == {"a": 1}
 
     def test_stringified_json_array_raises(self):
-        with pytest.raises(Exception):
-            TypeAdapter(OptJsonDict).validate_python('["a","b"]')
+        adapter = TypeAdapter(OptJsonDict)
+        with pytest.raises(ValidationError):
+            adapter.validate_python('["a","b"]')
 
     def test_malformed_json_string_raises(self):
-        with pytest.raises(Exception):
-            TypeAdapter(OptJsonDict).validate_python("not json")
+        adapter = TypeAdapter(OptJsonDict)
+        with pytest.raises(ValidationError):
+            adapter.validate_python("not json")
 
 
 class TestDoubleEncoding:
@@ -100,9 +108,11 @@ class TestDoubleEncoding:
         assert TypeAdapter(JsonList).validate_python(json.dumps(["a"])) == ["a"]
 
     def test_malformed_not_json_at_all_raises(self):
-        with pytest.raises(Exception):
-            TypeAdapter(JsonList).validate_python("not json at all")
+        adapter = TypeAdapter(JsonList)
+        with pytest.raises(ValidationError):
+            adapter.validate_python("not json at all")
 
     def test_malformed_dict_where_array_expected_raises(self):
-        with pytest.raises(Exception):
-            TypeAdapter(JsonList).validate_python('{"k":"v"}')
+        adapter = TypeAdapter(JsonList)
+        with pytest.raises(ValidationError):
+            adapter.validate_python('{"k":"v"}')

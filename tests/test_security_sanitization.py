@@ -49,8 +49,10 @@ async def test_auth_rejects_wrong_token(monkeypatch):
         "fastmcp.server.dependencies.get_http_headers",
         lambda: {"authorization": "Bearer wrong"},
     )
+    middleware = AuthMiddleware()
+    ctx = _Ctx()
     with pytest.raises(PermissionError, match=MCP_AUTH_REJECTED):
-        await AuthMiddleware().on_call_tool(_Ctx(), _call_next)
+        await middleware.on_call_tool(ctx, _call_next)
 
 
 @pytest.mark.asyncio
@@ -59,8 +61,10 @@ async def test_auth_rejects_missing_header(monkeypatch):
     monkeypatch.setattr(
         "fastmcp.server.dependencies.get_http_headers", lambda: {}
     )
+    middleware = AuthMiddleware()
+    ctx = _Ctx()
     with pytest.raises(PermissionError):
-        await AuthMiddleware().on_call_tool(_Ctx(), _call_next)
+        await middleware.on_call_tool(ctx, _call_next)
 
 
 # --- H-4: audit PII summarization ------------------------------------------

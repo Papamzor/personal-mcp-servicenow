@@ -219,7 +219,8 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
 
     Args:
         article_number: The KB article number.
-        update_data: Fields to update (e.g. short_description, text, kb_category).
+        update_data: Fields to update (e.g. short_description, text,
+            kb_category, meta, meta_description).
 
     Returns:
         Updated article record dict, or error string on failure.
