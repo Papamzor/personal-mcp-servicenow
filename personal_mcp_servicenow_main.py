@@ -56,19 +56,10 @@ def run_setup():
 
     config['instance'] = input("ServiceNow instance URL (e.g., company.service-now.com): ").strip()
 
-    print("\nAuthentication type:")
-    print("  1. OAuth (recommended)")
-    print("  2. Basic auth")
-    auth_choice = input("Choose [1/2]: ").strip()
-
-    if auth_choice == '1':
-        config['auth_type'] = 'oauth'
-        config['client_id'] = input("OAuth Client ID: ").strip()
-        config['client_secret'] = getpass.getpass("OAuth Client Secret: ").strip()
-    else:
-        config['auth_type'] = 'basic'
-        config['username'] = input("Username: ").strip()
-        config['password'] = getpass.getpass("Password: ").strip()
+    print("\nAuthentication: OAuth 2.0 client credentials (only supported method).")
+    config['auth_type'] = 'oauth'
+    config['client_id'] = input("OAuth Client ID: ").strip()
+    config['client_secret'] = getpass.getpass("OAuth Client Secret: ").strip()
 
     save_config(config)
     print(f"\nConfiguration saved to: {get_config_file_path()}")

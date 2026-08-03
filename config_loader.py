@@ -7,11 +7,9 @@ Supports loading credentials from:
 
 Environment variables:
 - SERVICENOW_INSTANCE: ServiceNow instance URL
-- SERVICENOW_AUTH_TYPE: 'oauth' or 'basic'
+- SERVICENOW_AUTH_TYPE: 'oauth' (only supported value; optional)
 - SERVICENOW_CLIENT_ID: OAuth client ID
 - SERVICENOW_CLIENT_SECRET: OAuth client secret
-- SERVICENOW_USERNAME: Basic auth username
-- SERVICENOW_PASSWORD: Basic auth password
 """
 import os
 import json
@@ -51,8 +49,6 @@ def load_config_from_env() -> Dict[str, Any]:
         'SERVICENOW_AUTH_TYPE': 'auth_type',
         'SERVICENOW_CLIENT_ID': 'client_id',
         'SERVICENOW_CLIENT_SECRET': 'client_secret',
-        'SERVICENOW_USERNAME': 'username',
-        'SERVICENOW_PASSWORD': 'password',
     }
 
     for env_var, config_key in env_mapping.items():
@@ -107,27 +103,22 @@ def validate_config(config: Dict[str, Any]) -> None:
             "Missing 'instance'. Set SERVICENOW_INSTANCE env var or add to config file."
         )
 
-    auth_type = config.get('auth_type', 'basic')
+    auth_type = config.get('auth_type', 'oauth')
 
-    if auth_type == 'oauth':
-        if not config.get('client_id'):
-            raise ConfigError(
-                "OAuth requires 'client_id'. Set SERVICENOW_CLIENT_ID env var or add to config file."
-            )
-        if not config.get('client_secret'):
-            raise ConfigError(
-                "OAuth requires 'client_secret'. Set SERVICENOW_CLIENT_SECRET env var or add to config file."
-            )
-    else:
-        # basic auth
-        if not config.get('username'):
-            raise ConfigError(
-                "Basic auth requires 'username'. Set SERVICENOW_USERNAME env var or add to config file."
-            )
-        if not config.get('password'):
-            raise ConfigError(
-                "Basic auth requires 'password'. Set SERVICENOW_PASSWORD env var or add to config file."
-            )
+    if auth_type != 'oauth':
+        raise ConfigError(
+            f"Unsupported 'auth_type': {auth_type!r}. Only 'oauth' is supported — "
+            "no ServiceNow request path can authenticate any other way."
+        )
+
+    if not config.get('client_id'):
+        raise ConfigError(
+            "OAuth requires 'client_id'. Set SERVICENOW_CLIENT_ID env var or add to config file."
+        )
+    if not config.get('client_secret'):
+        raise ConfigError(
+            "OAuth requires 'client_secret'. Set SERVICENOW_CLIENT_SECRET env var or add to config file."
+        )
 
 
 def save_config(config: Dict[str, Any]) -> None:
@@ -139,7 +130,7 @@ def save_config(config: Dict[str, Any]) -> None:
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=2)
 
-    # Restrict access: the file holds client_secret / password in plaintext.
+    # Restrict access: the file holds client_secret in plaintext.
     if platform.system() != 'Windows':
         os.chmod(config_path, 0o600)
     else:
@@ -177,19 +168,14 @@ def get_setup_instructions() -> str:
 MCP ServiceNow Configuration Required
 =====================================
 
+Authentication is OAuth 2.0 client credentials only.
+
 Option 1: Environment Variables
 -------------------------------
 Set these environment variables:
   SERVICENOW_INSTANCE=your-instance.service-now.com
-  SERVICENOW_AUTH_TYPE=oauth  (or 'basic')
-
-  For OAuth:
-    SERVICENOW_CLIENT_ID=your-client-id
-    SERVICENOW_CLIENT_SECRET=your-client-secret
-
-  For Basic Auth:
-    SERVICENOW_USERNAME=your-username
-    SERVICENOW_PASSWORD=your-password
+  SERVICENOW_CLIENT_ID=your-client-id
+  SERVICENOW_CLIENT_SECRET=your-client-secret
 
 Option 2: Config File
 ---------------------
