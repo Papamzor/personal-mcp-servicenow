@@ -38,11 +38,14 @@ DEFAULT_CI_PROBE_TABLES = [
 # A ci_type is interpolated into the REST URL path, so it is validated by
 # shape rather than against a static class list. The old static CI_TABLES
 # list drifted from real instances and rejected valid common types; a
-# genuinely unknown table simply returns no rows. The anchored pattern also
-# stops a value like "cmdb_ci_server?sysparm_limit=9999" — which passes a
-# bare startswith("cmdb_ci") check — from smuggling query parameters into
-# the path.
-_CI_TYPE_PATTERN = re.compile(r'^cmdb_ci[a-z0-9_]*$')
+# genuinely unknown table simply returns no rows. The pattern also stops a
+# value like "cmdb_ci_server?sysparm_limit=9999" — which passes a bare
+# startswith("cmdb_ci") check — from smuggling query parameters into the path.
+#
+# Matched with fullmatch(), not match(): Python's `$` also matches immediately
+# before a single trailing newline, so match() would accept
+# "cmdb_ci_server\n". fullmatch() requires the whole string to be consumed.
+_CI_TYPE_PATTERN = re.compile(r'cmdb_ci[a-z0-9_]*')
 
 
 def _ci_type_error(ci_type: str) -> Optional[str]:
@@ -53,7 +56,7 @@ def _ci_type_error(ci_type: str) -> Optional[str]:
     to another table: silently querying base cmdb_ci (or every table) returns
     rows the caller did not ask for, with nothing in the response to say so.
     """
-    if not _CI_TYPE_PATTERN.match(ci_type):
+    if not _CI_TYPE_PATTERN.fullmatch(ci_type):
         return INVALID_CI_TYPE.format(ci_type=ci_type)
     return None
 

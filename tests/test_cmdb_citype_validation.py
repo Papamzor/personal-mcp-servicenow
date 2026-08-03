@@ -23,21 +23,34 @@ from Table_Tools.cmdb_tools import (
 )
 
 
-class _Capture:
-    """Records every URL passed to make_nws_request and returns a canned payload."""
+def _table_of(url):
+    """Table segment of a ServiceNow Table API URL."""
+    return url.split("/api/now/table/")[1].split("?")[0]
 
-    def __init__(self, payload=None):
+
+class _Capture:
+    """Records every URL passed to make_nws_request and returns a canned payload.
+
+    `per_table` lets a test answer differently per table, which is what makes
+    the concurrent multi-table probe in get_ci_details testable — a single
+    canned payload cannot express "empty, empty, hit".
+    """
+
+    def __init__(self, payload=None, per_table=None):
         self.urls = []
         self.payload = payload if payload is not None else {"result": []}
+        self.per_table = per_table or {}
 
     async def __call__(self, url, *args, **kwargs):
         self.urls.append(url)
+        if self.per_table:
+            return self.per_table.get(_table_of(url), {"result": []})
         return self.payload
 
     @property
     def tables(self):
         """Table segment of each captured URL."""
-        return [url.split("/api/now/table/")[1].split("?")[0] for url in self.urls]
+        return [_table_of(url) for url in self.urls]
 
 
 class TestCiTypePolicy:
@@ -64,6 +77,8 @@ class TestCiTypePolicy:
         "cmdb_ci_server?sysparm_limit=9999",   # query-param smuggling
         "cmdb_ci_server/../sys_user",          # path traversal
         "cmdb_ci_server&sysparm_fields=x",
+        "cmdb_ci_server\n",                    # `$` matches before a trailing \n
+        "cmdb_ci_server\nX",
         "",
     ])
     def test_unusable_types_rejected(self, ci_type):
@@ -72,10 +87,20 @@ class TestCiTypePolicy:
         assert "Invalid CI type" in error
 
     def test_startswith_alone_would_not_have_caught_the_injection(self):
-        """The old bare prefix check accepted this; the anchored pattern does not."""
+        """The old bare prefix check accepted this; the shape check does not."""
         smuggled = "cmdb_ci_server?sysparm_limit=9999"
         assert smuggled.startswith("cmdb_ci")
         assert _ci_type_error(smuggled) is not None
+
+    def test_trailing_newline_rejected_where_dollar_anchor_would_allow_it(self):
+        """re.match with `$` accepts one trailing newline; fullmatch does not."""
+        import re
+
+        from Table_Tools.cmdb_tools import _CI_TYPE_PATTERN
+
+        assert re.match(r'^cmdb_ci[a-z0-9_]*$', "cmdb_ci_server\n") is not None
+        assert _CI_TYPE_PATTERN.fullmatch("cmdb_ci_server\n") is None
+        assert _ci_type_error("cmdb_ci_server\n") is not None
 
 
 class TestSearchCisByAttributes:
@@ -185,6 +210,48 @@ class TestGetCiDetails:
 
         assert result == "CI number is required"
         assert capture.urls == []
+
+    @pytest.mark.asyncio
+    async def test_hit_on_a_later_table_reports_that_table(self):
+        """The concurrent probe must pair each row with the table it came from.
+
+        The probes run under asyncio.gather with a semaphore, so completion
+        order is not dispatch order. `zip(tables_to_search, rows)` is what keeps
+        the reported ci_table correct; without a per-table payload this path had
+        no coverage at all and an order-insensitive refactor would misreport it.
+        """
+        capture = _Capture(per_table={
+            "cmdb_ci_database": {"result": [{"number": "DB0001", "name": "prod-db"}]},
+        })
+        with patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
+            result = await get_ci_details("DB0001")
+
+        assert result["ci_table"] == "cmdb_ci_database"
+        assert result["ci_number"] == "DB0001"
+        assert result["result"]["name"] == "prod-db"
+
+    @pytest.mark.asyncio
+    async def test_most_specific_table_wins_when_several_match(self):
+        """Probe order is a priority order: the earliest matching table wins."""
+        capture = _Capture(per_table={
+            "cmdb_ci_server": {"result": [{"number": "SRV0001", "name": "from-server"}]},
+            "cmdb_ci_database": {"result": [{"number": "SRV0001", "name": "from-database"}]},
+            "cmdb_ci": {"result": [{"number": "SRV0001", "name": "from-base"}]},
+        })
+        with patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
+            result = await get_ci_details("SRV0001")
+
+        assert result["ci_table"] == "cmdb_ci_server"
+        assert result["result"]["name"] == "from-server"
+
+    @pytest.mark.asyncio
+    async def test_no_table_matching_reports_not_found(self):
+        capture = _Capture()
+        with patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
+            result = await get_ci_details("NOPE0001")
+
+        assert "NOPE0001" in result
+        assert "not found" in result.lower()
 
 
 class TestGetAllCiTypesLabelling:
