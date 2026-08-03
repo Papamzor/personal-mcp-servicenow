@@ -118,16 +118,16 @@ graph TB
 - **exceptions**: OAuth / Authentication / Connection / Authorization
 
 ### Configuration
-- `constants.py`: `TABLE_CONFIGS`, `ESSENTIAL_FIELDS`, `DETAIL_FIELDS`, error strings, category filters
+- `constants.py`: `TABLE_CONFIGS`, `ESSENTIAL_FIELDS`, `DETAIL_FIELDS`, error strings
 - Env vars or `~/.config/mcp-servicenow/config.json` via `config_loader.py`
 
 ## Supported tables
 
 | Table | Prefix / notes |
 |-------|----------------|
-| `incident` | INC; optional category exclusion |
+| `incident` | INC |
 | `change_request` | CHG |
-| `sc_req_item` | RITM; optional catalog exclusion |
+| `sc_req_item` | RITM |
 | `sc_task` | SCTASK |
 | `universal_request` | UR |
 | `kb_knowledge` | KB; no priority field |

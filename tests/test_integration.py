@@ -128,14 +128,27 @@ class TestReadPipelineEndToEnd:
         assert "error" in result
         assert "Invalid table" in result["error"]
 
-    @pytest.mark.asyncio
-    async def test_filter_records_sends_only_caller_supplied_conditions(self):
-        """No implicit exclusions are appended to a caller's query.
+    @staticmethod
+    def _sysparm_query(url: str) -> str:
+        """The decoded sysparm_query value from a captured request URL."""
+        from urllib.parse import parse_qs, unquote, urlsplit
 
-        Domain filtering was deleted in v4.4 — the query that reaches
-        ServiceNow must carry exactly what the caller asked for and nothing
-        else. Guards against a well-meaning re-introduction of category or
-        catalog fences.
+        raw = parse_qs(urlsplit(url).query).get("sysparm_query", [""])[0]
+        return unquote(raw)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("table,filters,expected_query", [
+        ("sc_req_item", {"state": "1"}, "state=1"),
+        ("incident", {"priority": "1"}, "priority=1"),
+    ])
+    async def test_query_is_exactly_the_caller_conditions(self, table, filters, expected_query):
+        """The outbound query equals the caller's conditions — nothing appended.
+
+        Domain filtering was deleted in v4.4. Asserting *equality* rather than
+        the absence of specific substrings is deliberate: a substring check only
+        catches a re-introduction that reuses the old field names, while this
+        fails on any appended condition whatsoever, under any field or operator.
+        The trailing ORDERBYDESC is the pagination sort, not a filter.
         """
         from Table_Tools.generic_tool_wrappers import filter_records
 
@@ -146,29 +159,42 @@ class TestReadPipelineEndToEnd:
             return {"result": []}
 
         with patch("http_layer.request_dispatcher.make_oauth_request", new=fake_oauth_request):
-            await filter_records("sc_req_item", {"state": "1"})
+            await filter_records(table, filters)
 
-        url = captured["url"]
-        assert "state=1" in url
-        assert "cat_item.sc_catalogs.title" not in url
-        assert "assignment_group.name!=" not in url
+        query = self._sysparm_query(captured["url"])
+        conditions = query.split("^ORDERBY")[0]
+        assert conditions == expected_query
 
     @pytest.mark.asyncio
-    async def test_incident_query_carries_no_category_exclusions(self):
+    async def test_every_returned_row_reaches_the_caller(self):
+        """Nothing is dropped after the response comes back.
+
+        The URL assertions above cannot see a post-response exclusion — a
+        re-introduction that filtered `all_results` in Python would leave the
+        request untouched and pass every query-shape check. Rows whose category
+        and catalog match the old exclusion lists are returned here, so any
+        such filter shows up as a missing row.
+        """
         from Table_Tools.generic_tool_wrappers import filter_records
 
-        captured = {}
+        rows = [
+            {"number": "RITM0001", "category": "Payroll",
+             "cat_item.sc_catalogs.title": "People_Pay"},
+            {"number": "RITM0002", "category": "People Support",
+             "assignment_group": "Payroll Managers"},
+            {"number": "RITM0003", "category": "Workplace"},
+            {"number": "RITM0004", "category": "Network"},
+        ]
 
         async def fake_oauth_request(url):
-            captured["url"] = url
-            return {"result": []}
+            return {"result": rows}
 
         with patch("http_layer.request_dispatcher.make_oauth_request", new=fake_oauth_request):
-            await filter_records("incident", {"priority": "1"})
+            result = await filter_records("sc_req_item", {"state": "1"})
 
-        url = captured["url"]
-        assert "priority=1" in url
-        assert "category!=" not in url
+        returned = [row["number"] for row in result["result"]]
+        assert returned == ["RITM0001", "RITM0002", "RITM0003", "RITM0004"]
+        assert result["returned_count"] == 4
 
 
 # ---------------------------------------------------------------------------
