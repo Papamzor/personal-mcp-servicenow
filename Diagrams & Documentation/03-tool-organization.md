@@ -93,8 +93,7 @@ graph TB
 
     DELEGATE --> KW[extract_keywords]
     KW --> ORQ["One OR-combined LIKE query<br/>short_descriptionLIKEa^ORshort_descriptionLIKEb"]
-    ORQ --> DOM[_apply_domain_filters<br/>category / catalog exclusions]
-    DOM --> PAG[_make_paginated_request<br/>ORDERBYDESC sys_created_on]
+    ORQ --> PAG[_make_paginated_request<br/>ORDERBYDESC sys_created_on]
     PAG --> REQ[make_nws_request GET]
     REQ --> URL[url_builder + response_parser]
     URL --> SN[ServiceNow]

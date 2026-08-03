@@ -23,8 +23,7 @@ flowchart TD
     H -->|No| L[No records / empty result]
     H -->|Yes| ORQ["Build single query:<br/>short_descriptionLIKEk1^ORshort_descriptionLIKEk2…"]
 
-    ORQ --> CAT[_apply_domain_filters<br/>incident category / SC catalog]
-    CAT --> PAG
+    ORQ --> PAG
     R --> PAG
 
     PAG[_make_paginated_request]

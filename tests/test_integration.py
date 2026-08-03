@@ -129,13 +129,13 @@ class TestReadPipelineEndToEnd:
         assert "Invalid table" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_filter_records_applies_sc_catalog_filter(self):
-        """Service-catalog tables get sensitive-record exclusions injected automatically.
+    async def test_filter_records_sends_only_caller_supplied_conditions(self):
+        """No implicit exclusions are appended to a caller's query.
 
-        ENABLE_SC_CATALOG_FILTERING is True by default, so a request against
-        sc_req_item should always include the People_Pay catalog exclusion
-        and the assignment-group exclusions, regardless of caller-supplied
-        filters.
+        Domain filtering was deleted in v4.4 — the query that reaches
+        ServiceNow must carry exactly what the caller asked for and nothing
+        else. Guards against a well-meaning re-introduction of category or
+        catalog fences.
         """
         from Table_Tools.generic_tool_wrappers import filter_records
 
@@ -149,15 +149,12 @@ class TestReadPipelineEndToEnd:
             await filter_records("sc_req_item", {"state": "1"})
 
         url = captured["url"]
-        # Catalog and assignment-group exclusions are appended by the SDK
-        assert "cat_item.sc_catalogs.title!=People_Pay" in url
-        assert "assignment_group.name!=" in url
-        # Caller-supplied filter still present
         assert "state=1" in url
+        assert "cat_item.sc_catalogs.title" not in url
+        assert "assignment_group.name!=" not in url
 
     @pytest.mark.asyncio
-    async def test_filter_records_skips_category_filter_when_flag_off(self):
-        """Toggle on the incident-category gate to confirm both branches wire up."""
+    async def test_incident_query_carries_no_category_exclusions(self):
         from Table_Tools.generic_tool_wrappers import filter_records
 
         captured = {}
@@ -166,12 +163,12 @@ class TestReadPipelineEndToEnd:
             captured["url"] = url
             return {"result": []}
 
-        with patch("http_layer.request_dispatcher.make_oauth_request", new=fake_oauth_request), \
-             patch("Table_Tools.generic_table_tools.ENABLE_INCIDENT_CATEGORY_FILTERING", True):
+        with patch("http_layer.request_dispatcher.make_oauth_request", new=fake_oauth_request):
             await filter_records("incident", {"priority": "1"})
 
         url = captured["url"]
-        assert "category!=Payroll" in url
+        assert "priority=1" in url
+        assert "category!=" not in url
 
 
 # ---------------------------------------------------------------------------
