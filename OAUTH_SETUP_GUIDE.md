@@ -69,13 +69,9 @@ Create or update your `.env` file with OAuth credentials:
 # ServiceNow Instance Configuration
 SERVICENOW_INSTANCE=https://your-instance.service-now.com
 
-# OAuth 2.0 Configuration (NEW - Primary)
+# OAuth 2.0 Configuration (the only supported method)
 SERVICENOW_CLIENT_ID=your_client_id_from_step2
 SERVICENOW_CLIENT_SECRET=your_client_secret_from_step2
-
-# Basic Auth Configuration (Fallback - Optional)
-SERVICENOW_USERNAME=your_username
-SERVICENOW_PASSWORD=your_password
 ```
 
 ### Step 2: Install Additional Dependencies
@@ -87,9 +83,8 @@ No additional package installations are required beyond existing dependencies.
 ### Step 3: Verify Configuration
 
 The application will automatically:
-1. **Prefer OAuth**: Use OAuth 2.0 if `SERVICENOW_CLIENT_ID` and `SERVICENOW_CLIENT_SECRET` are set
-2. **Fallback to Basic Auth**: Use username/password if OAuth credentials are missing
-3. **Automatic Token Management**: Handle token expiration and refresh automatically
+1. **Require OAuth**: `SERVICENOW_CLIENT_ID` and `SERVICENOW_CLIENT_SECRET` must both be set — startup fails otherwise
+2. **Automatic Token Management**: Handle token expiration and refresh automatically
 
 ## Part 3: Testing Your Setup
 
@@ -131,8 +126,7 @@ await similar_incidents_for_text("test query")
 The OAuth client automatically:
 - **Caches tokens** until 5 minutes before expiration
 - **Refreshes tokens** automatically when needed
-- **Handles 401 errors** by requesting new tokens
-- **Falls back** to basic auth if OAuth fails
+- **Handles 401 errors** by requesting new tokens once, then surfaces the failure
 
 ## Part 4: Security Considerations
 
@@ -171,10 +165,11 @@ The OAuth client automatically:
 - **Solution**: Check OAuth Application User has necessary roles/permissions
 - **Verify**: User account is active and not locked out
 
-#### OAuth falls back to Basic Auth
+#### "Missing OAuth configuration"
 - **Check**: Environment variables are properly set
 - **Verify**: No typos in `SERVICENOW_CLIENT_ID` or `SERVICENOW_CLIENT_SECRET`
 - **Test**: Use `await now_auth_info()` to verify OAuth configuration
+- **Note**: There is no basic-auth fallback. `auth_type` values other than `oauth` are rejected at config validation.
 
 ### Debug Information
 
@@ -183,7 +178,6 @@ Use the `now_auth_info()` tool to get current authentication status:
 ```json
 {
     "oauth_enabled": true,
-    "basic_auth_available": true, 
     "instance_url": "https://your-instance.service-now.com",
     "auth_method": "oauth"
 }
@@ -207,10 +201,9 @@ Create separate OAuth Application Registry records for:
 
 ### Backup Authentication
 
-The implementation maintains Basic Auth as fallback:
-- OAuth credentials invalid → Falls back to username/password
-- Useful during OAuth setup/debugging phase
-- Remove Basic Auth credentials once OAuth is confirmed working
+None. OAuth 2.0 client credentials is the only authentication path — there is no
+username/password fallback, and no request path can use one. Keep a second OAuth
+Application Registry record if you need a break-glass credential.
 
 ## Advanced Configuration
 
@@ -235,6 +228,6 @@ Add specific OAuth scopes in ServiceNow OAuth Entity Scopes for more granular pe
 1. **Week 1**: Set up OAuth in ServiceNow and test in development
 2. **Week 2**: Deploy OAuth configuration to testing environment  
 3. **Week 3**: Validate all functionality with OAuth in testing
-4. **Week 4**: Deploy to production and remove Basic Auth fallback
+4. **Week 4**: Deploy to production
 
 This gradual approach ensures zero downtime during the security upgrade.
