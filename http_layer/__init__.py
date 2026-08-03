@@ -15,6 +15,12 @@ Public API:
 The module-level singleton (``get_oauth_client`` / ``make_oauth_request``)
 continues to live in ``oauth_client.py`` (an oauth-layer shim).
 """
+from http_layer.errors import (
+    ALL_ERROR_CODES,
+    ErrorCode,
+    ServiceNowRequestError,
+    classify_read_failure,
+)
 from http_layer.request_dispatcher import (
     NWS_API_BASE,
     get_auth_info,
@@ -27,4 +33,8 @@ __all__ = [
     "test_oauth_connection",
     "get_auth_info",
     "NWS_API_BASE",
+    "ServiceNowRequestError",
+    "ErrorCode",
+    "ALL_ERROR_CODES",
+    "classify_read_failure",
 ]
