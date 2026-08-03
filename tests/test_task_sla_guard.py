@@ -26,6 +26,19 @@ from Table_Tools.generic_tool_wrappers import (
 )
 
 
+def _sysparm_conditions(url):
+    """The caller's conditions from a captured URL, sort clause removed.
+
+    Splitting the raw URL on "^OR" also splits "^ORDERBYDESC", so the sort is
+    stripped before the conditions are separated.
+    """
+    from urllib.parse import parse_qs, unquote, urlsplit
+
+    raw = parse_qs(urlsplit(url).query).get("sysparm_query", [""])[0]
+    query = unquote(raw).split("^ORDERBY")[0]
+    return [part for part in query.replace("^OR", "^").split("^") if part]
+
+
 class _Capture:
     def __init__(self, payload=None):
         self.urls = []
@@ -105,14 +118,73 @@ class TestSimilarSlasForTextSearchField:
 
     @pytest.mark.asyncio
     async def test_bare_short_description_never_appears(self):
-        """A bare short_description condition is the silently-dropped filter."""
+        """A bare short_description condition is the silently-dropped filter.
+
+        Splitting on the literal "^OR" would also split "^ORDERBYDESC" (the
+        pagination sort) and depends on no param name containing "LIKE", so the
+        conditions are isolated properly first: take the sysparm_query value,
+        drop the sort clause, then split.
+        """
         capture = _Capture()
         with patch("http_layer.request_dispatcher.make_oauth_request", new=capture):
             await similar_slas_for_text("network outage")
 
-        query = capture.urls[0].split("sysparm_query=")[1]
-        # Every LIKE condition must be dot-walked; none may target the
-        # non-existent task_sla.short_description column directly.
-        for condition in query.split("^OR"):
-            if "LIKE" in condition:
-                assert condition.startswith("task.short_description"), condition
+        conditions = _sysparm_conditions(capture.urls[0])
+        like_conditions = [c for c in conditions if "LIKE" in c]
+        assert like_conditions, f"no LIKE condition found in {conditions!r}"
+        for condition in like_conditions:
+            assert condition.startswith("task.short_description"), condition
+
+
+class TestIntelligentSearchPath:
+    """The same bug reached task_sla through the NL query tools.
+
+    `query_table_intelligently` falls back to a keyword search, and the NL
+    parser's own fallback built `{"short_description": "LIKE..."}` for any
+    table. On task_sla that condition is silently dropped, so
+    intelligent_search(query=..., table="task_sla") returned an arbitrary page
+    of SLAs with confidence 0.5 and an explanation claiming a keyword match.
+    """
+
+    def test_nl_keyword_fallback_uses_the_table_search_field(self):
+        from filter.intelligence import QueryIntelligence
+
+        incident = QueryIntelligence._build_keyword_fallback("server down", "incident")
+        sla = QueryIntelligence._build_keyword_fallback("server down", "task_sla")
+
+        assert "short_description" in incident["filters"]
+        assert "task.short_description" in sla["filters"]
+        assert "short_description" not in sla["filters"]
+
+    def test_parse_natural_language_threads_the_table_through(self):
+        from filter.intelligence import QueryIntelligence
+
+        parsed = QueryIntelligence.parse_natural_language("server down", "task_sla")
+
+        bare = [f for f in parsed["filters"] if f == "short_description"]
+        assert not bare, f"bare short_description filter on task_sla: {parsed['filters']}"
+
+    @pytest.mark.asyncio
+    async def test_query_table_by_text_resolves_the_field_from_the_table(self):
+        """A caller that forgets search_field must still get a valid query."""
+        from Table_Tools.generic_table_tools import query_table_by_text
+
+        capture = _Capture()
+        with patch("http_layer.request_dispatcher.make_oauth_request", new=capture):
+            await query_table_by_text("task_sla", "network outage")
+
+        conditions = _sysparm_conditions(capture.urls[0])
+        for condition in (c for c in conditions if "LIKE" in c):
+            assert condition.startswith("task.short_description"), condition
+
+    @pytest.mark.asyncio
+    async def test_other_tables_keep_the_default_field(self):
+        from Table_Tools.generic_table_tools import query_table_by_text
+
+        capture = _Capture()
+        with patch("http_layer.request_dispatcher.make_oauth_request", new=capture):
+            await query_table_by_text("incident", "network outage")
+
+        conditions = _sysparm_conditions(capture.urls[0])
+        for condition in (c for c in conditions if "LIKE" in c):
+            assert condition.startswith("short_description"), condition

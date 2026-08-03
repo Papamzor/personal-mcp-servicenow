@@ -186,6 +186,20 @@ TEXT_SEARCH_FIELD = "short_description"
 # failure mode as the 1.2M-token get_sla_details bug). Dot-walk instead.
 TASK_SLA_TEXT_SEARCH_FIELD = "task.short_description"
 
+# Per-table override of the text-search field. Absent means TEXT_SEARCH_FIELD.
+# Config, not a branch in the query code: every path that free-text searches
+# resolves through this map, so a new table with an unusual description column
+# is one entry here rather than a fix in each call site. Getting it wrong is
+# silent — a condition on a missing field is dropped, not rejected.
+TEXT_SEARCH_FIELD_BY_TABLE = {
+    "task_sla": TASK_SLA_TEXT_SEARCH_FIELD,
+}
+
+
+def text_search_field_for(table_name: str) -> str:
+    """The field a free-text search must target for *table_name*."""
+    return TEXT_SEARCH_FIELD_BY_TABLE.get(table_name, TEXT_SEARCH_FIELD)
+
 # Tables the number- and text-addressed generic tools cannot query at all.
 # task_sla has neither `number` (number_prefix is None) nor its own
 # `short_description`, so get_record / get_record_summary / find_similar /

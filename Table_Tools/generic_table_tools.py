@@ -16,7 +16,7 @@ from constants import (
     NO_VALID_PRIORITIES_ERROR,
     TABLE_NO_PRIORITY_SUPPORT_ERROR,
     MONTH_NAME_TO_NUMBER,
-    TEXT_SEARCH_FIELD,
+    text_search_field_for,
     ENABLE_INCIDENT_CATEGORY_FILTERING,
     EXCLUDED_INCIDENT_CATEGORIES,
     LOGICMONITOR_CALLER_SYS_ID,
@@ -124,7 +124,7 @@ async def query_table_by_text(
     table_name: str,
     input_text: str,
     detailed: bool = False,
-    search_field: str = TEXT_SEARCH_FIELD,
+    search_field: Optional[str] = None,
 ) -> dict[str, Any]:
     """Generic function to query any ServiceNow table by text similarity.
 
@@ -136,12 +136,17 @@ async def query_table_by_text(
     and is silently ignored in sysparm_query strings (returns zero rows), so
     it must never appear here.
 
-    ``search_field`` exists because a filter against a field the table does not
-    have is **silently dropped** by ServiceNow — the query degenerates to no
-    conditions and the caller gets an arbitrary page of rows presented as
-    matches. ``task_sla`` has no ``short_description`` of its own, so it must
-    pass the dot-walked ``task.short_description`` instead of the default.
+    ``search_field`` defaults to whatever ``text_search_field_for(table_name)``
+    resolves to, NOT to a fixed ``short_description``. That matters because a
+    filter against a field the table does not have is **silently dropped** by
+    ServiceNow: the query degenerates to no conditions and the caller gets an
+    arbitrary page of rows presented as matches. ``task_sla`` has no
+    ``short_description`` of its own, so it resolves to the dot-walked
+    ``task.short_description``. Resolving from the table rather than requiring
+    each caller to pass the right field means a new call site cannot
+    reintroduce the bug by forgetting.
     """
+    search_field = search_field or text_search_field_for(table_name)
     fields = DETAIL_FIELDS[table_name] if detailed else ESSENTIAL_FIELDS[table_name]
     keywords = extract_keywords(input_text)
     if not keywords:

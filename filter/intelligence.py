@@ -10,7 +10,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from utils import extract_keywords
-from constants import LOGICMONITOR_CALLER_SYS_ID
+from constants import LOGICMONITOR_CALLER_SYS_ID, text_search_field_for
 from filter.models import QueryValidationResult
 from filter.validator import validate_and_correct_filters
 
@@ -231,8 +231,15 @@ class QueryIntelligence:
         }
 
     @classmethod
-    def _build_keyword_fallback(cls, query_text: str) -> Dict[str, Any]:
-        """Build keyword-based fallback filter."""
+    def _build_keyword_fallback(cls, query_text: str, table_name: str = "incident") -> Dict[str, Any]:
+        """Build keyword-based fallback filter.
+
+        The field comes from ``text_search_field_for(table_name)``, not a fixed
+        ``short_description``. On ``task_sla`` the latter does not exist, and
+        ServiceNow silently drops a condition on a missing field — so the
+        fallback would have produced a filter that matched nothing, returned an
+        arbitrary page, and reported it with confidence 0.5 as a keyword match.
+        """
         keywords = extract_keywords(query_text)
         if not keywords:
             return {"filters": {}, "confidence": 0.0, "explanation": ""}
@@ -240,8 +247,9 @@ class QueryIntelligence:
         # Value carries the operator only (LIKE = encoded-query "contains"); the
         # field name is supplied by the dict key. Embedding the field name in the
         # value previously produced the malformed `short_description=short_descriptionLIKE...`.
+        field = text_search_field_for(table_name)
         return {
-            "filters": {"short_description": f"LIKE{keywords[0]}"},
+            "filters": {field: f"LIKE{keywords[0]}"},
             "confidence": 0.5,
             "explanation": f"Using keyword search for: {keywords[0]}",
         }
@@ -290,7 +298,7 @@ class QueryIntelligence:
             explanations.append(date_data["explanation"])
 
         if not parsed_filters:
-            keyword_data = cls._build_keyword_fallback(query_text)
+            keyword_data = cls._build_keyword_fallback(query_text, table_name)
             parsed_filters = keyword_data["filters"]
             confidence_score = keyword_data["confidence"]
             if keyword_data["explanation"]:

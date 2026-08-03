@@ -428,6 +428,10 @@ async def similar_slas_for_text(input_text: str) -> Dict[str, Any]:
     no effective condition and returned an arbitrary page of SLAs, every one of
     them reported as a match. Same failure mode as the get_sla_details bug
     documented below.
+
+    The field is passed explicitly even though ``query_table_by_text`` would now
+    resolve it from the table anyway: this is the one tool whose whole purpose is
+    that dot-walk, so it should not read as an accident of configuration.
     """
     return await query_table_by_text(
         "task_sla", input_text, search_field=TASK_SLA_TEXT_SEARCH_FIELD
