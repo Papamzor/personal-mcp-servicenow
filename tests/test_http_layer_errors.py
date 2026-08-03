@@ -93,6 +93,19 @@ class TestClassifyTransportFailures:
         error = classify_read_failure(json.JSONDecodeError("bad", "{", 0))
         assert error.code == ErrorCode.INTERNAL
         assert error.retryable is False
+        assert "not valid JSON" in error.message
+
+    def test_plain_value_error_is_not_reported_as_a_json_problem(self):
+        """ServiceNowOAuthClient raises ValueError('Missing OAuth configuration').
+
+        JSONDecodeError subclasses ValueError, so pairing the two would label a
+        missing-.env failure "not valid JSON" and send whoever is fixing it in
+        the wrong direction. It must fall through to INTERNAL with the real text.
+        """
+        error = classify_read_failure(ValueError("Missing OAuth configuration for instance"))
+        assert error.code == ErrorCode.INTERNAL
+        assert "not valid JSON" not in error.message
+        assert "Missing OAuth configuration" in error.message
 
     def test_unknown_exception_is_internal_never_not_found(self):
         error = classify_read_failure(RuntimeError("who knows"))
@@ -102,6 +115,39 @@ class TestClassifyTransportFailures:
     def test_already_typed_error_passes_through_unchanged(self):
         original = ServiceNowRequestError(ErrorCode.FORBIDDEN, "denied", status_code=403)
         assert classify_read_failure(original) is original
+
+
+class TestClassifyOAuthFailures:
+    """A token-endpoint failure means what the same failure on the table API means."""
+
+    def test_authentication_error_is_auth_not_internal(self):
+        from oauth.exceptions import ServiceNowAuthenticationError
+
+        error = classify_read_failure(ServiceNowAuthenticationError("bad client secret"))
+        assert error.code == ErrorCode.AUTH
+        assert error.retryable is False
+        assert "bad client secret" in error.message
+
+    def test_authorization_error_is_forbidden(self):
+        from oauth.exceptions import ServiceNowAuthorizationError
+
+        error = classify_read_failure(ServiceNowAuthorizationError("scope denied"))
+        assert error.code == ErrorCode.FORBIDDEN
+
+    def test_connection_error_is_retryable_http(self):
+        from oauth.exceptions import ServiceNowConnectionError
+
+        error = classify_read_failure(ServiceNowConnectionError("token endpoint unreachable"))
+        assert error.code == ErrorCode.HTTP
+        assert error.retryable is True
+
+    def test_a_wrong_secret_and_a_401_agree(self):
+        """Same semantic failure, two transports — one code."""
+        from oauth.exceptions import ServiceNowAuthenticationError
+
+        via_oauth = classify_read_failure(ServiceNowAuthenticationError("bad secret"))
+        via_http = classify_read_failure(_status_error(401))
+        assert via_oauth.code == via_http.code == ErrorCode.AUTH
 
 
 class TestLegacyNoneShim:
@@ -172,9 +218,54 @@ class TestLegacyNoneShim:
         assert result == {"result": []}
 
 
+class TestResponseParsingStaysGuarded:
+    """The pre-v4.4 blanket except covered the flattener for every read caller."""
+
+    @pytest.mark.asyncio
+    async def test_flattener_failure_is_classified_not_propagated(self, monkeypatch):
+        async def ok(url):
+            return {"result": [{"number": "INC0001"}]}
+
+        def exploding_flattener(payload):
+            raise RuntimeError("parser blew up")
+
+        monkeypatch.setattr(dispatcher, "make_oauth_request", ok)
+        monkeypatch.setattr(dispatcher, "extract_display_values", exploding_flattener)
+
+        # Un-migrated caller: must still get None, not a RuntimeError.
+        assert await dispatcher.make_nws_request("https://example.service-now.com/api/now/table/incident") is None
+
+    @pytest.mark.asyncio
+    async def test_flattener_failure_reaches_migrated_caller_as_internal(self, monkeypatch):
+        async def ok(url):
+            return {"result": [{"number": "INC0001"}]}
+
+        def exploding_flattener(payload):
+            raise RuntimeError("parser blew up")
+
+        monkeypatch.setattr(dispatcher, "make_oauth_request", ok)
+        monkeypatch.setattr(dispatcher, "extract_display_values", exploding_flattener)
+        monkeypatch.setattr(dispatcher, "_TYPED_CALLERS", frozenset({__name__}))
+
+        with pytest.raises(ServiceNowRequestError) as excinfo:
+            await dispatcher.make_nws_request("https://example.service-now.com/api/now/table/incident")
+
+        assert excinfo.value.code == ErrorCode.INTERNAL
+
+
 class TestCallingModuleResolution:
     def test_resolves_to_the_caller_outside_http_layer(self):
         assert dispatcher._calling_module() == __name__
+
+    def test_boundary_is_the_package_not_a_bare_prefix(self):
+        """A module named http_layer_extras is a different package, not internal."""
+        import types
+
+        fake = types.ModuleType("http_layer_extras")
+        code = "def probe(walk):\n    return walk()\n"
+        exec(compile(code, "http_layer_extras.py", "exec"), fake.__dict__)
+
+        assert fake.probe(dispatcher._calling_module) == "http_layer_extras"
 
     def test_skips_intermediate_http_layer_frames(self, monkeypatch):
         """An http_layer frame between the consumer and the walk must not mask it.

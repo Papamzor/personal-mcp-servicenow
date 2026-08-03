@@ -24,6 +24,12 @@ from typing import Any, Callable, Optional
 
 import httpx
 
+from oauth.exceptions import (
+    ServiceNowAuthenticationError,
+    ServiceNowAuthorizationError,
+    ServiceNowConnectionError,
+)
+
 
 class ErrorCode:
     """The complete failure vocabulary. Adding a code is a contract change."""
@@ -54,6 +60,9 @@ MSG_HTTP_STATUS = "ServiceNow returned HTTP {status}"
 MSG_TIMEOUT = "ServiceNow request timed out"
 MSG_TRANSPORT = "Could not reach ServiceNow ({detail})"
 MSG_DECODE = "ServiceNow returned a response that is not valid JSON"
+MSG_OAUTH_AUTH = "ServiceNow OAuth authentication failed: {detail}"
+MSG_OAUTH_FORBIDDEN = "ServiceNow OAuth authorization denied: {detail}"
+MSG_OAUTH_CONNECTION = "Could not reach the ServiceNow OAuth endpoint: {detail}"
 MSG_INTERNAL = "Unexpected {exc_type} during ServiceNow request: {detail}"
 
 
@@ -125,14 +134,47 @@ def _from_decode(exc: BaseException) -> ServiceNowRequestError:
     return ServiceNowRequestError(ErrorCode.INTERNAL, MSG_DECODE)
 
 
-# Ordered because httpx.TimeoutException subclasses httpx.RequestError — the
-# narrower clause has to win. Same reason HTTPStatusError comes first: it is a
-# response-level failure, not a transport one.
+def _from_oauth_auth(exc: BaseException) -> ServiceNowRequestError:
+    """Bad client credentials at the token endpoint — same meaning as a 401."""
+    return ServiceNowRequestError(ErrorCode.AUTH, MSG_OAUTH_AUTH.format(detail=exc))
+
+
+def _from_oauth_forbidden(exc: BaseException) -> ServiceNowRequestError:
+    return ServiceNowRequestError(ErrorCode.FORBIDDEN, MSG_OAUTH_FORBIDDEN.format(detail=exc))
+
+
+def _from_oauth_connection(exc: BaseException) -> ServiceNowRequestError:
+    return ServiceNowRequestError(
+        ErrorCode.HTTP,
+        MSG_OAUTH_CONNECTION.format(detail=exc),
+        retryable=True,
+    )
+
+
+# Ordered: the first isinstance match wins, so narrower types come first.
+# httpx.TimeoutException subclasses httpx.RequestError, and json.JSONDecodeError
+# subclasses ValueError — in both pairs the specific clause must precede the
+# general one. httpx.HTTPStatusError is NOT a RequestError subclass (siblings),
+# but stays first because a response-level failure carries the most information.
+#
+# The OAuth clauses matter because a token-endpoint failure means exactly what a
+# 401/403 on the table API means. Without them, a wrong client secret surfaced
+# as INTERNAL "unexpected error" while the identical semantic failure arriving
+# as an httpx 401 mapped to AUTH.
+#
+# Bare ValueError is deliberately NOT paired with JSONDecodeError: the OAuth
+# client raises ValueError("Missing OAuth configuration ...") before any request
+# is made, and reporting that as "not valid JSON" sends whoever is fixing their
+# .env in precisely the wrong direction. It falls through to INTERNAL, which
+# echoes the real message.
 _EXC_HANDLERS: tuple[tuple[Any, Callable[[BaseException], ServiceNowRequestError]], ...] = (
     (httpx.HTTPStatusError, _from_status_error),
     ((TimeoutError, httpx.TimeoutException), _from_timeout),
     (httpx.RequestError, _from_transport),
-    ((json.JSONDecodeError, ValueError), _from_decode),
+    (json.JSONDecodeError, _from_decode),
+    (ServiceNowAuthenticationError, _from_oauth_auth),
+    (ServiceNowAuthorizationError, _from_oauth_forbidden),
+    (ServiceNowConnectionError, _from_oauth_connection),
 )
 
 

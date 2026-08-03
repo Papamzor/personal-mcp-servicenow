@@ -65,19 +65,26 @@ def _redact_url(url: str) -> str:
 # ---------------------------------------------------------------------------
 _TYPED_CALLERS: frozenset[str] = frozenset()
 
+# This package's own name, used for the frame-walk boundary test below.
+_PACKAGE = __name__.split(".")[0]
+
 
 def _calling_module() -> str:
-    """Module name of the nearest frame outside http_layer.
+    """Module name of the nearest frame outside the http_layer package.
 
     Walks out of this package so intermediate http_layer frames never mask the
     real consumer. Returns "" when the whole stack is internal (unreachable in
     practice — something always calls in from outside).
+
+    The boundary test is exact-or-dotted, not a bare prefix: a module named
+    `http_layer_extras` is a different package and must be reportable as itself,
+    otherwise it could never be added to _TYPED_CALLERS.
     """
     frame = inspect.currentframe()
     try:
         while frame is not None:
             name = frame.f_globals.get("__name__", "")
-            if not name.startswith("http_layer"):
+            if not (name == _PACKAGE or name.startswith(_PACKAGE + ".")):
                 return name
             frame = frame.f_back
         return ""
@@ -143,6 +150,11 @@ async def _get_typed(url: str, display_value: bool) -> dict[str, Any] | None:
     try:
         with anyio.fail_after(30.0):  # anyio cancel scope: sync ctx, async-compatible
             result = await make_oauth_request(url)
+        # Response flattening stays INSIDE the try. Before v4.4 the blanket
+        # `except Exception` covered it for all read call sites; leaving it
+        # outside would let a parser failure propagate uncaught to MCP clients
+        # for every caller, migrated or not.
+        return extract_display_values(result) if result and display_value else result
     except Exception as e:  # noqa: BLE001 - every failure is classified, none swallowed
         error = classify_read_failure(e)
         # stderr only — stdout is reserved for the MCP JSON-RPC frame stream.
@@ -152,7 +164,6 @@ async def _get_typed(url: str, display_value: bool) -> dict[str, Any] | None:
             file=sys.stderr,
         )
         raise error from e
-    return extract_display_values(result) if result and display_value else result
 
 
 async def test_oauth_connection() -> dict[str, Any]:
