@@ -14,18 +14,28 @@ MCP server for ServiceNow integration. Uses FastMCP over stdio transport, OAuth 
 
 ---
 
-## What's new in v4.0
+## Release highlights
 
-v4.0 is a breaking release. See [MIGRATION_v3_to_v4.md](MIGRATION_v3_to_v4.md) if upgrading.
+Current version: **4.3.0** — 39 registered tools. Full history in [CHANGELOG.md](CHANGELOG.md).
+
+| Release | What changed |
+|---|---|
+| **4.3.0** | Claude Desktop `.mcpb` packaging; Nuitka binary builds dropped from the release workflow. Absorbed the performance and token work planned as 4.2 (pooled httpx client, one OR-combined keyword query, concurrent CMDB probes) — no 4.2.0 was ever released. |
+| **4.1.0** | v4.0 shims deleted; KB write tools; `get_kb_articles_by_state`; `get_query_syntax_help`; `filter_records` truncation metadata. |
+| **4.0.0** | SLA collapse, `filter/` + `http_layer/` + `oauth/` packages. Breaking — see below. |
+
+### v4.0, in detail
+
+v4.0 was a breaking release. See [MIGRATION_v3_to_v4.md](MIGRATION_v3_to_v4.md) if upgrading from v3.
 
 | Change | Detail |
 |---|---|
 | SLA tool consolidation | 8 tools collapsed into 3 (`query_slas_by_task`, `query_slas_by_status`, `query_slas_custom`). Tool count: **37 → 32**. |
 | `get_sla_details` bug fix | v3 built a `number={sys_id}` filter on `task_sla` (no `number` field). ServiceNow ignored it, returning 10,000 rows (~1.2M tokens). v4 routes via `sys_id=` — single record (~69 tokens). |
-| `filter/` package | Filter construction, validation, NL parsing, and explanation consolidated into a single package. `query_validation.py` and `query_intelligence.py` are now shims. |
+| `filter/` package | Filter construction, validation, NL parsing, and explanation consolidated into a single package. `query_validation.py` and `query_intelligence.py` became shims, deleted in 4.1.0. |
 | `http_layer/` + `oauth/` packages | `make_nws_request` and `ServiceNowOAuthClient` split into focused packages. GET-path token-optimization invariants locked by 3 negative write-path tests. |
 
-Backwards-compat shims keep all v3 import paths and test-patch targets working. Shims deleted in v4.1.
+Backwards-compat shims kept all v3 import paths and test-patch targets working for one release cycle; they were deleted in 4.1.0. Import from `http_layer`, `oauth`, and `filter` directly.
 
 ---
 
@@ -153,7 +163,7 @@ Credentials are read from the `.env` file. If you prefer to inject them via the 
 
 ---
 
-## Available tools (32)
+## Available tools (39)
 
 ### Generic table tools (5)
 
@@ -165,23 +175,33 @@ Work across all supported tables: `incident`, `change_request`, `sc_req_item`, `
 - `find_similar(table, number)` — records similar to an existing record
 - `filter_records(table, filters, fields)` — field-value filters with operators and date ranges
 
-### Intelligent query tools (5)
+### Intelligent query tools (6)
 
 - `intelligent_search(query, table, context)` — natural language: "high priority incidents from last week"
 - `build_smart_servicenow_filter(query, table, context)` — NL → ServiceNow query syntax
 - `explain_servicenow_filters(filters, table)` — human-readable filter explanation
 - `get_servicenow_filter_templates()` — pre-built filters for common scenarios
 - `get_query_examples()` — natural language examples
+- `get_query_syntax_help()` — encoded-query operator reference (LIKE vs CONTAINS, reference-field dot-walking)
 
 ### Priority incidents (1)
 
 - `get_priority_incidents(priorities, start_date, end_date, additional_filters, include_metadata)`
 
-### Knowledge base (3)
+### Knowledge base — read (4)
 
 - `similar_knowledge_for_text(input_text, kb_base, category)`
 - `get_knowledge_by_category(category, kb_base)`
-- `get_active_knowledge_articles(input_text)`
+- `get_active_knowledge_articles()` — takes no arguments; returns `workflow_state=published`
+- `get_kb_articles_by_state(workflow_state, category, kb_base, max_results)` — collapses ServiceNow KB versioning to one row per `number`, with `current_state` and `version_count`
+
+### Knowledge base — write (5)
+
+- `update_knowledge_article(article_number, update_data)`
+- `publish_knowledge_article(article_number)` — fire-and-verify; a POST is not trusted as truth
+- `publish_knowledge_articles(article_numbers, concurrency)` — batch, capped at 20 numbers, flat per-article status rows
+- `retire_knowledge_article(article_number)`
+- `check_kb_duplicates(article_numbers, concurrency)` — the publish-time duplicate check, standalone
 
 ### Private task CRUD (2)
 
@@ -216,7 +236,7 @@ Work across all supported tables: `incident`, `change_request`, `sc_req_item`, `
 ```
 MCP Client (Claude)
   ↓ stdio / sse
-tools.py (FastMCP — 38 tools)
+tools.py (FastMCP — 39 tools)
   ↓
 generic_tool_wrappers.py   consolidated_tools.py   vtb_task_tools.py
 cmdb_tools.py              intelligent_query_tools.py

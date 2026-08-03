@@ -5,6 +5,71 @@ All notable changes to the Personal MCP ServiceNow project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.3.0] - 2026-07-14
+
+Backfilled 2026-08-03 from the 32 commits between the 4.1.0 work and the `v4.3.0` tag.
+
+**On the missing 4.2.0:** there isn't one. The version string went `4.1.0` → `4.3.0` in a single
+bump (the packaging commit), and no `v4.1.0` or `v4.2.0` tag was ever cut. The performance and
+token work planned as "4.2" shipped inside 4.3.0 and is recorded below under its own heading
+rather than as a fabricated 4.2.0 release. Retroactive tags were deliberately not created.
+
+### Added
+
+- **Claude Desktop Extension packaging** — the server builds as a `.mcpb` bundle. Version is
+  3-way synced across `pyproject.toml`, `manifest.json` and `personal_mcp_servicenow_main.py`.
+- **SSE transport authentication** — `MCP_SSE_AUTH_TOKEN` shared-secret bearer check in
+  `auth_middleware.py`. SSE startup refuses to run without it unless `MCP_ALLOW_INSECURE_SSE`
+  is set explicitly. Rejection messages never reveal whether a token was missing, malformed or
+  wrong.
+- **Log hardening** — URLs in stderr diagnostics are reduced to path plus a stable query hash,
+  so a `sysparm_query` never reaches the logs.
+- E2E MCP test prompts (`docs/E2E_TEST_PROMPTS.md`).
+
+### Performance and token work (planned as 4.2, shipped in 4.3.0)
+
+- **Pooled HTTP client** — one process-wide keep-alive `httpx.AsyncClient` (`oauth/http_pool.py`)
+  shared by the request executor, the 401-retry and the token fetch. Previously every request
+  paid a fresh TLS handshake.
+- **One query instead of N** — `query_table_by_text` builds a single OR-combined LIKE query
+  across all keywords (`short_descriptionLIKEa^ORshort_descriptionLIKEb`) instead of one serial
+  request per keyword. Fewer round-trips *and* better recall: the old loop only ever matched a
+  single keyword.
+- **Concurrent CMDB probes** — `get_ci_details` probes candidate CI tables concurrently (bounded)
+  instead of one at a time, preserving most-specific-first priority.
+- **Debug payload opt-in** — `query_table_intelligently(debug=False)` no longer recomputes the
+  debug extras on the default path.
+- **Trimmed tool docstrings** — roughly 2k characters per session removed from the registered
+  tool descriptions.
+- Pre-compiled hot-path regexes; shared write-response helpers (`write_helpers.py`) for the KB
+  and VTB paths; module-level condition-handler registry; dead helpers and a redundant
+  `load_dotenv()` removed.
+
+### Fixed
+
+- **`LIKE`, not `CONTAINS`, in encoded queries.** `CONTAINS` is a GlideRecord scripting operator
+  and is silently ignored inside a `sysparm_query` — it returned zero rows with no error. Also
+  surfaces reference-field hints: `assignment_group`, `assigned_to`, `caller_id`, `cmdb_ci` and
+  friends store sys_ids, so a bare display-value match silently matched nothing.
+- **CMDB: valid CI types no longer rejected.** `find_cis_by_type` validated against a static
+  table list that drifted from real instances and refused common classes such as
+  `cmdb_ci_server`.
+- **CMDB: user values percent-encoded** in CI search queries, so `#`, `+`, `%` or `?` in a name
+  or location can no longer corrupt the query.
+- **MCP parameter coercion** — some clients stringify and double-encode flat `List`/`Dict`
+  parameters; `param_coercion.py` peels the layers at the tool boundary.
+- **KB publish timeouts** — `anyio` `TimeoutError` is caught on the publish fire-timeout instead
+  of escaping as an unhandled error; KB writes are now bounded, and stale pooled connections
+  expire.
+- Ticket detail field sets gain `sys_updated_on` and `opened_at`.
+- Security sanitization sweep, P0 through P3, plus a linter-driven fix pass.
+- Stale docstrings and a wrong date-explanation branch in the NL query path.
+
+### Removed
+
+- Nuitka binary builds dropped from the release workflow — `.mcpb` is the distribution path.
+- graphify cache artifacts are no longer tracked.
+
 ## [4.1.0] - 2026-06-11
 
 ### BREAKING CHANGES

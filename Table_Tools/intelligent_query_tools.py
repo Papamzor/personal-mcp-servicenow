@@ -179,7 +179,7 @@ def get_servicenow_filter_templates() -> Dict[str, Any]:
             "templates": enriched_templates,
             "template_count": len(templates),
             "usage_info": {
-                "how_to_use": "Copy the 'filters' dictionary and use with getIncidentsByFilter or similar functions",
+                "how_to_use": "Copy the 'filters' dictionary and pass it to filter_records(table, filters)",
                 "customization": "Modify filter values to match your specific needs"
             }
         }

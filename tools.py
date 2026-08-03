@@ -84,7 +84,8 @@ mcp = FastMCP("personalmcpservicenow")
 mcp.add_middleware(AuthMiddleware())
 mcp.add_middleware(AuditMiddleware())
 
-# Register tools — consolidated from 55 -> 37 (v3.0) -> 32 (v4.0) -> 38 (v4.1 KB expansion)
+# Register tools — 55 -> 37 (v3.0) -> 32 (v4.0) -> 38 (v4.1 KB expansion)
+# -> 39 (get_query_syntax_help). tests/test_integration.py asserts the count.
 tools = [
     # Server & Authentication tools
     nowtest, now_test_oauth, now_auth_info, nowtestauth, nowtest_auth_input,
