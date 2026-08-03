@@ -16,6 +16,7 @@ from constants import (
     NO_VALID_PRIORITIES_ERROR,
     TABLE_NO_PRIORITY_SUPPORT_ERROR,
     MONTH_NAME_TO_NUMBER,
+    TEXT_SEARCH_FIELD,
     ENABLE_INCIDENT_CATEGORY_FILTERING,
     EXCLUDED_INCIDENT_CATEGORIES,
     LOGICMONITOR_CALLER_SYS_ID,
@@ -119,7 +120,12 @@ def _apply_domain_filters(table_name: str, query: str) -> str:
     return query
 
 
-async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any]:
+async def query_table_by_text(
+    table_name: str,
+    input_text: str,
+    detailed: bool = False,
+    search_field: str = TEXT_SEARCH_FIELD,
+) -> dict[str, Any]:
     """Generic function to query any ServiceNow table by text similarity.
 
     Builds ONE OR-combined query across every extracted keyword
@@ -129,6 +135,12 @@ async def query_table_by_text(table_name: str, input_text: str, detailed: bool =
     encoded-query "contains" operator; CONTAINS is GlideRecord scripting-only
     and is silently ignored in sysparm_query strings (returns zero rows), so
     it must never appear here.
+
+    ``search_field`` exists because a filter against a field the table does not
+    have is **silently dropped** by ServiceNow — the query degenerates to no
+    conditions and the caller gets an arbitrary page of rows presented as
+    matches. ``task_sla`` has no ``short_description`` of its own, so it must
+    pass the dot-walked ``task.short_description`` instead of the default.
     """
     fields = DETAIL_FIELDS[table_name] if detailed else ESSENTIAL_FIELDS[table_name]
     keywords = extract_keywords(input_text)
@@ -139,7 +151,7 @@ async def query_table_by_text(table_name: str, input_text: str, detailed: bool =
     # next plain ^, so appending the category/catalog exclusions below yields
     # "(descLIKEa OR descLIKEb) AND category!=X" — match any keyword while
     # still excluding sensitive categories.
-    query = "^OR".join(f"short_descriptionLIKE{keyword}" for keyword in keywords)
+    query = "^OR".join(f"{search_field}LIKE{keyword}" for keyword in keywords)
     query = _apply_domain_filters(table_name, query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}"
     # Single paginated request; text searches capped at 50 results.

@@ -319,11 +319,19 @@ class TestSLATools:
     """Test SLA tool functions."""
 
     @pytest.mark.asyncio
-    async def test_similar_slas_for_text(self):
+    async def test_similar_slas_for_text_searches_the_dot_walked_field(self):
+        """task_sla has no short_description — searching it returned unrelated rows.
+
+        ServiceNow silently drops a condition on a field the table lacks, so the
+        old `short_descriptionLIKEx` query carried no effective filter and every
+        row in the returned page was reported as a match.
+        """
         with patch('Table_Tools.consolidated_tools.query_table_by_text') as mock_query:
             mock_query.return_value = {"result": []}
             await similar_slas_for_text("incident")
-            mock_query.assert_called_once_with("task_sla", "incident")
+            mock_query.assert_called_once_with(
+                "task_sla", "incident", search_field="task.short_description"
+            )
 
     @pytest.mark.asyncio
     async def test_query_slas_by_task(self):
