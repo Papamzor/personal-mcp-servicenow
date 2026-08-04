@@ -83,7 +83,7 @@ incidents = await get_priority_incidents(
 
 ### Using Query Builder Helpers
 ```python
-from query_validation import ServiceNowQueryBuilder
+from filter import ServiceNowQueryBuilder  # query_validation.py was deleted in the 4.1.0 work
 
 # Build proper OR syntax for multiple priorities
 priority_filter = ServiceNowQueryBuilder.build_priority_or_filter(["1", "2", "3"])
