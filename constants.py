@@ -35,6 +35,15 @@ TABLE_NO_PRIORITY_SUPPORT_ERROR = "Table {table_name} does not support priority 
 NO_CIS_FOUND_FOR_TYPE = "No CIs found for type: {ci_type}"
 NO_CIS_FOUND_MATCHING_CRITERIA = "No CIs found matching search criteria"
 CI_NOT_FOUND = "CI {ci_number} not found in any CMDB table"
+CI_TYPE_REQUIRED = "CI type is required"
+CI_NUMBER_REQUIRED = "CI number is required"
+# A rejected ci_type must never be silently downgraded to the base cmdb_ci
+# table — that returns rows from the wrong table with no indication of it.
+INVALID_CI_TYPE = (
+    "Invalid CI type '{ci_type}'. Must be a cmdb_ci* table name containing only "
+    "lowercase letters, digits and underscores (e.g. cmdb_ci_server). "
+    "Call get_all_ci_types() to list the classes this instance actually has."
+)
 
 # ---------------------------------------------------------------------------
 # Reference-field handling
