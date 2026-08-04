@@ -4,6 +4,7 @@ Target: 90%+ line coverage, 75%+ branch coverage.
 """
 
 import asyncio
+import json
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 import httpx
@@ -877,4 +878,69 @@ class TestWritePathTimeoutPropagation:
 
             result = await executor.make_authenticated_request("GET", "https://x/api")
             assert result is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("failure", [
+        httpx.ConnectError("no route to host"),
+        httpx.ReadError("connection reset"),
+        json.JSONDecodeError("Expecting value", "<html>", 0),
+    ])
+    async def test_executor_re_raises_transport_and_decode_failures_on_write(self, failure):
+        """Same class of bug as the timeout case, two clauses further down.
+
+        A connection error or an HTML error page during create_private_task used
+        to return None even with raise_for_status=True, and the write helpers
+        turned that into "creation successful but no data returned" — a failed
+        write reported as success.
+        """
+        from oauth.request_executor import RequestExecutor
+        from oauth.token_store import TokenStore
+
+        async def headers():
+            return {"Authorization": "Bearer test"}
+
+        token_store = MagicMock(spec=TokenStore)
+        token_store.clear = AsyncMock()
+        executor = RequestExecutor(get_auth_headers=headers, token_store=token_store)
+
+        with patch("oauth.request_executor.httpx.AsyncClient") as mock_client_class:
+            mock_client = MagicMock()
+            if isinstance(failure, json.JSONDecodeError):
+                response = MagicMock()
+                response.status_code = 200
+                response.raise_for_status = MagicMock()
+                response.json = MagicMock(side_effect=failure)
+                mock_client.request = AsyncMock(return_value=response)
+            else:
+                mock_client.request = AsyncMock(side_effect=failure)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            with pytest.raises(type(failure)):
+                await executor.make_authenticated_request(
+                    "POST", "https://x/api", raise_for_status=True
+                )
+
+    @pytest.mark.asyncio
+    async def test_executor_still_swallows_transport_failure_on_read(self):
+        """The permissive raise_for_status=False contract is unchanged."""
+        from oauth.request_executor import RequestExecutor
+        from oauth.token_store import TokenStore
+
+        async def headers():
+            return {"Authorization": "Bearer test"}
+
+        token_store = MagicMock(spec=TokenStore)
+        token_store.clear = AsyncMock()
+        executor = RequestExecutor(get_auth_headers=headers, token_store=token_store)
+
+        with patch("oauth.request_executor.httpx.AsyncClient") as mock_client_class:
+            mock_client = MagicMock()
+            mock_client.request = AsyncMock(side_effect=httpx.ConnectError("no route"))
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=None)
+            mock_client_class.return_value = mock_client
+
+            assert await executor.make_authenticated_request("GET", "https://x/api") is None
 

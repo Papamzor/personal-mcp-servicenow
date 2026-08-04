@@ -60,6 +60,14 @@ def get_oauth_client() -> ServiceNowOAuthClient:
 
 
 async def make_oauth_request(url: str) -> Optional[dict[str, Any]]:
-    """Convenience function for making OAuth-authenticated GET requests."""
+    """Convenience function for making OAuth-authenticated GET requests.
+
+    Propagates transport and HTTP failures (``raise_for_status=True``) instead
+    of returning ``None``: since v4.4 the read path is typed, and
+    ``http_layer.request_dispatcher`` classifies the exception into a
+    ``ServiceNowRequestError``. Returning ``None`` here would erase the
+    distinction between "request failed" and "no matching rows" before the
+    dispatcher ever sees it.
+    """
     client = get_oauth_client()
-    return await client.make_authenticated_request("GET", url)
+    return await client.make_authenticated_request("GET", url, raise_for_status=True)
