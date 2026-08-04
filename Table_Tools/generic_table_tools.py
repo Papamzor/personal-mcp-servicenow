@@ -16,14 +16,7 @@ from constants import (
     NO_VALID_PRIORITIES_ERROR,
     TABLE_NO_PRIORITY_SUPPORT_ERROR,
     MONTH_NAME_TO_NUMBER,
-    text_search_field_for,
-    ENABLE_INCIDENT_CATEGORY_FILTERING,
-    EXCLUDED_INCIDENT_CATEGORIES,
     LOGICMONITOR_CALLER_SYS_ID,
-    ENABLE_SC_CATALOG_FILTERING,
-    EXCLUDED_SC_CATALOG_CATEGORIES,
-    EXCLUDED_SC_ASSIGNMENT_GROUPS,
-    SC_CATALOG_TABLES,
     ENABLE_COMPLETE_QUERY,
     TABLE_CONFIGS
 )
@@ -57,10 +50,11 @@ def _is_safe_record_number(record_number: str) -> bool:
     """Reject record numbers that carry query operators/whitespace instead of a plain number.
 
     `get_record_description` / `get_record_details` interpolate record_number
-    directly into `number={record_number}` ahead of `_apply_domain_filters`.
-    A record_number containing `^` (AND/OR/NQ), whitespace, `&`, or a
-    comparison operator could inject additional query conditions or a
-    `^NQ` new-query-reset that bypasses the appended domain exclusion filters.
+    directly into `number={record_number}`. A record_number containing `^`
+    (AND/OR/NQ), whitespace, `&`, or a comparison operator could append
+    conditions to that query, or smuggle a `^NQ` new-query-reset that discards
+    the `number=` scoping entirely and turns a single-record lookup into an
+    unbounded table read.
     """
     if not record_number:
         return False
@@ -69,63 +63,7 @@ def _is_safe_record_number(record_number: str) -> bool:
     return True
 
 
-def _append_to_query(existing_query: str, addition: str) -> str:
-    """Append an exclusion filter to an existing query with the ServiceNow AND operator."""
-    return f"{existing_query}^{addition}" if existing_query else addition
-
-
-def _apply_incident_category_filter(table_name: str, existing_query: str = "") -> str:
-    """Block sensitive incident categories (Payroll/People Support/Workplace) from results.
-
-    Only applies to the 'incident' table; gated by ENABLE_INCIDENT_CATEGORY_FILTERING.
-    Other tables get the query back unchanged.
-    """
-    if table_name != "incident" or not ENABLE_INCIDENT_CATEGORY_FILTERING:
-        return existing_query
-
-    category_filters = [f"category!={category}" for category in EXCLUDED_INCIDENT_CATEGORIES]
-    return _append_to_query(existing_query, "^".join(category_filters))
-
-
-def _apply_sc_catalog_filter(table_name: str, existing_query: str = "") -> str:
-    """Block sensitive service-catalog records (People_Pay, Payroll groups, ...) from results.
-
-    Applies to SC_CATALOG_TABLES (sc_request, sc_req_item, sc_task); gated by
-    ENABLE_SC_CATALOG_FILTERING. Other tables get the query back unchanged.
-    """
-    if table_name not in SC_CATALOG_TABLES or not ENABLE_SC_CATALOG_FILTERING:
-        return existing_query
-
-    exclusion_filters = [
-        f"cat_item.sc_catalogs.title!={category}"
-        for category in EXCLUDED_SC_CATALOG_CATEGORIES
-    ]
-    exclusion_filters.extend(
-        f"assignment_group.name!={group}"
-        for group in EXCLUDED_SC_ASSIGNMENT_GROUPS
-    )
-
-    return _append_to_query(existing_query, "^".join(exclusion_filters))
-
-
-def _apply_domain_filters(table_name: str, query: str) -> str:
-    """Apply both category (incident) and catalog (sc_*) exclusion filters.
-
-    Single entry point for the table-specific exclusion policy so query paths
-    don't repeat the incident-then-catalog pair. Each underlying filter is a
-    no-op for tables it doesn't apply to.
-    """
-    query = _apply_incident_category_filter(table_name, query)
-    query = _apply_sc_catalog_filter(table_name, query)
-    return query
-
-
-async def query_table_by_text(
-    table_name: str,
-    input_text: str,
-    detailed: bool = False,
-    search_field: Optional[str] = None,
-) -> dict[str, Any]:
+async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any]:
     """Generic function to query any ServiceNow table by text similarity.
 
     Builds ONE OR-combined query across every extracted keyword
@@ -152,12 +90,8 @@ async def query_table_by_text(
     if not keywords:
         return {"result": [], "message": NO_RECORDS_FOUND}
 
-    # OR-group the keyword conditions first. ServiceNow closes a ^OR run at the
-    # next plain ^, so appending the category/catalog exclusions below yields
-    # "(descLIKEa OR descLIKEb) AND category!=X" — match any keyword while
-    # still excluding sensitive categories.
-    query = "^OR".join(f"{search_field}LIKE{keyword}" for keyword in keywords)
-    query = _apply_domain_filters(table_name, query)
+    # OR-group the keyword conditions so one request matches any keyword.
+    query = "^OR".join(f"short_descriptionLIKE{keyword}" for keyword in keywords)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}"
     # Single paginated request; text searches capped at 50 results.
     all_results = await _make_paginated_request(base_url, max_results=50)
@@ -177,7 +111,6 @@ async def get_record_description(table_name: str, record_number: str) -> dict[st
     if not _is_safe_record_number(record_number):
         return {"result": [], "message": RECORD_NOT_FOUND}
     query = f"number={record_number}"
-    query = _apply_domain_filters(table_name, query)
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query={query}"
     data = await make_nws_request(url)
     return data if data else {"result": [], "message": RECORD_NOT_FOUND}
@@ -188,7 +121,6 @@ async def get_record_details(table_name: str, record_number: str) -> dict[str, A
         return {"result": [], "message": RECORD_NOT_FOUND}
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
     query = f"number={record_number}"
-    query = _apply_domain_filters(table_name, query)
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}&sysparm_display_value=true"
     data = await make_nws_request(url)
     return data if data else {"result": [], "message": RECORD_NOT_FOUND}
@@ -640,10 +572,9 @@ def _build_query_condition(field: str, value: str) -> str:
     # Handle special complete query cases first
     if field == "_complete_query":
         # `_complete_query` hands a raw, caller-built encoded query straight
-        # through — the same shape of input an attacker would use to smuggle
-        # a `^NQ` new-query-reset past the domain exclusion fences appended
-        # by `_apply_domain_filters`. Gated off by default; drop it entirely
-        # (rather than call the handler) unless explicitly re-enabled.
+        # through, bypassing every per-field handler and the `^NQ` defense
+        # below. Gated off by default; drop it entirely (rather than call the
+        # handler) unless explicitly re-enabled.
         if not ENABLE_COMPLETE_QUERY:
             return ""
         return _handle_complete_query_condition(value)
@@ -655,10 +586,10 @@ def _build_query_condition(field: str, value: str) -> str:
     value = _normalize_operator(value)
 
     # Defend against a `^NQ` new-query-reset smuggled inside an otherwise
-    # ordinary filter value: `^NQ` starts a brand-new query, discarding
-    # everything before it — including the domain exclusion filters that
-    # `_apply_domain_filters` appends after this condition is built. Drop
-    # any condition that attempts it rather than passing it through.
+    # ordinary filter value: `^NQ` starts a brand-new query, discarding every
+    # condition built before it — so one poisoned filter value turns a scoped
+    # query into an unbounded table read. Drop any condition that attempts it
+    # rather than passing it through.
     if "^NQ" in value.upper():
         return ""
 
@@ -773,7 +704,6 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
             print(f"[generic_table_tools] Query validation warnings: {validation_result.warnings}", file=sys.stderr)
 
     query_string = _build_query_string(params.filters)
-    query_string = _apply_domain_filters(table_name, query_string)
     encoded_query = _encode_query_string(query_string)
 
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
@@ -1109,7 +1039,6 @@ async def get_records_by_priority(
     filters = [priority_filter] + _build_additional_filters(additional_filters)
 
     final_query = "^".join(filters)
-    final_query = _apply_domain_filters(table_name, final_query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
 
     if final_query:
@@ -1136,7 +1065,6 @@ async def query_table_with_generic_filters(
     # the ^NQ defense (which can drop a condition to "") don't leave a dangling
     # "^^" or leading/trailing "^" in the joined query.
     query = _build_query_string(filters)
-    query = _apply_domain_filters(table_name, query)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
 
     if query:

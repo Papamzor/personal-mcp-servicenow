@@ -6,6 +6,7 @@ Provides CI discovery, search, and analysis functionality.
 """
 
 import asyncio
+import re
 from urllib.parse import quote
 from http_layer import make_nws_request, NWS_API_BASE
 from utils import extract_keywords
@@ -14,6 +15,9 @@ from constants import (
     NO_CIS_FOUND_FOR_TYPE,
     NO_CIS_FOUND_MATCHING_CRITERIA,
     CI_NOT_FOUND,
+    CI_NUMBER_REQUIRED,
+    CI_TYPE_REQUIRED,
+    INVALID_CI_TYPE,
     NO_SIMILAR_CIS_FOUND,
     NO_CI_TYPES_FOUND,
     NO_CIS_FOUND_FOR_SEARCH,
@@ -24,111 +28,38 @@ from constants import (
     ERROR_QUICK_CI_SEARCH
 )
 
-# Common CMDB CI Tables
-CI_TABLES = [
-    "cmdb_ci",
-    "cmdb_ci_acc",
-    "cmdb_ci_alias",
-    "cmdb_ci_appl",
-    "cmdb_ci_application_cluster",
-    "cmdb_ci_batch_job",
-    "cmdb_ci_business_app",
-    "cmdb_ci_business_capability",
-    "cmdb_ci_business_process",
-    "cmdb_ci_cim_profile",
-    "cmdb_ci_circuit",
-    "cmdb_ci_cloud_key_pair",
-    "cmdb_ci_cloud_resource_base",
-    "cmdb_ci_cluster",
-    "cmdb_ci_cluster_node",
-    "cmdb_ci_cluster_resource",
-    "cmdb_ci_cluster_vip",
-    "cmdb_ci_comm",
-    "cmdb_ci_computer_room",
-    "cmdb_ci_config_file",
-    "cmdb_ci_crac",
-    "cmdb_ci_database",
-    "cmdb_ci_datacenter",
-    "cmdb_ci_db_catalog",
-    "cmdb_ci_disk_partition",
-    "cmdb_ci_display_hardware",
-    "cmdb_ci_dns_name",
-    "cmdb_ci_drs_vm_config",
-    "cmdb_ci_endpoint",
-    "cmdb_ci_environment",
-    "cmdb_ci_facility_hardware",
-    "cmdb_ci_fc_port",
-    "cmdb_ci_group",
-    "cmdb_ci_hardware",
-    "cmdb_ci_imaging_hardware",
-    "cmdb_ci_information_object",
-    "cmdb_ci_ip_address",
-    "cmdb_ci_ip_device",
-    "cmdb_ci_ip_network",
-    "cmdb_ci_ip_phone",
-    "cmdb_ci_ip_service",
-    "cmdb_ci_lb_interface",
-    "cmdb_ci_lb_pool",
-    "cmdb_ci_lb_pool_member",
-    "cmdb_ci_lb_service",
-    "cmdb_ci_lb_vlan",
-    "cmdb_ci_lpar",
-    "cmdb_ci_memory_module",
-    "cmdb_ci_monitoring_hardware",
-    "cmdb_ci_net_app_host",
-    "cmdb_ci_net_traffic",
-    "cmdb_ci_network_adapter",
-    "cmdb_ci_network_host",
-    "cmdb_ci_os_packages",
-    "cmdb_ci_oslv_container",
-    "cmdb_ci_oslv_image",
-    "cmdb_ci_oslv_image_tag",
-    "cmdb_ci_oslv_local_image",
-    "cmdb_ci_patches",
-    "cmdb_ci_pdu_outlet",
-    "cmdb_ci_peripheral",
-    "cmdb_ci_port",
-    "cmdb_ci_print_queue",
-    "cmdb_ci_printing_hardware",
-    "cmdb_ci_qualifier",
-    "cmdb_ci_rack",
-    "cmdb_ci_san",
-    "cmdb_ci_san_connection",
-    "cmdb_ci_san_endpoint",
-    "cmdb_ci_san_fabric",
-    "cmdb_ci_san_zone",
-    "cmdb_ci_san_zone_alias",
-    "cmdb_ci_san_zone_alias_member",
-    "cmdb_ci_san_zone_member",
-    "cmdb_ci_san_zone_set",
-    "cmdb_ci_service",
-    "cmdb_ci_spkg",
-    "cmdb_ci_storage_controller",
-    "cmdb_ci_storage_device",
-    "cmdb_ci_storage_export",
-    "cmdb_ci_storage_fileshare",
-    "cmdb_ci_storage_hba",
-    "cmdb_ci_storage_pool",
-    "cmdb_ci_storage_pool_member",
-    "cmdb_ci_storage_volume",
-    "cmdb_ci_subnet",
-    "cmdb_ci_tomcat_connector",
-    "cmdb_ci_translation_rule",
-    "cmdb_ci_ups_alarm",
-    "cmdb_ci_ups_bypass",
-    "cmdb_ci_ups_input",
-    "cmdb_ci_ups_output",
-    "cmdb_ci_vcenter_cluster_drs_rule",
-    "cmdb_ci_vcenter_datastore_disk",
-    "cmdb_ci_vcenter_host_group",
-    "cmdb_ci_vcenter_vm_group",
-    "cmdb_ci_veritas_disk_group",
-    "cmdb_ci_vm_object",
-    "cmdb_ci_vpc",
-    "cmdb_ci_vpn",
-    "cmdb_ci_websphere_cell",
-    "cmdb_ci_zone",
+# Default probe order for get_ci_details when no ci_type is given —
+# most-specific class first, base cmdb_ci last.
+DEFAULT_CI_PROBE_TABLES = [
+    "cmdb_ci_server", "cmdb_ci_computer", "cmdb_ci_database",
+    "cmdb_ci_hardware", "cmdb_ci_network_gear", "cmdb_ci_service", "cmdb_ci",
 ]
+
+# A ci_type is interpolated into the REST URL path, so it is validated by
+# shape rather than against a static class list. The old static CI_TABLES
+# list drifted from real instances and rejected valid common types; a
+# genuinely unknown table simply returns no rows. The pattern also stops a
+# value like "cmdb_ci_server?sysparm_limit=9999" — which passes a bare
+# startswith("cmdb_ci") check — from smuggling query parameters into the path.
+#
+# Matched with fullmatch(), not match(): Python's `$` also matches immediately
+# before a single trailing newline, so match() would accept
+# "cmdb_ci_server\n". fullmatch() requires the whole string to be consumed.
+_CI_TYPE_PATTERN = re.compile(r'cmdb_ci[a-z0-9_]*')
+
+
+def _ci_type_error(ci_type: str) -> Optional[str]:
+    """Return an error message if ci_type is not a usable cmdb_ci* table, else None.
+
+    Single policy shared by find_cis_by_type, search_cis_by_attributes and
+    get_ci_details. Callers must return the message rather than falling back
+    to another table: silently querying base cmdb_ci (or every table) returns
+    rows the caller did not ask for, with nothing in the response to say so.
+    """
+    if not _CI_TYPE_PATTERN.fullmatch(ci_type):
+        return INVALID_CI_TYPE.format(ci_type=ci_type)
+    return None
+
 
 # Essential fields for CI discovery
 ESSENTIAL_CI_FIELDS = [
@@ -155,15 +86,16 @@ async def find_cis_by_type(ci_type: str, detailed: bool = False) -> dict[str, An
     Returns:
         Dictionary with CI results or error string
 
-    The ci_type is queried directly instead of being pre-validated against the
-    static CI_TABLES list — that list drifts from a given instance's CI classes
-    and was rejecting valid, common types (e.g. cmdb_ci_server). An unknown
-    table simply yields no results rather than a misleading "invalid type".
+    ci_type is validated by shape (see _ci_type_error), not against a static
+    class list — that list drifted from real instances and rejected valid,
+    common types (e.g. cmdb_ci_server). A well-formed but unknown table
+    simply yields no results rather than a misleading "invalid type".
     """
     if not ci_type:
-        return "CI type is required"
-    if not ci_type.startswith("cmdb_ci"):
-        return "Invalid CI type: must be a cmdb_ci* table."
+        return CI_TYPE_REQUIRED
+    type_error = _ci_type_error(ci_type)
+    if type_error:
+        return type_error
 
     fields = DETAILED_CI_FIELDS if detailed else ESSENTIAL_CI_FIELDS
     
@@ -198,16 +130,24 @@ async def search_cis_by_attributes(
         ip_address: IP address to search for
         location: Location to filter by
         status: Operational status to filter by  
-        ci_type: Specific CI type to search in (optional)
+        ci_type: Specific CI type to search in (optional). Must be a cmdb_ci*
+            table name; an unusable value is an error, never a fallback to the
+            base cmdb_ci table.
         detailed: If True, returns detailed CI information
-    
+
     Returns:
         Dictionary with CI results or error string
     """
     if not any([name, ip_address, location, status]):
         return "At least one search attribute must be provided"
-    
-    table = ci_type if ci_type and ci_type in CI_TABLES else "cmdb_ci"
+
+    table = "cmdb_ci"
+    if ci_type:
+        type_error = _ci_type_error(ci_type)
+        if type_error:
+            return type_error
+        table = ci_type
+
     fields = DETAILED_CI_FIELDS if detailed else ESSENTIAL_CI_FIELDS
     
     # Build query conditions. User values are percent-encoded (safe='') so
@@ -265,7 +205,9 @@ async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[
 
     Args:
         ci_number: CI number (e.g., CI0001000)
-        ci_type: Specific CI table to search in (optional, searches all if not provided)
+        ci_type: Specific CI table to search in (optional). When given it is
+            the only table searched; an unusable value is an error, never a
+            silent fall back to probing every table.
 
     Returns:
         Dictionary with detailed CI information or error string
@@ -275,17 +217,15 @@ async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[
     preserved by returning the first table (in order) that yields a row.
     """
     if not ci_number:
-        return "CI number is required"
+        return CI_NUMBER_REQUIRED
 
-    # If CI type is specified, search in that table only
-    if ci_type and ci_type in CI_TABLES:
+    if ci_type:
+        type_error = _ci_type_error(ci_type)
+        if type_error:
+            return type_error
         tables_to_search = [ci_type]
     else:
-        # Search in common CI tables, ordered most-specific first
-        tables_to_search = [
-            "cmdb_ci_server", "cmdb_ci_computer", "cmdb_ci_database",
-            "cmdb_ci_hardware", "cmdb_ci_network_gear", "cmdb_ci_service", "cmdb_ci"
-        ]
+        tables_to_search = list(DEFAULT_CI_PROBE_TABLES)
 
     semaphore = asyncio.Semaphore(3)
 
@@ -382,13 +322,22 @@ async def get_all_ci_types() -> dict[str, Any] | str:
     Get all available CI types/classes in the CMDB.
     
     Returns:
-        Dictionary with CI types and their counts
+        Dictionary of the CI classes this instance actually has.
+
+    This is a live ``sys_db_object`` query, not a static list — it is the only
+    discovery path for the classes a given instance defines.
+
+    Note: ``sys_db_object.number_ref`` is a reference to the table's numbering
+    configuration, NOT a row count. It was previously surfaced as
+    ``record_count``, which invited callers to treat an unrelated reference as
+    a population figure. The Table API returns no row count here; use
+    ``find_cis_by_type(ci_type)`` and read ``count`` if you need one.
     """
     try:
         # Query sys_db_object to get all tables that extend cmdb_ci
         url = f"{NWS_API_BASE}/api/now/table/sys_db_object?sysparm_query=super_class.name=cmdb_ci^ORname=cmdb_ci&sysparm_fields=name,label,number_ref"
         data = await make_nws_request(url)
-        
+
         if data and data.get('result'):
             ci_types = []
             for table_info in data['result']:
@@ -397,7 +346,7 @@ async def get_all_ci_types() -> dict[str, Any] | str:
                     ci_types.append({
                         "table_name": table_name,
                         "display_name": table_info.get('label', table_name),
-                        "record_count": table_info.get('number_ref', 'Unknown')
+                        "number_prefix_ref": table_info.get('number_ref', 'Unknown')
                     })
             
             return {

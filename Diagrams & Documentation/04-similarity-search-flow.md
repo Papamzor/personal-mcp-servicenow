@@ -1,6 +1,6 @@
 # Search & Query Flow (v4.3)
 
-How text search and AI-assisted search reach ServiceNow: keyword extraction, **one** OR-combined LIKE query (v4.2), domain filters, pagination, and the GET-only HTTP transforms.
+How text search and AI-assisted search reach ServiceNow: keyword extraction, **one** OR-combined LIKE query (v4.2), pagination, and the GET-only HTTP transforms.
 
 ## End-to-end flow
 
@@ -23,8 +23,7 @@ flowchart TD
     H -->|No| L[No records / empty result]
     H -->|Yes| ORQ["Build single query:<br/>short_descriptionLIKEk1^ORshort_descriptionLIKEk2…"]
 
-    ORQ --> CAT[_apply_domain_filters<br/>incident category / SC catalog]
-    CAT --> PAG
+    ORQ --> PAG
     R --> PAG
 
     PAG[_make_paginated_request]
@@ -56,9 +55,8 @@ flowchart TD
 3. **Build one `sysparm_query`**:  
    `short_descriptionLIKE{k1}^ORshort_descriptionLIKE{k2}^OR…`  
    (v4.2 — **not** one serial request per keyword).
-4. **Domain filters** when enabled: incident category exclusion, SC catalog exclusion.
-5. **Paginate** with `sysparm_offset` / `sysparm_limit` and deterministic sort.
-6. **GET pipeline** in `make_nws_request`:
+4. **Paginate** with `sysparm_offset` / `sysparm_limit` and deterministic sort.
+5. **GET pipeline** in `make_nws_request`:
    - encode `sysparm_query` (preserve SN operators in the safe set)
    - inject `sysparm_display_value`, `sysparm_exclude_reference_link`, `sysparm_no_count`
    - flatten `{display_value, value}` envelopes
@@ -90,7 +88,7 @@ Related tools (same package):
 ## Similarity (`find_similar`)
 
 1. Load the seed record’s short description (or detail fields).
-2. Reuse **`query_table_by_text`** on that description so the same OR-LIKE + domain-filter path runs.
+2. Reuse **`query_table_by_text`** on that description so the same OR-LIKE path runs.
 3. Return peer records (excluding trivial self-matches as implemented in the engine).
 
 ## Structured filter (`filter_records`)

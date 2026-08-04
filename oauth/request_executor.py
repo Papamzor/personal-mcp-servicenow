@@ -1,9 +1,12 @@
 """Authenticated HTTP request execution with 401 retry.
 
 Owns the actual ``httpx.AsyncClient`` lifecycle for ServiceNow API calls
-and the retry-with-fresh-token policy for 401 responses. Read paths
-swallow errors (return None); write paths re-raise so callers can map
-HTTP status codes to domain-specific error messages.
+and the retry-with-fresh-token policy for 401 responses.
+
+``raise_for_status`` selects the failure contract: ``True`` propagates every
+transport and HTTP failure (both write paths and, since v4.4, the typed read
+path in ``http_layer``), ``False`` keeps the permissive legacy behavior of
+returning ``None``.
 
 The auth-header source is injected as a callable so the façade can
 supply its own ``get_auth_headers`` bound method — letting tests patch
@@ -84,6 +87,8 @@ class RequestExecutor:
                 raise
             return None
         except (httpx.RequestError, json.JSONDecodeError):
+            if raise_for_status:
+                raise
             return None
 
     def _process_response(self, response: httpx.Response) -> Dict[str, Any]:
@@ -117,4 +122,6 @@ class RequestExecutor:
                 raise
             return None
         except (httpx.RequestError, json.JSONDecodeError):
+            if raise_for_status:
+                raise
             return None
