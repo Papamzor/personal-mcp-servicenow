@@ -102,7 +102,7 @@ oauth.singleton._oauth_client = None
 If you are rewriting tests against the new packages, the equivalents are:
 
 - `patch("oauth.client.httpx.AsyncClient")` — but `httpx` is a singleton, so either path works for module-attribute patches
-- `patch("http_layer.request_dispatcher.make_oauth_request")` — note that the dispatcher does a runtime lookup via `sys.modules["service_now_api_oauth"]` first, then falls back to `oauth_client`, so patching the v3 shim still works
+- `patch("http_layer.request_dispatcher.make_oauth_request")` — in v4.0 only, the dispatcher did a runtime lookup via `sys.modules["service_now_api_oauth"]` first and fell back to `oauth_client`, so patching the v3 shim still worked. That indirection was removed with the shims in the 4.1.0 work: patch the dispatcher target directly
 
 ## 4. Tool count
 

@@ -20,9 +20,11 @@ Current version: **4.3.0** — 39 registered tools. Full history in [CHANGELOG.m
 
 | Release | What changed |
 |---|---|
-| **4.3.0** | Claude Desktop `.mcpb` packaging; Nuitka binary builds dropped from the release workflow. Absorbed the performance and token work planned as 4.2 (pooled httpx client, one OR-combined keyword query, concurrent CMDB probes) — no 4.2.0 was ever released. |
-| **4.1.0** | v4.0 shims deleted; KB write tools; `get_kb_articles_by_state`; `get_query_syntax_help`; `filter_records` truncation metadata. |
+| **4.3.0** | Claude Desktop `.mcpb` packaging; Nuitka binary builds dropped from the release workflow. Absorbed the performance and token work planned as 4.2 (pooled httpx client, one OR-combined keyword query, concurrent CMDB probes). |
+| 4.1.0 † | v4.0 shims deleted; KB write tools; `get_kb_articles_by_state`; `get_query_syntax_help`; `filter_records` truncation metadata. |
 | **4.0.0** | SLA collapse, `filter/` + `http_layer/` + `oauth/` packages. Breaking — see below. |
+
+† The shipped version string went `4.0.0` → `4.3.0` directly. Neither 4.1.0 nor 4.2.0 was ever released or tagged — "4.1.0" labels a body of work in the CHANGELOG, not an installable version.
 
 ### v4.0, in detail
 
@@ -173,7 +175,7 @@ Work across all supported tables: `incident`, `change_request`, `sc_req_item`, `
 - `get_record_summary(table, number)` — short description for a single record
 - `get_record(table, number)` — full detail fields for a single record
 - `find_similar(table, number)` — records similar to an existing record
-- `filter_records(table, filters, fields)` — field-value filters with operators and date ranges
+- `filter_records(table, filters, fields=None, max_results=100)` — field-value filters with operators and date ranges; response carries `returned_count` / `truncated`
 
 ### Intelligent query tools (6)
 
@@ -218,16 +220,16 @@ Work across all supported tables: `incident`, `change_request`, `sc_req_item`, `
 
 ### CMDB (6)
 
-- `find_cis_by_type(ci_type)` — 100+ CI types supported
-- `search_cis_by_attributes(name, ip_address, location, status)`
-- `get_ci_details(ci_number)`
+- `find_cis_by_type(ci_type, detailed=False)` — any `cmdb_ci*` table
+- `search_cis_by_attributes(name=None, ip_address=None, location=None, status=None, ci_type=None, detailed=False)` — at least one attribute required
+- `get_ci_details(ci_number, ci_type=None)` — probes the common CI tables when `ci_type` is omitted
 - `similar_cis_for_ci(ci_number)`
-- `get_all_ci_types()`
+- `get_all_ci_types()` — live `sys_db_object` query, not a static list
 - `quick_ci_search(search_term)`
 
 ### Server & auth (5)
 
-- `nowtest()`, `now_test_oauth()`, `now_auth_info()`, `nowtestauth()`, `nowtest_auth_input(table)`
+- `nowtest()`, `now_test_oauth()`, `now_auth_info()`, `nowtestauth()`, `nowtest_auth_input(table_name)`
 
 ---
 

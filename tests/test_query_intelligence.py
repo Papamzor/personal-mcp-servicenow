@@ -1,5 +1,5 @@
 """
-Comprehensive tests for query_intelligence.py
+Comprehensive tests for filter/intelligence.py (was query_intelligence.py before 4.1.0)
 Target: 85%+ line coverage, 60%+ branch coverage
 """
 

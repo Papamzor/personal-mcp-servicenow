@@ -1,5 +1,5 @@
 """
-Comprehensive tests for query_validation.py module.
+Comprehensive tests for the filter/ package (was query_validation.py before 4.1.0).
 
 Tests the ServiceNow query construction and validation engine including:
 - ServiceNowQueryBuilder functionality

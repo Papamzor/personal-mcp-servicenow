@@ -209,7 +209,7 @@ Application Registry record if you need a break-glass credential.
 
 ### Custom Token Endpoint
 
-If using a custom token endpoint, modify `oauth_client.py`:
+If using a custom token endpoint, modify `oauth/token_store.py` (the flat `oauth_client.py` was deleted in the 4.1.0 work):
 
 ```python
 self.token_endpoint = f"{self.instance_url}/your_custom_oauth_token.do"

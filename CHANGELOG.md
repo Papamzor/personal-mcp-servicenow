@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.3.0] - 2026-07-14
 
-Backfilled 2026-08-03 from the 32 commits between the 4.1.0 work and the `v4.3.0` tag.
+Backfilled 2026-08-03 from the 33 non-merge commits between the 4.1.0 work and the `v4.3.0` tag.
 
-**On the missing 4.2.0:** there isn't one. The version string went `4.1.0` → `4.3.0` in a single
-bump (the packaging commit), and no `v4.1.0` or `v4.2.0` tag was ever cut. The performance and
-token work planned as "4.2" shipped inside 4.3.0 and is recorded below under its own heading
-rather than as a fabricated 4.2.0 release. Retroactive tags were deliberately not created.
+**On the missing 4.2.0 — and on 4.1.0.** The shipped version string went straight from `4.0.0`
+to `4.3.0`, in one bump in the packaging commit (`c9276cc`). There was never a `4.2.0`, and
+`4.1.0` was never a shipped version either: it is a CHANGELOG heading only. The commit that
+carries the 4.1.0 work (`baa7d46`, the shim deletion) does not touch
+`personal_mcp_servicenow_main.py` at all. Tags agree — only `v4.0.0` and `v4.3.0` exist between
+v3 and here.
+
+So the performance and token work planned as "4.2" is recorded below under its own heading
+rather than as a fabricated 4.2.0 release, and the `[4.1.0]` heading above should be read as
+"the 4.1.0 work", not as a release you could have installed. Retroactive tags were deliberately
+not created.
 
 ### Added
 

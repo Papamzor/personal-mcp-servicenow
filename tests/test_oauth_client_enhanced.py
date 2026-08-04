@@ -1,5 +1,5 @@
 """
-Comprehensive tests for oauth_client.py
+Comprehensive tests for the oauth/ package (was oauth_client.py before 4.1.0)
 Target: 90%+ line coverage, 75%+ branch coverage
 """
 
