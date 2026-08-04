@@ -16,6 +16,7 @@ from constants import (
     NO_VALID_PRIORITIES_ERROR,
     TABLE_NO_PRIORITY_SUPPORT_ERROR,
     MONTH_NAME_TO_NUMBER,
+    text_search_field_for,
     LOGICMONITOR_CALLER_SYS_ID,
     ENABLE_COMPLETE_QUERY,
     TABLE_CONFIGS
@@ -63,7 +64,12 @@ def _is_safe_record_number(record_number: str) -> bool:
     return True
 
 
-async def query_table_by_text(table_name: str, input_text: str, detailed: bool = False) -> dict[str, Any]:
+async def query_table_by_text(
+    table_name: str,
+    input_text: str,
+    detailed: bool = False,
+    search_field: Optional[str] = None,
+) -> dict[str, Any]:
     """Generic function to query any ServiceNow table by text similarity.
 
     Builds ONE OR-combined query across every extracted keyword
@@ -91,7 +97,7 @@ async def query_table_by_text(table_name: str, input_text: str, detailed: bool =
         return {"result": [], "message": NO_RECORDS_FOUND}
 
     # OR-group the keyword conditions so one request matches any keyword.
-    query = "^OR".join(f"short_descriptionLIKE{keyword}" for keyword in keywords)
+    query = "^OR".join(f"{search_field}LIKE{keyword}" for keyword in keywords)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}"
     # Single paginated request; text searches capped at 50 results.
     all_results = await _make_paginated_request(base_url, max_results=50)
