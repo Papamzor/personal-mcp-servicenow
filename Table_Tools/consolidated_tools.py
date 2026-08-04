@@ -23,7 +23,7 @@ from .date_utils import (
     build_last_n_days_filter,
 )
 from typing import Any, Dict, Optional, List
-from constants import TABLE_ERROR_MESSAGES, TASK_NUMBER_FIELD
+from constants import TABLE_ERROR_MESSAGES, TASK_NUMBER_FIELD, TASK_SLA_TEXT_SEARCH_FIELD
 from param_coercion import OptJsonList, OptJsonDict
 
 logger = logging.getLogger(__name__)
@@ -420,8 +420,22 @@ def _build_sla_status_filter(
 
 
 async def similar_slas_for_text(input_text: str) -> Dict[str, Any]:
-    """Find SLAs whose related task descriptions match the given text."""
-    return await query_table_by_text("task_sla", input_text)
+    """Find SLAs whose related task descriptions match the given text.
+
+    Searches the dot-walked ``task.short_description``, not ``short_description``.
+    task_sla has no description column of its own, and ServiceNow silently drops
+    a filter on a field the table does not have — so the previous query carried
+    no effective condition and returned an arbitrary page of SLAs, every one of
+    them reported as a match. Same failure mode as the get_sla_details bug
+    documented below.
+
+    The field is passed explicitly even though ``query_table_by_text`` would now
+    resolve it from the table anyway: this is the one tool whose whole purpose is
+    that dot-walk, so it should not read as an accident of configuration.
+    """
+    return await query_table_by_text(
+        "task_sla", input_text, search_field=TASK_SLA_TEXT_SEARCH_FIELD
+    )
 
 
 async def get_sla_details(sla_sys_id: str) -> Dict[str, Any]:

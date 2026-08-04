@@ -182,6 +182,47 @@ TABLE_ERROR_MESSAGES = {
     "task_sla": "SLA record not found."
 }
 
+# ---------------------------------------------------------------------------
+# Text search and record identity
+# ---------------------------------------------------------------------------
+# Default field the free-text search path matches against.
+TEXT_SEARCH_FIELD = "short_description"
+
+# task_sla carries no short_description of its own — the description lives on
+# the referenced task. A filter against a field a table does not have is
+# SILENTLY DROPPED by ServiceNow, so searching short_description on task_sla
+# produced an unfiltered page of arbitrary SLAs labelled as matches (the same
+# failure mode as the 1.2M-token get_sla_details bug). Dot-walk instead.
+TASK_SLA_TEXT_SEARCH_FIELD = "task.short_description"
+
+# Per-table override of the text-search field. Absent means TEXT_SEARCH_FIELD.
+# Config, not a branch in the query code: every path that free-text searches
+# resolves through this map, so a new table with an unusual description column
+# is one entry here rather than a fix in each call site. Getting it wrong is
+# silent — a condition on a missing field is dropped, not rejected.
+TEXT_SEARCH_FIELD_BY_TABLE = {
+    "task_sla": TASK_SLA_TEXT_SEARCH_FIELD,
+}
+
+
+def text_search_field_for(table_name: str) -> str:
+    """The field a free-text search must target for *table_name*."""
+    return TEXT_SEARCH_FIELD_BY_TABLE.get(table_name, TEXT_SEARCH_FIELD)
+
+# Tables the number- and text-addressed generic tools cannot query at all.
+# task_sla has neither `number` (number_prefix is None) nor its own
+# `short_description`, so get_record / get_record_summary / find_similar /
+# search_records can only build queries against fields that do not exist.
+TABLES_WITHOUT_RECORD_IDENTITY = frozenset({"task_sla"})
+
+TABLE_LACKS_RECORD_IDENTITY = (
+    "Table '{table}' has no 'number' or 'short_description' field, so this tool "
+    "cannot address its records — ServiceNow silently drops a filter on a "
+    "missing field and would return unrelated rows. Use query_slas_by_task("
+    "task_number), query_slas_by_status(status), get_sla_details(sla_sys_id), "
+    "similar_slas_for_text(text), or filter_records('{table}', filters)."
+)
+
 # Table Field Definitions
 ESSENTIAL_FIELDS = {
     "incident": ["number", "short_description", "priority", "state", "category", "sys_created_on"],
