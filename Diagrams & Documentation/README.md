@@ -52,7 +52,7 @@ kb_article_tools.py        (KB update / publish / batch / retire / dup-check)
 cmdb_tools.py              (6 CMDB tools)
 intelligent_query_tools.py (6 NLP / filter-help tools)
   ↓
-generic_table_tools.py     (query engine, pagination, domain filters)
+generic_table_tools.py     (query engine, pagination)
   ↓
 filter/                    (builder, validator, intelligence, explainer, models)
   ↓

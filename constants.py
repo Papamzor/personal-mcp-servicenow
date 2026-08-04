@@ -285,53 +285,14 @@ QUERY_WARNINGS = {
 
 # Query-injection hardening
 # `_complete_query` lets a caller hand a raw, pre-built ServiceNow encoded
-# query straight through the filter pipeline. That is exactly the shape of
-# input an attacker would use to smuggle a `^NQ` new-query-reset (defeats the
-# domain exclusion fences appended by `_apply_domain_filters`) or other
-# injected conditions. Off by default; an operator can opt back in.
+# query straight through the filter pipeline, bypassing every per-field
+# handler and the `^NQ` new-query-reset defense. Off by default; an operator
+# can opt back in.
 ENABLE_COMPLETE_QUERY = os.getenv("ENABLE_COMPLETE_QUERY", "false").strip().lower() in ("1", "true", "yes", "on")
-
-# Incident Category Filtering Configuration
-ENABLE_INCIDENT_CATEGORY_FILTERING = os.getenv("ENABLE_INCIDENT_CATEGORY_FILTERING", "true").strip().lower() in ("1", "true", "yes", "on")  # Toggle to enable/disable category filtering
-EXCLUDED_INCIDENT_CATEGORIES = [
-    "Payroll",
-    "People Support",
-    "Workplace"
-]
 
 # LogicMonitor integration caller sys_id, used for exclusion filters.
 LOGICMONITOR_CALLER_SYS_ID = os.getenv("LOGICMONITOR_CALLER_SYS_ID", "1727339e47d99190c43d3171e36d43ad")
 
-# Service Catalog Filtering Configuration
-# Applies to: sc_request (REQ), sc_req_item (RITM), sc_task (SCTASK)
-# Uses EXCLUSION-based filtering to block sensitive HR/Payroll records
-ENABLE_SC_CATALOG_FILTERING = True  # Toggle to enable/disable service catalog filtering
-
-# Excluded catalog categories - records with these catalogs will be blocked
-EXCLUDED_SC_CATALOG_CATEGORIES = [
-    "People_Pay",  # HR/Payroll sensitive data
-]
-
-# Excluded assignment groups - records assigned to these groups will be blocked
-EXCLUDED_SC_ASSIGNMENT_GROUPS = [
-    # Payroll Teams
-    "Payroll Managers",
-    "Payroll Representatives",
-    "Payroll Specialists",
-    # People/HR Teams
-    "People Business Partners",
-    "People Business Partners - SGSC",
-    "People Knowledge Approvers",
-    "People Support Tier 1",
-    "People Support Tier 2",
-    "People Technology Team",
-    # Talent/Recruiting
-    "Talent Acquisition",
-    # Benefits (sensitive compensation data)
-    "SG_Benefits Allowed Variable View",
-]
-
-SC_CATALOG_TABLES = ["sc_request", "sc_req_item", "sc_task"]
 # ServiceNow table configurations
 TABLE_CONFIGS = {
     "incident": {
