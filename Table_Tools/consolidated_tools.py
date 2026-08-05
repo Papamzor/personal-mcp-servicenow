@@ -17,7 +17,7 @@ from .generic_table_tools import (
     query_table_with_generic_filters,
     TableFilterParams
 )
-from .read_helpers import carry_partial, is_read_failure
+from .read_helpers import carry_partial, carry_partial_after_filter, is_read_failure
 from .date_utils import (
     validate_date_format,
     build_date_filter,
@@ -323,8 +323,11 @@ async def get_kb_articles_by_state(
             continue
         deduped.append(formatted)
 
+    # Dedup + the workflow_state filter can empty a partial set. Answering
+    # "No matching KB articles." from pages that never arrived would be the same
+    # confident-wrong answer this tier removes, so that case reports the failure.
     if not deduped:
-        return carry_partial({
+        return carry_partial_after_filter({
             "result": [],
             "message": "No matching KB articles.",
             "returned_count": 0,

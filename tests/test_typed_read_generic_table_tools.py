@@ -358,6 +358,59 @@ class TestConsumersThatReWrap:
         _assert_plain_failure(result, ErrorCode.TIMEOUT)
 
     @pytest.mark.asyncio
+    async def test_kb_by_state_reports_failure_when_the_filter_empties_a_partial(self):
+        """A partial set filtered down to nothing must not answer "no matches".
+
+        Two pages requested, page 1 returns 250 draft articles, page 2 times out.
+        Asking for `published` filters all 250 away — but the articles that would
+        have matched could be in the page that never arrived, so "No matching KB
+        articles." would be a confident answer built from an unfinished read.
+        """
+        from Table_Tools.consolidated_tools import get_kb_articles_by_state
+
+        page_one = {"result": [
+            {"number": f"KB{i:07d}", "sys_id": f"{i:032x}", "workflow_state": "draft"}
+            for i in range(250)
+        ]}
+        with patch(
+            "Table_Tools.generic_table_tools.make_nws_request",
+            side_effect=[page_one, TIMEOUT],
+        ):
+            result = await get_kb_articles_by_state(workflow_state="published", max_results=500)
+        _assert_plain_failure(result, ErrorCode.TIMEOUT)
+        assert "message" not in result
+
+    @pytest.mark.asyncio
+    async def test_kb_by_state_genuine_empty_still_says_no_matching_articles(self):
+        """The complete-read case is untouched: empty stays not-found."""
+        from Table_Tools.consolidated_tools import get_kb_articles_by_state
+
+        with patch("Table_Tools.generic_table_tools.make_nws_request") as mock_request:
+            mock_request.return_value = {"result": []}
+            result = await get_kb_articles_by_state(workflow_state="published")
+        assert result["result"] == []
+        assert result["message"] == "No matching KB articles."
+        assert "error" not in result
+
+    @pytest.mark.asyncio
+    async def test_find_similar_reports_failure_when_the_only_match_was_the_original(self):
+        """Same invariant on the similar-records filter."""
+        similar = {
+            "result": [{"number": "INC0012345"}],
+            "partial": True,
+            **TIMEOUT.to_error_dict(),
+        }
+        with patch(
+            "Table_Tools.generic_table_tools.get_record_description",
+            new=AsyncMock(return_value={"result": [{"short_description": "db down"}]}),
+        ), patch(
+            "Table_Tools.generic_table_tools.query_table_by_text",
+            new=AsyncMock(return_value=similar),
+        ):
+            result = await find_similar_records("incident", "INC0012345")
+        _assert_plain_failure(result, ErrorCode.TIMEOUT)
+
+    @pytest.mark.asyncio
     async def test_intelligent_search_keeps_the_error_code(self):
         from Table_Tools.intelligent_query_tools import (
             IntelligentQueryParams,

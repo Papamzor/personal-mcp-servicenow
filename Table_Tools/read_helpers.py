@@ -35,10 +35,28 @@ def is_read_failure(response: Any) -> bool:
 def carry_partial(response: Dict[str, Any], source: Any) -> Dict[str, Any]:
     """Propagate *source*'s partial-read marker onto *response*.
 
-    Used wherever one response is re-wrapped into another, so an incomplete set
-    is never presented as a complete one. No-op when *source* carries no error.
+    Used wherever one response is re-shaped into another without dropping rows,
+    so an incomplete set is never presented as a complete one. No-op when
+    *source* carries no error.
+
+    If the re-wrap FILTERS rows out, use `carry_partial_after_filter` instead —
+    an emptied-out partial must not keep its not-found message.
     """
     if isinstance(source, dict) and source.get("error"):
         response["partial"] = True
         response["error"] = source["error"]
     return response
+
+
+def carry_partial_after_filter(response: Dict[str, Any], source: Any) -> Dict[str, Any]:
+    """`carry_partial` for a response whose rows were filtered down.
+
+    When the filter removes every row of a partial read, marking the result
+    `partial` would ship a self-contradicting answer: a confident "no matching
+    records" message next to an error saying the read never finished. The rows
+    that would have matched may well be in the pages that failed, so the honest
+    answer is the failure, not an empty set.
+    """
+    if isinstance(source, dict) and source.get("error") and not response.get("result"):
+        return {"error": source["error"]}
+    return carry_partial(response, source)

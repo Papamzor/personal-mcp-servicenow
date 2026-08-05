@@ -21,7 +21,7 @@ from constants import (
     ENABLE_COMPLETE_QUERY,
     TABLE_CONFIGS
 )
-from .read_helpers import carry_partial, is_read_failure
+from .read_helpers import carry_partial, carry_partial_after_filter, is_read_failure
 from filter import (
     QueryExplainer,
     QueryIntelligence,
@@ -221,7 +221,13 @@ def _first_short_description(desc_data: dict[str, Any]) -> str:
 
 
 def _exclude_original_record(similar_data: dict[str, Any], record_number: str) -> dict[str, Any]:
-    """Drop the source record from a text-search result, preserving partial state."""
+    """Drop the source record from a text-search result, preserving partial state.
+
+    Filtering can empty a partial set, in which case NO_SIMILAR_RECORDS_FOUND
+    would be a confident answer drawn from an unfinished read — the pages that
+    failed could hold similar records. `carry_partial_after_filter` returns the
+    failure instead.
+    """
     rows = similar_data.get('result') or []
     if not rows:
         return similar_data  # nothing to filter — pass the inner response through
@@ -233,7 +239,7 @@ def _exclude_original_record(similar_data: dict[str, Any], record_number: str) -
         }
     else:
         response = {"result": [], "message": NO_SIMILAR_RECORDS_FOUND}
-    return carry_partial(response, similar_data)
+    return carry_partial_after_filter(response, similar_data)
 
 
 async def find_similar_records(table_name: str, record_number: str) -> dict[str, Any]:
@@ -773,8 +779,10 @@ async def _make_paginated_request(
         try:
             data = await make_nws_request(paginated_url)
         except ServiceNowRequestError as error:
+            # No slicing needed: the loop condition guarantees
+            # len(all_results) < max_results at the top of every iteration.
             if all_results:
-                raise PartialPageReadError(all_results[:max_results], error) from error
+                raise PartialPageReadError(all_results, error) from error
             raise
 
         # A 200 with no rows ends the walk normally — empty is success.
