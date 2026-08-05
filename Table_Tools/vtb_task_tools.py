@@ -1,7 +1,6 @@
 """Private task (vtb_task) CRUD.
 
-Read-failure contract (v4.4 Tier 0.3). This module is in
-`http_layer.request_dispatcher._TYPED_CALLERS`, so a failed GET raises
+Read-failure contract (v4.4 Tier 0.3). A failed GET raises
 `ServiceNowRequestError` instead of returning None. There is exactly one read
 here — the pre-write `sys_id` lookup — and it is the sensitive kind (decision
 (d)): `_get_task_sys_id` returns None ONLY for a task that genuinely does not

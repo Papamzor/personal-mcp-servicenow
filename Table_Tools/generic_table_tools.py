@@ -36,10 +36,9 @@ from filter import (
 
 
 # ---------------------------------------------------------------------------
-# Read-failure contract (v4.4 Tier 0.3). This module is the first entry in
-# `http_layer.request_dispatcher._TYPED_CALLERS`, so a failed GET arrives here
-# as a raised `ServiceNowRequestError` instead of `None`. The rules below are
-# settled here and reused by every other consumer module migrated after it:
+# Read-failure contract (v4.4 Tier 0.3). A failed GET arrives here as a raised
+# `ServiceNowRequestError` instead of `None`. This module was migrated first, so
+# the rules below were settled here and are reused by every other consumer:
 #
 #   1. A raise returns `error.to_error_dict()` -> {"error": {code, message}}
 #      and nothing else. `retryable` is for our own retry logic, not the client,

@@ -1,14 +1,17 @@
-"""Tests for the typed read-path failure surface (v4.4 Tier 0.3, PR 1 of 8).
+"""Tests for the typed read-path failure surface (v4.4 Tier 0.3).
 
-Two contracts are locked here:
+Three contracts are locked here:
 
 1. `classify_read_failure` maps every failure the read path can produce onto
    the seven-code vocabulary, and never onto NOT_FOUND unless ServiceNow
    actually said 404. A timeout reported as not-found is the bug this tier
    exists to remove.
-2. The `_legacy_none_shim` keeps behavior identical on main for callers nobody
-   has migrated yet, while already raising for callers that opt in. Both
-   branches are exercised so PRs 2-7 cannot silently break either one.
+2. A failed GET raises for every caller, unconditionally, and an empty result
+   is still a success. The migration shim that used to convert the raise back
+   into `None` for unmigrated callers is gone.
+3. Every module that calls `make_nws_request` on the read path handles the
+   raise. That set is derived by scanning the tree, not from a list -- the
+   migration's own planning documents undercounted it by one.
 """
 import json
 
@@ -150,37 +153,39 @@ class TestClassifyOAuthFailures:
         assert via_oauth.code == via_http.code == ErrorCode.AUTH
 
 
-class TestLegacyNoneShim:
-    """PR 1 must not change behavior on main. PRs 2-7 flip modules one at a time."""
+class TestReadFailuresPropagate:
+    def test_every_read_path_consumer_handles_the_raise(self):
+        """Derived from the CODE, not from a list. The list was wrong once already.
 
-    def test_typed_callers_matches_the_migration_state(self):
-        """Updated deliberately, once per PR — the assertion IS the migration record.
-
-        PR E deletes this class along with the shim.
-        """
-        assert dispatcher._TYPED_CALLERS == frozenset({
-            "Table_Tools.generic_table_tools",
-            "Table_Tools.cmdb_tools",
-            "Table_Tools.kb_article_tools",
-            "Table_Tools.vtb_task_tools",
-            "Table_Tools.table_tools",
-        })
-
-    def test_typed_callers_covers_every_read_path_consumer(self):
-        """The set must be derived from the CODE, not from a planning document.
-
-        The migration inventory listed four consumer modules. There were five —
+        The migration inventory named four consumer modules. There were five:
         `Table_Tools.table_tools`, whose two functions are registered MCP tools
-        with no exception handling at all. Nothing failed when it was left out,
-        because the shim quietly kept feeding it None; it would have surfaced as
-        an uncaught exception from a live tool the moment the shim was deleted.
+        with no exception handling at all. Nothing failed while the shim was
+        feeding it None, and it would have started raising out of a live tool the
+        moment the shim went.
 
-        This scan is what makes "the set is complete" checkable rather than
-        asserted. It is scaffold-lifetime: when the shim goes and the raise
-        becomes unconditional, completeness stops being the property that matters
-        and "every consumer HANDLES the raise" takes over — so replace this with
-        a handler check, do not simply delete it.
+        This replaces the shim-era completeness check. Completeness of an opt-in
+        set stopped being the property that matters once the raise became
+        unconditional; what matters now is that every module reading through this
+        path is prepared to catch. A new consumer added without a handler fails
+        here, named.
+
+        Two things this deliberately does NOT buy, so nobody over-trusts it:
+
+        * It cannot prove a handler is correct, only that the module has one.
+          Correctness per module lives in the five `test_typed_read_*.py` files,
+          each of which drives a real failure through the real dispatcher.
+        * It is per-module, not per-call-site. A module with a handler in one
+          function and none in another passes. Today none of the five has such a
+          gap (checked by hand); a scan that could prove it wouldn't be a scan.
+
+        Consumers are detected by IMPORT rather than by a `make_nws_request(`
+        text match, via the AST: an aliased import
+        (`from http_layer import make_nws_request as fetch`) binds the name and
+        then never spells it at the call site, so a text match would miss the
+        module entirely — silently, which is the failure mode that makes a guard
+        worse than no guard. Parsing also ignores mentions in comments.
         """
+        import ast
         import pathlib
 
         repo = pathlib.Path(__file__).resolve().parent.parent
@@ -188,51 +193,59 @@ class TestLegacyNoneShim:
         # function; tests mock it. None of those are consumers.
         skip = {".venv", "venv", "dist", "build", "tests", "http_layer",
                 ".git", "graphify-out", "__pycache__"}
-        consumers = set()
-        for path in repo.rglob("*.py"):
-            parts = path.relative_to(repo).parts
-            if any(p in skip for p in parts):
-                continue
-            if "make_nws_request(" not in path.read_text(encoding="utf-8"):
-                continue
-            consumers.add(".".join(path.relative_to(repo).with_suffix("").parts))
 
-        assert consumers, "scan found no consumers at all — the scan itself is broken"
-        missing = consumers - dispatcher._TYPED_CALLERS
-        assert not missing, (
-            f"unmigrated read-path consumer(s): {sorted(missing)}. Each still "
-            f"receives None for a failed read, and will raise uncaught once the "
-            f"shim is deleted."
+        def imports_the_read_entry_point(tree):
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom):
+                    names = [a.name for a in node.names]
+                elif isinstance(node, ast.Import):
+                    names = [a.name.rsplit(".", 1)[-1] for a in node.names]
+                else:
+                    continue
+                if "make_nws_request" in names:
+                    return True
+            return False
+
+        def handles_the_typed_error(tree):
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ExceptHandler) or node.type is None:
+                    continue
+                caught = node.type.elts if isinstance(node.type, ast.Tuple) else [node.type]
+                for exc in caught:
+                    name = exc.attr if isinstance(exc, ast.Attribute) else getattr(exc, "id", None)
+                    if name == "ServiceNowRequestError":
+                        return True
+            return False
+
+        unhandled = []
+        consumers = []
+        for path in sorted(repo.rglob("*.py")):
+            if any(part in skip for part in path.relative_to(repo).parts):
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            if not imports_the_read_entry_point(tree):
+                continue
+            rel = str(path.relative_to(repo))
+            consumers.append(rel)
+            if not handles_the_typed_error(tree):
+                unhandled.append(rel)
+
+        assert len(consumers) >= 5, (
+            f"scan found only {len(consumers)} consumers ({consumers}); it is "
+            f"probably broken rather than the codebase having shrunk"
+        )
+        assert not unhandled, (
+            f"read-path consumer(s) with no `except ServiceNowRequestError`: "
+            f"{unhandled}. A failed GET raises unconditionally, so these would "
+            f"propagate an exception to MCP clients."
         )
 
-    def test_typed_caller_names_are_real_module_names(self):
-        """A typo'd dotted name silently leaves a module unmigrated, suite still green.
-
-        `_calling_module()` compares against `frame.f_globals["__name__"]`, so
-        "Table_Tools.generic_tables_tools" would never match anything and the
-        module would keep receiving None with nothing failing to say so.
-        """
-        import importlib
-
-        for name in dispatcher._TYPED_CALLERS:
-            assert importlib.import_module(name).__name__ == name
-
     @pytest.mark.asyncio
-    async def test_unmigrated_caller_still_gets_none(self, monkeypatch):
-        async def boom(url):
-            raise _status_error(500)
-
-        monkeypatch.setattr(dispatcher, "make_oauth_request", boom)
-        result = await dispatcher.make_nws_request("https://example.service-now.com/api/now/table/incident")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_migrated_caller_gets_typed_error(self, monkeypatch):
+    async def test_get_failure_raises_typed_error(self, monkeypatch):
         async def boom(url):
             raise _status_error(403)
 
         monkeypatch.setattr(dispatcher, "make_oauth_request", boom)
-        monkeypatch.setattr(dispatcher, "_TYPED_CALLERS", frozenset({__name__}))
 
         with pytest.raises(ServiceNowRequestError) as excinfo:
             await dispatcher.make_nws_request("https://example.service-now.com/api/now/table/incident")
@@ -241,13 +254,12 @@ class TestLegacyNoneShim:
         assert excinfo.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_timeout_reaches_migrated_caller_as_timeout_not_not_found(self, monkeypatch):
+    async def test_timeout_is_a_timeout_not_a_not_found(self, monkeypatch):
         """The headline bug: a 30s deadline must never look like a missing record."""
         async def slow(url):
             raise TimeoutError()
 
         monkeypatch.setattr(dispatcher, "make_oauth_request", slow)
-        monkeypatch.setattr(dispatcher, "_TYPED_CALLERS", frozenset({__name__}))
 
         with pytest.raises(ServiceNowRequestError) as excinfo:
             await dispatcher.make_nws_request("https://example.service-now.com/api/now/table/incident")
@@ -256,12 +268,11 @@ class TestLegacyNoneShim:
         assert excinfo.value.retryable is True
 
     @pytest.mark.asyncio
-    async def test_success_path_untouched_by_the_shim(self, monkeypatch):
+    async def test_success_path_unaffected(self, monkeypatch):
         async def ok(url):
             return {"result": [{"number": "INC0012345"}]}
 
         monkeypatch.setattr(dispatcher, "make_oauth_request", ok)
-        monkeypatch.setattr(dispatcher, "_TYPED_CALLERS", frozenset({__name__}))
 
         result = await dispatcher.make_nws_request("https://example.service-now.com/api/now/table/incident")
         assert result == {"result": [{"number": "INC0012345"}]}
@@ -273,7 +284,6 @@ class TestLegacyNoneShim:
             return {"result": []}
 
         monkeypatch.setattr(dispatcher, "make_oauth_request", empty)
-        monkeypatch.setattr(dispatcher, "_TYPED_CALLERS", frozenset({__name__}))
 
         result = await dispatcher.make_nws_request("https://example.service-now.com/api/now/table/incident")
         assert result == {"result": []}
@@ -283,7 +293,7 @@ class TestResponseParsingStaysGuarded:
     """The pre-v4.4 blanket except covered the flattener for every read caller."""
 
     @pytest.mark.asyncio
-    async def test_flattener_failure_is_classified_not_propagated(self, monkeypatch):
+    async def test_flattener_failure_is_classified_as_internal(self, monkeypatch):
         async def ok(url):
             return {"result": [{"number": "INC0001"}]}
 
@@ -292,55 +302,8 @@ class TestResponseParsingStaysGuarded:
 
         monkeypatch.setattr(dispatcher, "make_oauth_request", ok)
         monkeypatch.setattr(dispatcher, "extract_display_values", exploding_flattener)
-
-        # Un-migrated caller: must still get None, not a RuntimeError.
-        assert await dispatcher.make_nws_request("https://example.service-now.com/api/now/table/incident") is None
-
-    @pytest.mark.asyncio
-    async def test_flattener_failure_reaches_migrated_caller_as_internal(self, monkeypatch):
-        async def ok(url):
-            return {"result": [{"number": "INC0001"}]}
-
-        def exploding_flattener(payload):
-            raise RuntimeError("parser blew up")
-
-        monkeypatch.setattr(dispatcher, "make_oauth_request", ok)
-        monkeypatch.setattr(dispatcher, "extract_display_values", exploding_flattener)
-        monkeypatch.setattr(dispatcher, "_TYPED_CALLERS", frozenset({__name__}))
 
         with pytest.raises(ServiceNowRequestError) as excinfo:
             await dispatcher.make_nws_request("https://example.service-now.com/api/now/table/incident")
 
         assert excinfo.value.code == ErrorCode.INTERNAL
-
-
-class TestCallingModuleResolution:
-    def test_resolves_to_the_caller_outside_http_layer(self):
-        assert dispatcher._calling_module() == __name__
-
-    def test_boundary_is_the_package_not_a_bare_prefix(self):
-        """A module named http_layer_extras is a different package, not internal."""
-        import types
-
-        fake = types.ModuleType("http_layer_extras")
-        code = "def probe(walk):\n    return walk()\n"
-        exec(compile(code, "http_layer_extras.py", "exec"), fake.__dict__)
-
-        assert fake.probe(dispatcher._calling_module) == "http_layer_extras"
-
-    def test_skips_intermediate_http_layer_frames(self, monkeypatch):
-        """An http_layer frame between the consumer and the walk must not mask it.
-
-        `_legacy_none_shim` lives in http_layer and calls `_calling_module()`
-        one frame deeper, so reaching this module's name proves the walk climbs
-        out of the package instead of stopping at the nearest frame.
-        """
-        monkeypatch.setattr(dispatcher, "_TYPED_CALLERS", frozenset({__name__}))
-        error = ServiceNowRequestError(ErrorCode.AUTH, "denied", status_code=401)
-
-        with pytest.raises(ServiceNowRequestError):
-            dispatcher._legacy_none_shim(error)
-
-    def test_unlisted_caller_swallowed_by_shim(self):
-        error = ServiceNowRequestError(ErrorCode.AUTH, "denied", status_code=401)
-        assert dispatcher._legacy_none_shim(error) is None

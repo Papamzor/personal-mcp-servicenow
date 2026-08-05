@@ -1,7 +1,6 @@
 """Knowledge-article reads and writes.
 
-Read-failure contract (v4.4 Tier 0.3). This module is in
-`http_layer.request_dispatcher._TYPED_CALLERS`, so a failed GET raises
+Read-failure contract (v4.4 Tier 0.3). A failed GET raises
 `ServiceNowRequestError` rather than returning None:
 
   * A raise surfaces as `error.to_error_dict()` -> {"error": {code, message}}.

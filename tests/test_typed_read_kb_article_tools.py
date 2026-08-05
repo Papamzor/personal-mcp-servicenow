@@ -1,7 +1,6 @@
 """Typed read failures in the KB article tools (v4.4 Tier 0.3, PR C).
 
-`Table_Tools.kb_article_tools` joins `_TYPED_CALLERS`, so a failed GET raises
-instead of returning None. Four things are locked here:
+A failed GET raises instead of returning None. Four things are locked here:
 
 1. **The publish guard is fail-closed.** `_check_kb_duplicates` has three
    outcomes — clear, duplicates-found, inconclusive — and only *clear* permits a
@@ -560,11 +559,20 @@ class TestPreWriteReadsDistinguishAbsentFromFailed:
 
 
 class TestEndToEndThroughTheRealDispatcher:
-    """Proves the `_TYPED_CALLERS` entry resolves for this module.
+    """A failed read reaches the publish guard through the real dispatcher.
 
-    Without the entry the shim returns None, `_check_kb_duplicates` answers `[]`,
-    and the article publishes — so these fail if the entry is reverted, which the
-    mock-at-the-module-seam tests above cannot detect on their own.
+    These exercise the real `make_nws_request` rather than the module seam. That
+    was originally the only way to catch a typo in the `_TYPED_CALLERS` opt-in
+    list; with the shim gone the list is gone too, and what these now prove is
+    the property that outlived it — a real classified failure, produced by the
+    real dispatcher, is handled by this module rather than escaping it.
+
+    Still not replaceable by the source scan in `test_http_layer_errors.py`: that
+    checks a handler EXISTS, these check it does the right thing.
+
+    Concretely: if a failure ever again arrives here as `None`,
+    `_check_kb_duplicates` answers `[]` and the article publishes unchecked. That
+    is the regression these guard, and the module-seam tests above cannot see it.
     """
 
     @pytest.fixture

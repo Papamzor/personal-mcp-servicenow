@@ -120,8 +120,12 @@ class TestNowTestAuthInput:
 
 
 class TestEndToEndThroughTheRealDispatcher:
-    """Without the `_TYPED_CALLERS` entry the shim returns None and both tools
-    fall back to their misleading strings. Module-seam mocks cannot see that."""
+    """Both tools report the classified failure through the real dispatcher.
+
+    If a failed read ever arrives here as `None` again, both fall back to their
+    misleading strings — "Authentication test failed" for a timeout, "table may
+    not exist" for a read that never completed. Module-seam mocks cannot see it.
+    """
 
     @pytest.fixture
     def failing_transport(self, monkeypatch):

@@ -18,11 +18,24 @@ The write path explicitly skips the read-only param injection and the
 display-value flattening — applying either to a write payload would
 break the request shape or the response shape (per the token-optimization
 invariant memory).
+
+Read-failure contract (v4.4 Tier 0.3, complete as of the shim deletion): a
+failed GET raises ``ServiceNowRequestError``, unconditionally, for every caller.
+It never returns ``None`` to mean failure. ``None``/falsy means ServiceNow
+answered with no body, and ``{"result": []}`` means it answered with no rows —
+both successes. Deciding whether an empty result means "not found" belongs to
+the consumer, which is the whole point: the transport reporting a 30-second
+timeout and an empty table with the same value is what let a failure be shown to
+users as a missing record.
+
+Every module calling this on the read path handles the raise. That set is
+enforced by ``tests/test_http_layer_errors.py`` scanning the tree rather than
+trusting a list — the migration's planning documents undercounted the consumers
+by one, and the module they missed had no exception handling at all.
 """
 from __future__ import annotations
 
 import hashlib
-import inspect
 import os
 import sys
 from typing import Any, Optional
@@ -48,71 +61,6 @@ def _redact_url(url: str) -> str:
     return f"{parts.path} q_hash={h}"
 
 
-# ---------------------------------------------------------------------------
-# TEMPORARY MIGRATION SCAFFOLD — v4.4 Tier 0.3, deleted in the next PR.
-#
-# The GET path now raises ServiceNowRequestError instead of returning None.
-# Consumer modules that have not yet been taught to handle it would otherwise
-# start propagating exceptions to MCP clients mid-migration, so the shim
-# converts the raise back into the legacy None for every caller EXCEPT the
-# modules listed here.
-#
-# Opt-in, not opt-out: a caller that nobody has migrated (including tests and
-# any future module) keeps the old behavior, so no PR can accidentally expose a
-# half-migrated module. The set below is now COMPLETE — every module that calls
-# make_nws_request on the read path is listed — which is what makes the
-# unconditional raise safe.
-#
-# That completeness is the precondition for deleting this block, and it is not
-# self-evident: the migration inventory listed four consumer modules and missed
-# `table_tools`, whose two functions are registered MCP tools with no exception
-# handling at all. Before deleting the shim, re-derive the list from the code
-# (`grep -rl make_nws_request --include=*.py`, excluding tests, http_layer and
-# build artefacts under dist/) rather than from any planning document.
-# ---------------------------------------------------------------------------
-_TYPED_CALLERS: frozenset[str] = frozenset({
-    "Table_Tools.generic_table_tools",
-    "Table_Tools.cmdb_tools",
-    "Table_Tools.kb_article_tools",
-    "Table_Tools.vtb_task_tools",
-    "Table_Tools.table_tools",
-})
-
-# This package's own name, used for the frame-walk boundary test below.
-_PACKAGE = __name__.split(".")[0]
-
-
-def _calling_module() -> str:
-    """Module name of the nearest frame outside the http_layer package.
-
-    Walks out of this package so intermediate http_layer frames never mask the
-    real consumer. Returns "" when the whole stack is internal (unreachable in
-    practice — something always calls in from outside).
-
-    The boundary test is exact-or-dotted, not a bare prefix: a module named
-    `http_layer_extras` is a different package and must be reportable as itself,
-    otherwise it could never be added to _TYPED_CALLERS.
-    """
-    frame = inspect.currentframe()
-    try:
-        while frame is not None:
-            name = frame.f_globals.get("__name__", "")
-            if not (name == _PACKAGE or name.startswith(_PACKAGE + ".")):
-                return name
-            frame = frame.f_back
-        return ""
-    finally:
-        # Break the reference cycle CPython warns about for held frame objects.
-        del frame
-
-
-def _legacy_none_shim(error: ServiceNowRequestError) -> None:
-    """Re-raise for migrated modules; swallow to None for everyone else."""
-    if _calling_module() in _TYPED_CALLERS:
-        raise error
-    return None
-
-
 async def make_nws_request(
     url: str,
     display_value: bool = True,
@@ -133,15 +81,14 @@ async def make_nws_request(
     Wrap calls in ``anyio.fail_after()`` at the call site to enforce
     per-operation deadlines (e.g. ``anyio.fail_after(180.0)`` for KB publish).
 
-    GET failures raise ``ServiceNowRequestError`` for modules listed in
-    ``_TYPED_CALLERS`` and return ``None`` for everyone else — see the
-    migration-scaffold note above.
+    A failed GET raises ``ServiceNowRequestError`` (``.code``, ``.status_code``,
+    ``.retryable``, ``.to_error_dict()``). It never returns ``None`` to mean
+    failure, which is what let a timeout be reported as a missing record. An
+    empty ``{"result": []}`` is still returned as-is: empty is success, and
+    deciding whether it means "not found" belongs to the consumer.
     """
     if method == "GET":
-        try:
-            return await _get_typed(url, display_value)
-        except ServiceNowRequestError as error:
-            return _legacy_none_shim(error)
+        return await _get_typed(url, display_value)
 
     # Write path: bypass read-only params + display flattening, raise
     # for status so callers can map HTTP errors to domain errors.

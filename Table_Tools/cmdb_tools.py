@@ -49,8 +49,7 @@ DEFAULT_CI_PROBE_TABLES = [
 _CI_TYPE_PATTERN = re.compile(r'cmdb_ci[a-z0-9_]*')
 
 # ---------------------------------------------------------------------------
-# Read-failure contract (v4.4 Tier 0.3). This module is in
-# `http_layer.request_dispatcher._TYPED_CALLERS`, so a failed GET raises
+# Read-failure contract (v4.4 Tier 0.3). A failed GET raises
 # `ServiceNowRequestError` instead of returning None. Rules, as settled in the
 # generic_table_tools migration:
 #
