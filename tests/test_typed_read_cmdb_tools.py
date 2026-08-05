@@ -1,7 +1,6 @@
 """Typed read failures in the CMDB tools (v4.4 Tier 0.3, PR B).
 
-`Table_Tools.cmdb_tools` joins `_TYPED_CALLERS`, so a failed GET raises instead
-of returning None. Two things are locked here:
+A failed GET raises instead of returning None. Two things are locked here:
 
 1. Every public function returns `{"error": {"code", "message"}}` on a failure
    instead of one of its not-found strings (NO_CIS_FOUND_FOR_TYPE, CI_NOT_FOUND,
@@ -14,11 +13,9 @@ of returning None. Two things are locked here:
    gather in `get_ci_details`, a timeout on cmdb_ci_server made a server CI
    appear to live in the base cmdb_ci table.
 
-`TestEndToEndThroughTheRealDispatcher` checks the wiring against the real
-dispatcher instead of the module seam, since `_calling_module()` resolves the
-caller by walking the stack and a mocked `make_nws_request` would never exercise
-it. See that class's docstring for why the concurrent probes turned out not to
-threaten the walk.
+`TestEndToEndThroughTheRealDispatcher` drives failures through the real
+dispatcher rather than the module seam, so the handling is verified end to end
+rather than against a mock.
 """
 import pytest
 from unittest.mock import AsyncMock, patch
@@ -292,19 +289,20 @@ class TestSimilarCis:
 
 
 class TestEndToEndThroughTheRealDispatcher:
-    """Proves the `_TYPED_CALLERS` entry actually resolves, gather included.
+    """Failures reach this module through the real dispatcher, gather included.
 
-    These exercise the real `make_nws_request`, not the module seam: without the
-    `"Table_Tools.cmdb_tools"` entry the shim hands back None and every
-    assertion here reverts to a not-found string.
+    These exercise the real `make_nws_request` rather than the module seam. That
+    was originally the only way to catch a typo in the `_TYPED_CALLERS` opt-in
+    list; with the shim gone the list is gone too, and what these now prove is
+    the property that outlived it — a real classified failure, produced by the
+    real dispatcher, is handled by this module rather than escaping it.
 
-    On the frame walk specifically — `_calling_module()` returns at the *first*
-    frame outside `http_layer`, which is `_probe_ci_table`, reached by an
-    ordinary direct await. The Task boundary that `asyncio.gather` introduces
-    sits several frames further out, past where the walk has already stopped, so
-    concurrency is not what puts the resolution at risk. Keep the gathered case
-    anyway: it costs nothing and pins the behavior against a future dispatcher
-    change that walks further.
+    Still not replaceable by the source scan in `test_http_layer_errors.py`: that
+    checks a handler EXISTS, these check it does the right thing.
+
+    The gathered case is kept deliberately: `get_ci_details` probes concurrently,
+    and a failure crossing a Task boundary is the case most likely to be handled
+    differently from a plain awaited one.
     """
 
     @pytest.mark.asyncio

@@ -1,7 +1,6 @@
 """Legacy auth/connectivity test tools.
 
-Read-failure contract (v4.4 Tier 0.3). This module is in
-`http_layer.request_dispatcher._TYPED_CALLERS`, so a failed GET raises
+Read-failure contract (v4.4 Tier 0.3). A failed GET raises
 `ServiceNowRequestError` instead of returning None.
 
 Both functions here are registered MCP tools, and both are diagnostics — which

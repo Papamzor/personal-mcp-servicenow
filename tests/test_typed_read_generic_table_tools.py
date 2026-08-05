@@ -1,8 +1,8 @@
 """Typed read failures through the generic read path (v4.4 Tier 0.3, PR A).
 
-`Table_Tools.generic_table_tools` is the first module in
-`http_layer.request_dispatcher._TYPED_CALLERS`, so a failed GET arrives as a
-raised `ServiceNowRequestError` instead of `None`. What is locked here:
+`Table_Tools.generic_table_tools` was the first module migrated, so a failed
+GET arrives as a raised `ServiceNowRequestError` instead of `None`. What is
+locked here:
 
 * a failure returns `{"error": {"code", "message"}}` and nothing else — never a
   not-found message, never a bare error string;
@@ -12,8 +12,9 @@ raised `ServiceNowRequestError` instead of `None`. What is locked here:
 * the modules that re-wrap these responses (`consolidated_tools`,
   `intelligent_query_tools`) do not relabel a failure as "0 records found".
 
-The end-to-end test at the bottom goes through the real dispatcher, which is
-the only test that would catch a typo in the `_TYPED_CALLERS` module name.
+The end-to-end tests at the bottom go through the real dispatcher; everything
+above patches `make_nws_request` inside the consumer module and so cannot see
+whether the wiring below it actually works.
 """
 import pytest
 from unittest.mock import AsyncMock, patch
@@ -466,11 +467,16 @@ class TestConsumersThatReWrap:
 
 
 class TestEndToEndThroughTheRealDispatcher:
-    """The only test that would catch a typo in the _TYPED_CALLERS module name.
+    """Failures reach the wrappers through the real dispatcher.
 
-    Everything above patches `make_nws_request` inside the consumer module, so
-    it would pass even if `_TYPED_CALLERS` never matched this module and the
-    shim kept returning None. These go through the real dispatcher.
+    These exercise the real `make_nws_request` rather than the module seam. That
+    was originally the only way to catch a typo in the `_TYPED_CALLERS` opt-in
+    list; with the shim gone the list is gone too, and what these now prove is
+    the property that outlived it — a real classified failure, produced by the
+    real dispatcher, is handled by this module rather than escaping it.
+
+    Still not replaceable by the source scan in `test_http_layer_errors.py`: that
+    checks a handler EXISTS, these check it does the right thing.
     """
 
     @pytest.mark.asyncio

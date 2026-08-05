@@ -300,16 +300,22 @@ class TestServiceNowAPI(unittest.IsolatedAsyncioTestCase):
 
     @patch('http_layer.request_dispatcher.make_oauth_request')
     async def test_make_nws_request_http_error(self, mock_oauth_request):
-        """Test API request with error returns None."""
+        """A failed GET raises a classified error instead of returning None.
+
+        Inverted with the shim deletion (v4.4 Tier 0.3). This asserted
+        `result is None`, which is the conflation the tier removes: the caller
+        could not tell this from a table with no matching rows.
+        """
         if not self.api_available:
             self.skipTest(f"ServiceNow API not available: {self.import_error}")
+
+        from http_layer.errors import ServiceNowRequestError
 
         mock_oauth_request.side_effect = Exception("404 Not Found")
 
         url = "https://test.service-now.com/api/now/table/nonexistent"
-        result = await self.make_nws_request(url)
-
-        self.assertIsNone(result)
+        with self.assertRaises(ServiceNowRequestError):
+            await self.make_nws_request(url)
 
     @patch('http_layer.request_dispatcher.get_oauth_client')
     async def test_make_nws_request_write_delegates_to_oauth_client(self, mock_get_client):

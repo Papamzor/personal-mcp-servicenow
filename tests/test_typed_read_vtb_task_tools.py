@@ -1,7 +1,7 @@
 """Typed read failures in the private-task tools (v4.4 Tier 0.3, PR D).
 
-`Table_Tools.vtb_task_tools` joins `_TYPED_CALLERS`. The module has exactly one
-read, and it is the sensitive kind: the pre-write `sys_id` lookup in
+The module has exactly one read, and it is the sensitive kind: the pre-write
+`sys_id` lookup in
 `update_private_task`. Its answer decides whether a write happens, so
 conflating "the task does not exist" with "the lookup failed" both mislabelled
 the failure AND withheld the write (decision (d)).
@@ -96,12 +96,20 @@ class TestPreWriteLookup:
 
 
 class TestEndToEndThroughTheRealDispatcher:
-    """Proves the `_TYPED_CALLERS` entry resolves for this module.
+    """A failed lookup reaches `update_private_task` through the real dispatcher.
 
-    Without the entry the shim returns None, `_get_task_sys_id` answers None, and
-    the update reports the task as missing. Tests that patch
-    `Table_Tools.vtb_task_tools.make_nws_request` cannot detect that, because they
-    never reach the dispatcher.
+    These exercise the real `make_nws_request` rather than the module seam. That
+    was originally the only way to catch a typo in the `_TYPED_CALLERS` opt-in
+    list; with the shim gone the list is gone too, and what these now prove is
+    the property that outlived it — a real classified failure, produced by the
+    real dispatcher, is handled by this module rather than escaping it.
+
+    Still not replaceable by the source scan in `test_http_layer_errors.py`: that
+    checks a handler EXISTS, these check it does the right thing.
+
+    Concretely: if a failure arrives as `None` again, `_get_task_sys_id` answers
+    None and the update reports the task as missing while silently declining to
+    write it.
     """
 
     @pytest.fixture
