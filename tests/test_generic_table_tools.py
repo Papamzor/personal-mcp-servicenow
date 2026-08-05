@@ -577,14 +577,21 @@ class TestAsyncTableOperations:
 
     @pytest.mark.asyncio
     async def test_get_record_description_not_found(self):
-        """Test getting record description when not found."""
+        """A successful read with no rows is not-found.
+
+        v4.4 Tier 0.3 inverted this test: it used to mock `None` — the value the
+        read path returned for BOTH "no such record" and "the request failed" —
+        and assert the not-found message. A failed read now raises, so the
+        not-found label is reached only by an actual empty result set.
+        """
         with patch("Table_Tools.generic_table_tools.make_nws_request") as mock_request:
-            mock_request.return_value = None
+            mock_request.return_value = {"result": []}
 
             result = await get_record_description("incident", "INC999")
 
             assert result["result"] == []
             assert "message" in result
+            assert "error" not in result
 
     @pytest.mark.asyncio
     async def test_get_record_details_success(self):

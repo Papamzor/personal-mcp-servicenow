@@ -10,7 +10,9 @@ from Table_Tools.generic_table_tools import (
     explain_filter_query,
     build_and_validate_smart_filter
 )
+from Table_Tools.read_helpers import carry_partial, is_read_failure
 from filter import get_filter_templates
+from http_layer import ServiceNowRequestError
 from constants import SERVICENOW_QUERY_OPERATORS, QUERY_SYNTAX_NOTES
 from param_coercion import coerce_json_dict
 
@@ -41,25 +43,39 @@ async def intelligent_search(params: IntelligentQueryParams) -> Dict[str, Any]:
     Converts NL (e.g. "high priority incidents from last week", "unassigned
     P1 changes today") to ServiceNow filter syntax, validates it, and returns
     results with an explanation of what was searched.
+
+    A read failure returns success=False with the structured
+    {"code", "message"} error object from the query layer rather than
+    success=True and an empty record list. A partial read returns the rows it
+    got, success=True, and partial=True alongside the error.
     """
+    query_info = {
+        "original_query": params.query,
+        "table_searched": params.table,
+        "context_used": params.context is not None,
+    }
     try:
         result = await query_table_intelligently(
             table_name=params.table,
             natural_language_query=params.query,
             context=params.context
         )
-        
-        return {
+
+        if is_read_failure(result):
+            return {"success": False, "error": result["error"], "query_info": query_info}
+
+        response = {
             "success": True,
             "records": result.get("result", []),
             "record_count": len(result.get("result", [])),
             "intelligence": result.get("intelligence", {}),
-            "query_info": {
-                "original_query": params.query,
-                "table_searched": params.table,
-                "context_used": params.context is not None
-            }
+            "query_info": query_info,
         }
+        return carry_partial(response, result)
+    except ServiceNowRequestError as e:
+        # Must precede `except Exception`: str(e) would drop the error code and
+        # a caller could no longer tell a timeout from a validation failure.
+        return {"success": False, **e.to_error_dict(), "query_info": query_info}
     except Exception as e:
         return {
             "success": False,
