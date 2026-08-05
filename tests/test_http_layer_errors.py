@@ -160,6 +160,7 @@ class TestLegacyNoneShim:
         """
         assert dispatcher._TYPED_CALLERS == frozenset({
             "Table_Tools.generic_table_tools",
+            "Table_Tools.cmdb_tools",
         })
 
     def test_typed_caller_names_are_real_module_names(self):
