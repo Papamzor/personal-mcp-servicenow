@@ -1,4 +1,16 @@
-from http_layer import make_nws_request, NWS_API_BASE
+"""Private task (vtb_task) CRUD.
+
+Read-failure contract (v4.4 Tier 0.3). This module is in
+`http_layer.request_dispatcher._TYPED_CALLERS`, so a failed GET raises
+`ServiceNowRequestError` instead of returning None. There is exactly one read
+here — the pre-write `sys_id` lookup — and it is the sensitive kind (decision
+(d)): `_get_task_sys_id` returns None ONLY for a task that genuinely does not
+exist, and a failed lookup propagates. `update_private_task` maps the raise to
+`error.to_error_dict()` and keeps `PRIVATE_TASK_NOT_FOUND_UPDATE` for a real
+absence, so an update no longer tells the user their task does not exist because
+the lookup timed out.
+"""
+from http_layer import ServiceNowRequestError, make_nws_request, NWS_API_BASE
 from typing import Any, Dict
 import anyio
 import httpx
@@ -74,7 +86,13 @@ def _prepare_task_create_data(task_data: Dict[str, Any]) -> Dict[str, Any]:
     return create_data
 
 async def _get_task_sys_id(task_number: str) -> str | None:
-    """Get the sys_id for a task by its number."""
+    """Get the sys_id for a task by its number, or None if no such task exists.
+
+    None means "looked, absent" and nothing else (decision (d)). A failed read
+    raises `ServiceNowRequestError` for the caller to map — returning None for it
+    is what let a timeout report the task as missing, on the one code path where
+    that answer stops a write.
+    """
     sys_id_url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields=sys_id&sysparm_query=number={task_number}"
     sys_id_data = await make_nws_request(sys_id_url)
 
@@ -119,7 +137,12 @@ async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> 
     if bad:
         return f"Rejected non-updatable field(s): {', '.join(bad)}"
 
-    sys_id = await _get_task_sys_id(task_number)
+    try:
+        sys_id = await _get_task_sys_id(task_number)
+    except ServiceNowRequestError as error:
+        # Not "task not found": the lookup never answered. Reporting absence here
+        # sends the user looking for a task that is probably sitting right there.
+        return error.to_error_dict()
     if not sys_id:
         return PRIVATE_TASK_NOT_FOUND_UPDATE
 

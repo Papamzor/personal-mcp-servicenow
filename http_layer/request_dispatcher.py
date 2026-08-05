@@ -49,7 +49,7 @@ def _redact_url(url: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# TEMPORARY MIGRATION SCAFFOLD — v4.4 Tier 0.3, deleted in PR 8 of 8.
+# TEMPORARY MIGRATION SCAFFOLD — v4.4 Tier 0.3, deleted in the next PR.
 #
 # The GET path now raises ServiceNowRequestError instead of returning None.
 # Consumer modules that have not yet been taught to handle it would otherwise
@@ -59,14 +59,23 @@ def _redact_url(url: str) -> str:
 #
 # Opt-in, not opt-out: a caller that nobody has migrated (including tests and
 # any future module) keeps the old behavior, so no PR can accidentally expose a
-# half-migrated module. PRs 2-7 each add one module name; PR 8 deletes this
-# block, `_legacy_none_shim`, and `_calling_module` outright and lets the raise
-# propagate unconditionally.
+# half-migrated module. The set below is now COMPLETE — every module that calls
+# make_nws_request on the read path is listed — which is what makes the
+# unconditional raise safe.
+#
+# That completeness is the precondition for deleting this block, and it is not
+# self-evident: the migration inventory listed four consumer modules and missed
+# `table_tools`, whose two functions are registered MCP tools with no exception
+# handling at all. Before deleting the shim, re-derive the list from the code
+# (`grep -rl make_nws_request --include=*.py`, excluding tests, http_layer and
+# build artefacts under dist/) rather than from any planning document.
 # ---------------------------------------------------------------------------
 _TYPED_CALLERS: frozenset[str] = frozenset({
     "Table_Tools.generic_table_tools",
     "Table_Tools.cmdb_tools",
     "Table_Tools.kb_article_tools",
+    "Table_Tools.vtb_task_tools",
+    "Table_Tools.table_tools",
 })
 
 # This package's own name, used for the frame-walk boundary test below.

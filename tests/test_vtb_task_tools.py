@@ -9,6 +9,7 @@ import httpx
 
 # Import functions to test
 from constants import ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED
+from http_layer.errors import ErrorCode, ServiceNowRequestError
 from Table_Tools.vtb_task_tools import (
     _write_private_task,
     _unwrap_write_response,
@@ -290,14 +291,18 @@ class TestTaskSysIdRetrieval:
             assert sys_id is None
 
     @pytest.mark.asyncio
-    async def test_get_task_sys_id_no_data(self):
-        """Test sys_id retrieval with no data."""
-        with patch('Table_Tools.vtb_task_tools.make_nws_request') as mock_request:
-            mock_request.return_value = None
+    async def test_get_task_sys_id_read_failure_propagates(self):
+        """Decision (d): None means absent, so a failed read must not return None.
 
-            sys_id = await _get_task_sys_id("VTB0001234")
-
-            assert sys_id is None
+        This mocked None and asserted None came back, which the transport can no
+        longer produce -- a failed GET raises for this module. None here is what
+        made update_private_task report the task as missing on a timeout.
+        """
+        with patch('Table_Tools.vtb_task_tools.make_nws_request',
+                   side_effect=ServiceNowRequestError(
+                       ErrorCode.TIMEOUT, "ServiceNow request timed out", retryable=True)):
+            with pytest.raises(ServiceNowRequestError):
+                await _get_task_sys_id("VTB0001234")
 
     @pytest.mark.asyncio
     async def test_get_task_sys_id_invalid_response(self):
