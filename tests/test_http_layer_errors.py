@@ -169,11 +169,23 @@ class TestReadFailuresPropagate:
         path is prepared to catch. A new consumer added without a handler fails
         here, named.
 
-        A source scan, not a behavioural one -- it cannot prove the handler is
-        correct, only that the module has one. Correctness per module lives in the
-        five `test_typed_read_*.py` files, each of which drives a failure through
-        the real dispatcher.
+        Two things this deliberately does NOT buy, so nobody over-trusts it:
+
+        * It cannot prove a handler is correct, only that the module has one.
+          Correctness per module lives in the five `test_typed_read_*.py` files,
+          each of which drives a real failure through the real dispatcher.
+        * It is per-module, not per-call-site. A module with a handler in one
+          function and none in another passes. Today none of the five has such a
+          gap (checked by hand); a scan that could prove it wouldn't be a scan.
+
+        Consumers are detected by IMPORT rather than by a `make_nws_request(`
+        text match, via the AST: an aliased import
+        (`from http_layer import make_nws_request as fetch`) binds the name and
+        then never spells it at the call site, so a text match would miss the
+        module entirely — silently, which is the failure mode that makes a guard
+        worse than no guard. Parsing also ignores mentions in comments.
         """
+        import ast
         import pathlib
 
         repo = pathlib.Path(__file__).resolve().parent.parent
@@ -181,20 +193,46 @@ class TestReadFailuresPropagate:
         # function; tests mock it. None of those are consumers.
         skip = {".venv", "venv", "dist", "build", "tests", "http_layer",
                 ".git", "graphify-out", "__pycache__"}
+
+        def imports_the_read_entry_point(tree):
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom):
+                    names = [a.name for a in node.names]
+                elif isinstance(node, ast.Import):
+                    names = [a.name.rsplit(".", 1)[-1] for a in node.names]
+                else:
+                    continue
+                if "make_nws_request" in names:
+                    return True
+            return False
+
+        def handles_the_typed_error(tree):
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ExceptHandler) or node.type is None:
+                    continue
+                caught = node.type.elts if isinstance(node.type, ast.Tuple) else [node.type]
+                for exc in caught:
+                    name = exc.attr if isinstance(exc, ast.Attribute) else getattr(exc, "id", None)
+                    if name == "ServiceNowRequestError":
+                        return True
+            return False
+
         unhandled = []
-        consumers = 0
+        consumers = []
         for path in sorted(repo.rglob("*.py")):
             if any(part in skip for part in path.relative_to(repo).parts):
                 continue
-            source = path.read_text(encoding="utf-8")
-            if "make_nws_request(" not in source:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            if not imports_the_read_entry_point(tree):
                 continue
-            consumers += 1
-            if "except ServiceNowRequestError" not in source:
-                unhandled.append(str(path.relative_to(repo)))
+            rel = str(path.relative_to(repo))
+            consumers.append(rel)
+            if not handles_the_typed_error(tree):
+                unhandled.append(rel)
 
-        assert consumers >= 5, (
-            f"scan found only {consumers} consumers; it is probably broken"
+        assert len(consumers) >= 5, (
+            f"scan found only {len(consumers)} consumers ({consumers}); it is "
+            f"probably broken rather than the codebase having shrunk"
         )
         assert not unhandled, (
             f"read-path consumer(s) with no `except ServiceNowRequestError`: "
