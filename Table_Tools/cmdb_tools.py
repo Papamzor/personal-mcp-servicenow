@@ -373,6 +373,12 @@ async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
         return NO_SIMILAR_CIS_FOUND.format(ci_number=ci_number)
 
     except ServiceNowRequestError as error:
+        # Unreachable on today's call graph, and kept deliberately: both callees
+        # above convert a classified failure to a dict rather than raising, so
+        # this arm has nothing to catch. It exists so that a later change making
+        # either of them propagate cannot silently fall through to the
+        # ERROR_FINDING_SIMILAR_CIS string below and drop the code. Decision (e)
+        # of the Tier 0.3 contract asks for the arm in every function touched.
         return error.to_error_dict()
     except Exception:
         return ERROR_FINDING_SIMILAR_CIS

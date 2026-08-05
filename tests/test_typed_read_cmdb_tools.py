@@ -14,10 +14,11 @@ of returning None. Two things are locked here:
    gather in `get_ci_details`, a timeout on cmdb_ci_server made a server CI
    appear to live in the base cmdb_ci table.
 
-`TestEndToEndThroughTheRealDispatcher` matters more here than in PR A: the probes
-run under `asyncio.gather`, and `_calling_module()` resolves the caller by
-walking the stack. A Task boundary severs the frame chain, so the wiring is
-verified against the real dispatcher rather than argued about.
+`TestEndToEndThroughTheRealDispatcher` checks the wiring against the real
+dispatcher instead of the module seam, since `_calling_module()` resolves the
+caller by walking the stack and a mocked `make_nws_request` would never exercise
+it. See that class's docstring for why the concurrent probes turned out not to
+threaten the walk.
 """
 import pytest
 from unittest.mock import AsyncMock, patch
@@ -25,8 +26,11 @@ from unittest.mock import AsyncMock, patch
 from constants import (
     CI_NOT_FOUND,
     ERROR_FINDING_SIMILAR_CIS,
+    ERROR_GETTING_CI_TYPES,
     ERROR_QUICK_CI_SEARCH,
+    ERROR_SEARCHING_CIS,
     ERROR_SEARCHING_CIS_BY_TYPE,
+    NO_CI_TYPES_FOUND,
     NO_CIS_FOUND_FOR_TYPE,
     NO_CIS_FOUND_MATCHING_CRITERIA,
     NO_SIMILAR_CIS_FOUND,
@@ -114,6 +118,14 @@ class TestSingleRequestReads:
         assert result == NO_CIS_FOUND_MATCHING_CRITERIA
 
     @pytest.mark.asyncio
+    async def test_search_by_attributes_unexpected_error_still_returns_its_string(self):
+        with patch(
+            "Table_Tools.cmdb_tools.make_nws_request", side_effect=RuntimeError("boom")
+        ):
+            result = await search_cis_by_attributes(name="srv-app")
+        assert result == ERROR_SEARCHING_CIS
+
+    @pytest.mark.asyncio
     async def test_quick_search_failure_is_not_no_cis_found(self):
         with patch("Table_Tools.cmdb_tools.make_nws_request", side_effect=TIMEOUT):
             result = await quick_ci_search("srv-app-01")
@@ -132,6 +144,21 @@ class TestSingleRequestReads:
         with patch("Table_Tools.cmdb_tools.make_nws_request", side_effect=TIMEOUT):
             result = await get_all_ci_types()
         _assert_plain_failure(result, ErrorCode.TIMEOUT)
+
+    @pytest.mark.asyncio
+    async def test_get_all_ci_types_empty_keeps_its_not_found_string(self):
+        with patch("Table_Tools.cmdb_tools.make_nws_request") as mock_request:
+            mock_request.return_value = {"result": []}
+            result = await get_all_ci_types()
+        assert result == NO_CI_TYPES_FOUND
+
+    @pytest.mark.asyncio
+    async def test_get_all_ci_types_unexpected_error_still_returns_its_string(self):
+        with patch(
+            "Table_Tools.cmdb_tools.make_nws_request", side_effect=RuntimeError("boom")
+        ):
+            result = await get_all_ci_types()
+        assert result == ERROR_GETTING_CI_TYPES
 
 
 class TestProbeFailuresAreNotAbsence:
@@ -265,11 +292,19 @@ class TestSimilarCis:
 
 
 class TestEndToEndThroughTheRealDispatcher:
-    """Proves the _TYPED_CALLERS entry resolves — including across asyncio.gather.
+    """Proves the `_TYPED_CALLERS` entry actually resolves, gather included.
 
-    `_calling_module()` walks frames outward from the dispatcher. The probes in
-    `get_ci_details` each run in their own Task, so this is the case where a
-    frame-walk could plausibly fail to find `Table_Tools.cmdb_tools`.
+    These exercise the real `make_nws_request`, not the module seam: without the
+    `"Table_Tools.cmdb_tools"` entry the shim hands back None and every
+    assertion here reverts to a not-found string.
+
+    On the frame walk specifically — `_calling_module()` returns at the *first*
+    frame outside `http_layer`, which is `_probe_ci_table`, reached by an
+    ordinary direct await. The Task boundary that `asyncio.gather` introduces
+    sits several frames further out, past where the walk has already stopped, so
+    concurrency is not what puts the resolution at risk. Keep the gathered case
+    anyway: it costs nothing and pins the behavior against a future dispatcher
+    change that walks further.
     """
 
     @pytest.mark.asyncio
