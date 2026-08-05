@@ -162,6 +162,7 @@ class TestLegacyNoneShim:
             "Table_Tools.generic_table_tools",
             "Table_Tools.cmdb_tools",
             "Table_Tools.kb_article_tools",
+            "Table_Tools.vtb_task_tools",
         })
 
     def test_typed_caller_names_are_real_module_names(self):
