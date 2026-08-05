@@ -1,11 +1,30 @@
+"""Knowledge-article reads and writes.
+
+Read-failure contract (v4.4 Tier 0.3). This module is in
+`http_layer.request_dispatcher._TYPED_CALLERS`, so a failed GET raises
+`ServiceNowRequestError` rather than returning None:
+
+  * A raise surfaces as `error.to_error_dict()` -> {"error": {code, message}}.
+  * An empty result set keeps its existing not-found message. Empty is success.
+  * The pre-write `sys_id` / meta reads return None ONLY for a genuinely absent
+    article. A failed read propagates, so a write never again reports "article
+    not found" because the lookup timed out (decision (d)).
+
+The publish guard is FAIL-CLOSED. `_check_kb_duplicates` has three outcomes, not
+two — clear, duplicates-found, and inconclusive — and only *clear* permits a
+publish. Before v4.4 a failed duplicate-check read returned `[]`, which read as
+a clean bill of health, and the article published with the guard silently
+skipped. "Could not check" is not "nothing found".
+"""
 import asyncio
 import sys
 import time
-from http_layer import make_nws_request, NWS_API_BASE
-from typing import Any, Dict, List
+from http_layer import ServiceNowRequestError, make_nws_request, NWS_API_BASE
+from typing import Any, Dict, List, Optional
 import anyio
 import httpx
 import structlog
+from .read_helpers import is_read_failure
 from .write_helpers import map_http_error, unwrap_write_response
 from param_coercion import JsonList
 from constants import (
@@ -18,6 +37,13 @@ from constants import (
     ERROR_KB_ARTICLE_NOT_FOUND,
     ERROR_KB_ARTICLE_SERVER_ERROR,
     ERROR_KB_PUBLISH_NOT_CONFIRMED,
+    ERROR_KB_WRITE_UNCONFIRMED,
+    ERROR_KB_DUPLICATE_CHECK_INCONCLUSIVE,
+    ERROR_KB_PUBLISH_VERIFY_UNREADABLE,
+    KB_DEDUP_QUERY_LIMIT,
+    KB_DEDUP_REASON_TRUNCATED,
+    KB_DEDUP_REASON_UNSAFE_CHARS,
+    KB_QUERY_UNSAFE_CHARS,
     KB_WRITE_RESPONSE_FIELDS,
     KB_META_FIELDS,
     KB_DEDUP_FIELDS,
@@ -34,6 +60,21 @@ from constants import (
 )
 
 _log = structlog.get_logger("kb_write")
+
+
+class KbDuplicateCheckInconclusive(Exception):
+    """The duplicate check could not produce a trustworthy answer.
+
+    Distinct from "no duplicates found", and deliberately not a
+    `ServiceNowRequestError` — nothing went wrong at the transport layer. The
+    query either could not be expressed faithfully or came back possibly
+    truncated, so returning `[]` would report a clean bill of health for a check
+    that did not really run. Callers fail closed and do not publish.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
 
 
 def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> str:
@@ -56,7 +97,7 @@ def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> str:
 def _unwrap_kb_write_response(result: Any, operation: str) -> Dict[str, Any] | str:
     return unwrap_write_response(
         result,
-        f"Knowledge article {operation} successful but no data returned.",
+        ERROR_KB_WRITE_UNCONFIRMED.format(operation=operation),
         fields=KB_WRITE_RESPONSE_FIELDS,
     )
 
@@ -81,6 +122,12 @@ async def _write_kb_article(
 
 
 async def _get_kb_article_sys_id(article_number: str, workflow_state: str | None = None) -> str | None:
+    """Return the article's sys_id, or None if no such article exists.
+
+    None means "looked, absent" and nothing else (decision (d)). A failed read
+    raises `ServiceNowRequestError` and the caller maps it, so a write can no
+    longer report "article not found" because the lookup timed out.
+    """
     query = f"number={article_number}"
     if workflow_state:
         query += f"^workflow_state={workflow_state}"
@@ -92,7 +139,11 @@ async def _get_kb_article_sys_id(article_number: str, workflow_state: str | None
 
 
 async def _get_kb_article_meta(article_number: str, workflow_state: str | None = None) -> Dict[str, Any] | None:
-    """Fetch sys_id + short_description in one GET — avoids a second round-trip in publish."""
+    """Fetch sys_id + short_description in one GET — avoids a second round-trip in publish.
+
+    Same boundary as `_get_kb_article_sys_id`: None means absent, a failed read
+    raises (decision (d)).
+    """
     query = f"number={article_number}"
     if workflow_state:
         query += f"^workflow_state={workflow_state}"
@@ -107,6 +158,11 @@ async def _get_kb_article_meta(article_number: str, workflow_state: str | None =
     return data['result'][0]
 
 
+def _dedup_unsafe_chars(short_description: str) -> list[str]:
+    """Characters in *short_description* that the encoded query cannot carry."""
+    return [c for c in KB_QUERY_UNSAFE_CHARS if c in short_description]
+
+
 async def _check_kb_duplicates(short_description: str, exclude_number: str) -> list:
     """Return KB articles matching short_description exactly across live workflow states.
 
@@ -115,22 +171,52 @@ async def _check_kb_duplicates(short_description: str, exclude_number: str) -> l
     Retired + outdated articles are skipped — retired = explicitly killed,
     outdated = prior version after a newer publish (ServiceNow versioning
     artefact). Excludes the article being published (exclude_number) from results.
+
+    An empty list means the check ran and found nothing. It never means the check
+    could not run — that is the whole point of the two raises below, because the
+    caller's only safe reading of `[]` is "clear to publish".
+
+    Raises:
+        ServiceNowRequestError: the read failed. Previously this arrived as None
+            and became `[]`, so a timeout published the article unchecked.
+        KbDuplicateCheckInconclusive: the query could not be trusted — either the
+            title carries a character the encoded query mangles, or the result
+            page hit its row cap and the duplicate may be off the end of it.
     """
+    unsafe = _dedup_unsafe_chars(short_description)
+    if unsafe:
+        # Refused before the request: the query that would run is broader than
+        # the one asked for, so a "no duplicates" answer would be meaningless.
+        raise KbDuplicateCheckInconclusive(
+            KB_DEDUP_REASON_UNSAFE_CHARS.format(chars=" ".join(unsafe))
+        )
+
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
         f"?sysparm_fields={','.join(KB_DEDUP_FIELDS)}"
         f"&sysparm_query=short_descriptionLIKE{short_description}"
+        f"&sysparm_limit={KB_DEDUP_QUERY_LIMIT}"
     )
     data = await make_nws_request(url)
     if not data or not data.get('result'):
         return []
+    rows = data['result']
     needle = short_description.strip().lower()
-    return [
-        r for r in data['result']
+    matches = [
+        r for r in rows
         if r.get('short_description', '').strip().lower() == needle
         and r.get('number') != exclude_number
         and r.get('workflow_state', '').strip().lower() not in KB_DUPLICATE_IGNORED_STATES
     ]
+    if matches:
+        # A definite answer beats an inconclusive one, and both block the
+        # publish — so report the duplicates even off a truncated page.
+        return matches
+    if len(rows) >= KB_DEDUP_QUERY_LIMIT:
+        raise KbDuplicateCheckInconclusive(
+            KB_DEDUP_REASON_TRUNCATED.format(limit=KB_DEDUP_QUERY_LIMIT)
+        )
+    return []
 
 
 async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any] | str:
@@ -158,6 +244,10 @@ async def _verify_kb_published(article_number: str) -> Dict[str, Any] | None:
     ServiceNow KB versioning produces (draft, published) row pairs after a
     successful publish. Any row in the Published state confirms the workflow
     committed — that is the only authoritative success signal.
+
+    None means "read succeeded, no Published row yet". A failed read raises: it
+    is not evidence the publish did not commit, and treating it as such is what
+    made an unreadable verify re-fire the publish write.
     """
     query = f"number={article_number}^workflow_state={KB_PUBLISHED_STATE}"
     url = (
@@ -202,16 +292,51 @@ async def _publish_with_verify(sys_id: str, article_number: str) -> Dict[str, An
         last_fire_error = await _fire_publish(current_sys_id)
 
         await asyncio.sleep(KB_VERIFY_DELAY_SECONDS)
-        published = await _verify_kb_published(article_number)
+        try:
+            published = await _verify_kb_published(article_number)
+        except ServiceNowRequestError as error:
+            # Do NOT retry. The publish write has already gone out; re-firing it
+            # on the strength of a failed *read* is how one unreadable verify
+            # became two publish workflows and a second published version.
+            return _publish_unconfirmed(article_number, error)
         if published:
             return published
 
         if attempt < KB_PUBLISH_MAX_RETRIES:
-            refreshed = await _get_kb_article_sys_id(article_number, workflow_state="draft")
-            if refreshed:
-                current_sys_id = refreshed
+            current_sys_id = await _refresh_draft_sys_id(article_number, current_sys_id)
 
     return last_fire_error or ERROR_KB_PUBLISH_NOT_CONFIRMED.format(number=article_number)
+
+
+def _publish_unconfirmed(article_number: str, error: ServiceNowRequestError) -> Dict[str, Any]:
+    """The publish fired but the confirming read failed — neither success nor failure.
+
+    Carries `publish_confirmed: False` so a batch row can be labelled
+    `unconfirmed` rather than `blocked` (nothing blocked it) or `error` (the write
+    may well have landed).
+    """
+    return {
+        "success": False,
+        "publish_confirmed": False,
+        "message": ERROR_KB_PUBLISH_VERIFY_UNREADABLE.format(
+            number=article_number, message=error.message
+        ),
+        "error": error.to_error_dict()["error"],
+    }
+
+
+async def _refresh_draft_sys_id(article_number: str, current_sys_id: str) -> str:
+    """Re-read the draft sys_id between publish attempts, best effort.
+
+    ServiceNow versioning can hand the draft a new sys_id, so the retry re-reads
+    it. A failed re-read is not worth abandoning the retry over — keep the sys_id
+    already in hand rather than propagating.
+    """
+    try:
+        refreshed = await _get_kb_article_sys_id(article_number, workflow_state="draft")
+    except ServiceNowRequestError:
+        return current_sys_id
+    return refreshed or current_sys_id
 
 
 async def update_knowledge_article(article_number: str, update_data: Dict[str, Any]) -> Dict[str, Any] | str:
@@ -235,7 +360,12 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
     # Per-step stderr timing — localises a stall to the sys_id GET vs the PATCH
     # when an update hangs. stdout is reserved for the MCP JSON-RPC frame stream.
     t0 = time.monotonic()
-    sys_id = await _get_kb_article_sys_id(article_number, workflow_state="draft")
+    try:
+        sys_id = await _get_kb_article_sys_id(article_number, workflow_state="draft")
+    except ServiceNowRequestError as error:
+        # A failed lookup is not a missing article, and reporting it as one sent
+        # people looking for an article that was there all along (decision (d)).
+        return error.to_error_dict()
     t1 = time.monotonic()
     print(f"[kb] {article_number} sys_id GET took {t1 - t0:.1f}s", file=sys.stderr)
     if not sys_id:
@@ -258,12 +388,25 @@ async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str
 
     Returns:
         Updated article record dict, duplicate warning dict, or error string on failure.
+
+    Fail-closed: the publish only proceeds on a duplicate check that positively
+    came back clear. A check that could not run blocks the publish and writes
+    nothing.
     """
-    meta = await _get_kb_article_meta(article_number, workflow_state="draft")
+    try:
+        meta = await _get_kb_article_meta(article_number, workflow_state="draft")
+    except ServiceNowRequestError as error:
+        return error.to_error_dict()
     if not meta:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
 
-    duplicates = await _check_kb_duplicates(meta['short_description'], article_number)
+    try:
+        duplicates = await _check_kb_duplicates(meta['short_description'], article_number)
+    except ServiceNowRequestError as error:
+        return _duplicate_check_inconclusive(article_number, error.message)
+    except KbDuplicateCheckInconclusive as inconclusive:
+        return _duplicate_check_inconclusive(article_number, inconclusive.reason)
+
     if duplicates:
         return {
             "success": False,
@@ -274,17 +417,60 @@ async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str
     return await _publish_with_verify(meta['sys_id'], article_number)
 
 
+def _duplicate_check_inconclusive(article_number: str, reason: str) -> Dict[str, Any]:
+    """Refuse the publish because the duplicate check could not answer.
+
+    Same `success: False` shape as a found-duplicate block — in both cases nothing
+    was written and the caller must resolve something first. `duplicate_check`
+    distinguishes "the guard said no" from "the guard could not say".
+    """
+    return {
+        "success": False,
+        "duplicate_check": "inconclusive",
+        "message": ERROR_KB_DUPLICATE_CHECK_INCONCLUSIVE.format(
+            number=article_number, reason=reason
+        ),
+        "duplicates": [],
+    }
+
+
+def _duplicate_row_inconclusive(article_number: str, reason: str) -> Dict[str, Any]:
+    """A row for an article whose duplicate status could not be determined.
+
+    Deliberately carries NO `has_duplicate` key. The old shape reported
+    `has_duplicate: False` with no error when the read had failed — a clean bill
+    of health from a check that never ran, and the exact reading that let a
+    publish through. A consumer that reaches for `has_duplicate` here should fail
+    loudly rather than read the absence of a duplicate into a missing answer.
+    """
+    return {
+        "number": article_number,
+        "duplicate_check": "inconclusive",
+        "duplicates": [],
+        "error": reason,
+    }
+
+
 async def _check_single_kb_duplicate(article_number: str) -> Dict[str, Any]:
     """Lookup meta then check duplicates for one article. Used by check_kb_duplicates fan-out."""
-    meta = await _get_kb_article_meta(article_number)
+    try:
+        meta = await _get_kb_article_meta(article_number)
+    except ServiceNowRequestError as error:
+        return _duplicate_row_inconclusive(article_number, error.message)
     if not meta:
+        # A genuinely absent article: the check did run, so has_duplicate stands.
         return {
             "number": article_number,
             "has_duplicate": False,
             "duplicates": [],
             "error": ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number),
         }
-    duplicates = await _check_kb_duplicates(meta["short_description"], article_number)
+    try:
+        duplicates = await _check_kb_duplicates(meta["short_description"], article_number)
+    except ServiceNowRequestError as error:
+        return _duplicate_row_inconclusive(article_number, error.message)
+    except KbDuplicateCheckInconclusive as inconclusive:
+        return _duplicate_row_inconclusive(article_number, inconclusive.reason)
     return {
         "number": article_number,
         "has_duplicate": bool(duplicates),
@@ -293,6 +479,32 @@ async def _check_single_kb_duplicate(article_number: str) -> Dict[str, Any]:
             for d in duplicates
         ],
     }
+
+
+def _outcome_error_message(outcome: BaseException) -> str:
+    """Message for an exception that escaped a per-article coroutine."""
+    if isinstance(outcome, ServiceNowRequestError):
+        return outcome.message
+    if isinstance(outcome, KbDuplicateCheckInconclusive):
+        return outcome.reason
+    return f"{type(outcome).__name__}: {outcome}"
+
+
+def _rows_from_outcomes(numbers, outcomes, error_row) -> List[Dict[str, Any]]:
+    """Zip gathered outcomes back onto their article numbers, exceptions included.
+
+    `asyncio.gather(..., return_exceptions=True)` keeps results positional, so a
+    failure stays attached to the article it belongs to instead of aborting the
+    batch and discarding every sibling row — including rows for articles that
+    were already written.
+    """
+    rows: List[Dict[str, Any]] = []
+    for number, outcome in zip(numbers, outcomes):
+        if isinstance(outcome, BaseException):
+            rows.append(error_row(number, _outcome_error_message(outcome)))
+        else:
+            rows.append(outcome)
+    return rows
 
 
 async def check_kb_duplicates(
@@ -313,6 +525,12 @@ async def check_kb_duplicates(
 
     Returns:
         {"result": [{"number", "has_duplicate", "duplicates": [{"number", "workflow_state"}], "error"?}, ...]}
+
+        A row whose check could not be completed instead carries
+        `{"number", "duplicate_check": "inconclusive", "duplicates": [], "error"}`
+        and NO `has_duplicate` key — a missing answer must not be readable as
+        "no duplicates". Treat such a row the way `publish_knowledge_article`
+        does: as a reason not to publish, not as a clean result.
     """
     if not article_numbers:
         return {"result": []}
@@ -325,23 +543,59 @@ async def check_kb_duplicates(
         async with semaphore:
             return await _check_single_kb_duplicate(num)
 
-    results = await asyncio.gather(*(_bounded(n) for n in article_numbers))
-    return {"result": results}
+    outcomes = await asyncio.gather(
+        *(_bounded(n) for n in article_numbers), return_exceptions=True
+    )
+    return {"result": _rows_from_outcomes(article_numbers, outcomes, _duplicate_row_inconclusive)}
 
 
 def _normalize_publish_result(article_number: str, result: Dict[str, Any] | str) -> Dict[str, Any]:
-    """Normalize publish_knowledge_article output into a flat batch-result row."""
+    """Normalize publish_knowledge_article output into a flat batch-result row.
+
+    Four statuses: `published`, `blocked` (a guard said no — nothing written),
+    `unconfirmed` (the write went out, the confirming read did not come back), and
+    `error`.
+
+    Note the ordering. `published` is the FALL-THROUGH, so every non-success shape
+    has to be recognised before it: a bare `{"error": ...}` failure dict would
+    otherwise be reported as a successful publish with `workflow_state: None`,
+    turning the typed failure this tier introduced into a false success — the
+    precise mislabelling the tier exists to remove.
+    """
     if isinstance(result, str):
         return {"number": article_number, "status": "error", "message": result}
-    if isinstance(result, dict) and result.get("success") is False:
+    if not isinstance(result, dict):
+        return {"number": article_number, "status": "error", "message": str(result)}
+    if result.get("publish_confirmed") is False:
         return {
+            "number": article_number,
+            "status": "unconfirmed",
+            "message": result.get("message"),
+            "error": result.get("error"),
+        }
+    if is_read_failure(result):
+        error = result.get("error") or {}
+        return {
+            "number": article_number,
+            "status": "error",
+            "message": error.get("message"),
+            "code": error.get("code"),
+        }
+    if result.get("success") is False:
+        row = {
             "number": article_number,
             "status": "blocked",
             "message": result.get("message"),
             "blockers": result.get("duplicates", []),
         }
-    workflow_state = result.get("workflow_state") if isinstance(result, dict) else None
-    return {"number": article_number, "status": "published", "workflow_state": workflow_state}
+        if result.get("duplicate_check"):
+            row["duplicate_check"] = result["duplicate_check"]
+        return row
+    return {
+        "number": article_number,
+        "status": "published",
+        "workflow_state": result.get("workflow_state"),
+    }
 
 
 async def publish_knowledge_articles(
@@ -360,7 +614,12 @@ async def publish_knowledge_articles(
             (default KB_PUBLISH_BATCH_CONCURRENCY = 2).
 
     Returns:
-        {"result": [{"number", "status": "published"|"blocked"|"error", ...}, ...]}
+        {"result": [{"number", "status": "published"|"blocked"|"unconfirmed"|"error", ...}, ...]}
+
+        `blocked` — a guard refused (duplicates found, or the duplicate check
+        could not answer). Nothing was written.
+        `unconfirmed` — the publish was submitted but the confirming read failed.
+        It may have committed; do not blind-retry.
     """
     if not article_numbers:
         return {"result": []}
@@ -374,8 +633,16 @@ async def publish_knowledge_articles(
             outcome = await publish_knowledge_article(num)
             return _normalize_publish_result(num, outcome)
 
-    results = await asyncio.gather(*(_bounded(n) for n in article_numbers))
-    return {"result": results}
+    def _error_row(number: str, message: str) -> Dict[str, Any]:
+        return {"number": number, "status": "error", "message": message}
+
+    # return_exceptions: one article's failure must not discard the batch. Some
+    # of these articles have already been PUBLISHED by the time a later one
+    # fails, and aborting the gather threw away the only record of which.
+    outcomes = await asyncio.gather(
+        *(_bounded(n) for n in article_numbers), return_exceptions=True
+    )
+    return {"result": _rows_from_outcomes(article_numbers, outcomes, _error_row)}
 
 
 async def retire_knowledge_article(article_number: str) -> Dict[str, Any] | str:
@@ -387,7 +654,10 @@ async def retire_knowledge_article(article_number: str) -> Dict[str, Any] | str:
     Returns:
         Updated article record dict, or error string on failure.
     """
-    sys_id = await _get_kb_article_sys_id(article_number, workflow_state="published")
+    try:
+        sys_id = await _get_kb_article_sys_id(article_number, workflow_state="published")
+    except ServiceNowRequestError as error:
+        return error.to_error_dict()
     if not sys_id:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
     return await _call_kb_workflow(sys_id, "retire")

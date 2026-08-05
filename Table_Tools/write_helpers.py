@@ -51,14 +51,22 @@ def map_http_error(
 
 def unwrap_write_response(
     result: Any,
-    success_message: str,
+    unconfirmed_message: str,
     *,
     fields: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any] | str:
     """Extract the single-record payload from a write response.
 
     fields: when given, filter a dict record down to these keys (KB write).
-    success_message: returned when the response carried no data.
+    unconfirmed_message: returned when the response carried no record.
+
+    An empty response is UNCONFIRMED, not successful (v4.4 Tier 0.3). This
+    previously returned a message reading "<operation> successful but no data
+    returned" — it asserted the write had landed on the strength of an empty
+    response, which is the one thing an empty response cannot establish. #59
+    fixed the transport half (a failed write now raises instead of returning
+    None), so a falsy value reaching here means ServiceNow answered 2xx with no
+    record: real, rare, and not a success.
     """
     if result and isinstance(result, dict) and result.get("result"):
         record = result["result"]
@@ -66,4 +74,4 @@ def unwrap_write_response(
             allowed = set(fields)
             return {k: v for k, v in record.items() if k in allowed}
         return record
-    return result if result else success_message
+    return result if result else unconfirmed_message
