@@ -17,6 +17,7 @@ from .generic_table_tools import (
     query_table_with_generic_filters,
     TableFilterParams
 )
+from .read_helpers import carry_partial, is_read_failure
 from .date_utils import (
     validate_date_format,
     build_date_filter,
@@ -155,7 +156,16 @@ async def get_priority_incidents(
     if not include_metadata:
         return result
 
-    return _build_metadata(result, priorities, start_date, end_date, additional_filters, query_timestamp)
+    # A failed read has no rows to count. Wrapping it in metadata would report
+    # "Found 0 priority 1 incident(s)" for a timeout, which is the not-found
+    # mislabelling v4.4 Tier 0.3 exists to remove.
+    if is_read_failure(result):
+        return result
+
+    enriched = _build_metadata(
+        result, priorities, start_date, end_date, additional_filters, query_timestamp
+    )
+    return carry_partial(enriched, result)
 
 
 def _build_priority_result_message(
@@ -297,6 +307,10 @@ async def get_kb_articles_by_state(
         max_results=max_results,
     )
     raw = await query_table_with_filters("kb_knowledge", params)
+    # De-duplicating a failure would answer "No matching KB articles." for a
+    # read that never happened. Pass the failure through untouched.
+    if is_read_failure(raw):
+        return raw
     rows = raw.get("result", []) or []
 
     by_number = _pick_canonical_kb_row(rows)
@@ -310,18 +324,18 @@ async def get_kb_articles_by_state(
         deduped.append(formatted)
 
     if not deduped:
-        return {
+        return carry_partial({
             "result": [],
             "message": "No matching KB articles.",
             "returned_count": 0,
             "truncated": raw.get("truncated", False),
-        }
+        }, raw)
 
-    return {
+    return carry_partial({
         "result": deduped,
         "returned_count": len(deduped),
         "truncated": raw.get("truncated", False),
-    }
+    }, raw)
 
 
 # ---------------------------------------------------------------------------

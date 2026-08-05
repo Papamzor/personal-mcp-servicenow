@@ -63,7 +63,9 @@ def _redact_url(url: str) -> str:
 # block, `_legacy_none_shim`, and `_calling_module` outright and lets the raise
 # propagate unconditionally.
 # ---------------------------------------------------------------------------
-_TYPED_CALLERS: frozenset[str] = frozenset()
+_TYPED_CALLERS: frozenset[str] = frozenset({
+    "Table_Tools.generic_table_tools",
+})
 
 # This package's own name, used for the frame-walk boundary test below.
 _PACKAGE = __name__.split(".")[0]

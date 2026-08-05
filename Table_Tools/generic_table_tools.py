@@ -1,5 +1,5 @@
 import sys
-from http_layer import make_nws_request, NWS_API_BASE
+from http_layer import ServiceNowRequestError, make_nws_request, NWS_API_BASE
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 import re
@@ -21,6 +21,7 @@ from constants import (
     ENABLE_COMPLETE_QUERY,
     TABLE_CONFIGS
 )
+from .read_helpers import carry_partial, is_read_failure
 from filter import (
     QueryExplainer,
     QueryIntelligence,
@@ -32,6 +33,55 @@ from filter import (
     validate_query_filters,
     validate_result_count,
 )
+
+
+# ---------------------------------------------------------------------------
+# Read-failure contract (v4.4 Tier 0.3). This module is the first entry in
+# `http_layer.request_dispatcher._TYPED_CALLERS`, so a failed GET arrives here
+# as a raised `ServiceNowRequestError` instead of `None`. The rules below are
+# settled here and reused by every other consumer module migrated after it:
+#
+#   1. A raise returns `error.to_error_dict()` -> {"error": {code, message}}
+#      and nothing else. `retryable` is for our own retry logic, not the client,
+#      and the code is never translated into prose.
+#   2. An empty result stays not-found. HTTP 200 + {"result": []} keeps the
+#      existing RECORD_NOT_FOUND / NO_RECORDS_FOUND message: empty is success.
+#      The only thing that changes is that a *failure* no longer shares it.
+#   3. A page failing mid-pagination keeps the rows already collected and marks
+#      the response `partial` (see `PartialPageReadError` / `_partial_envelope`).
+#      Page 1 failing has no rows to keep, so it is a plain error with no
+#      `partial` key.
+#   4. `except ServiceNowRequestError` always precedes a bare `except Exception`
+#      so the typed failure is never flattened into a message string.
+# ---------------------------------------------------------------------------
+
+
+class PartialPageReadError(Exception):
+    """A page after the first failed; the rows already collected are attached.
+
+    Deliberately NOT a `ServiceNowRequestError` subclass. If it were, every
+    `except ServiceNowRequestError` arm would silently absorb it and throw away
+    the rows it carries — the exact "discard 250 good rows because page 2 died"
+    behavior this replaces. Being a separate type means a call site that forgets
+    it degrades to a plain error rather than to a wrong-looking empty result.
+
+    Only raised when at least one row was already collected; a first-page
+    failure propagates as `ServiceNowRequestError`.
+    """
+
+    def __init__(self, rows: List[Dict[str, Any]], error: ServiceNowRequestError) -> None:
+        super().__init__(error.message)
+        self.rows = rows
+        self.error = error
+
+
+def _partial_envelope(base: Dict[str, Any], partial: PartialPageReadError) -> Dict[str, Any]:
+    """Mark an otherwise-normal response as a partial read.
+
+    The one sanctioned shape where rows and `error` coexist (plan §3.1): the
+    rows are real and usable, and the error says why the set is incomplete.
+    """
+    return {**base, "partial": True, **partial.error.to_error_dict()}
 
 
 def _validate_regex_input(text: str) -> bool:
@@ -100,17 +150,27 @@ async def query_table_by_text(
     query = "^OR".join(f"{search_field}LIKE{keyword}" for keyword in keywords)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}"
     # Single paginated request; text searches capped at 50 results.
-    all_results = await _make_paginated_request(base_url, max_results=50)
+    try:
+        all_results = await _make_paginated_request(base_url, max_results=50)
+    except PartialPageReadError as partial:
+        return _partial_envelope(_text_search_envelope(partial.rows, input_text), partial)
+    except ServiceNowRequestError as error:
+        return error.to_error_dict()
 
-    if all_results:
-        result_count = len(all_results)
-        limit_note = " (limited to 50)" if result_count == 50 else ""
-        return {
-            "result": all_results,
-            "message": f"Found {result_count} records matching '{input_text}'{limit_note}",
-        }
-    # Return consistent dict format for no results
-    return {"result": [], "message": NO_RECORDS_FOUND}
+    return _text_search_envelope(all_results, input_text)
+
+
+def _text_search_envelope(rows: List[Dict[str, Any]], input_text: str) -> dict[str, Any]:
+    """Response shape for a text search. No rows is not-found, never a failure."""
+    if not rows:
+        return {"result": [], "message": NO_RECORDS_FOUND}
+    result_count = len(rows)
+    limit_note = " (limited to 50)" if result_count == 50 else ""
+    return {
+        "result": rows,
+        "message": f"Found {result_count} records matching '{input_text}'{limit_note}",
+    }
+
 
 async def get_record_description(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get short_description for any record."""
@@ -118,8 +178,13 @@ async def get_record_description(table_name: str, record_number: str) -> dict[st
         return {"result": [], "message": RECORD_NOT_FOUND}
     query = f"number={record_number}"
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query={query}"
-    data = await make_nws_request(url)
-    return data if data else {"result": [], "message": RECORD_NOT_FOUND}
+    try:
+        data = await make_nws_request(url)
+    except ServiceNowRequestError as error:
+        # A failed lookup is not a missing record. RECORD_NOT_FOUND below is
+        # reserved for a successful read that returned no rows.
+        return error.to_error_dict()
+    return _record_envelope(data)
 
 async def get_record_details(table_name: str, record_number: str) -> dict[str, Any]:
     """Generic function to get detailed information for any record."""
@@ -128,39 +193,74 @@ async def get_record_details(table_name: str, record_number: str) -> dict[str, A
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
     query = f"number={record_number}"
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}&sysparm_display_value=true"
-    data = await make_nws_request(url)
-    return data if data else {"result": [], "message": RECORD_NOT_FOUND}
+    try:
+        data = await make_nws_request(url)
+    except ServiceNowRequestError as error:
+        return error.to_error_dict()
+    return _record_envelope(data)
+
+
+def _record_envelope(data: Optional[dict[str, Any]]) -> dict[str, Any]:
+    """Single-record read shape. A successful read with no rows is not-found.
+
+    Before v4.4 this label was also produced when the request itself failed
+    (the read path returned `None` for both). Failures are mapped by the caller
+    now, so RECORD_NOT_FOUND means only what it says.
+    """
+    if not data or not data.get("result"):
+        return {"result": [], "message": RECORD_NOT_FOUND}
+    return data
+
+
+def _first_short_description(desc_data: dict[str, Any]) -> str:
+    """Pull the first row's short_description out of a description response."""
+    rows = desc_data.get('result') or []
+    if not rows:
+        return ""
+    return (rows[0].get('short_description') or "").strip()
+
+
+def _exclude_original_record(similar_data: dict[str, Any], record_number: str) -> dict[str, Any]:
+    """Drop the source record from a text-search result, preserving partial state."""
+    rows = similar_data.get('result') or []
+    if not rows:
+        return similar_data  # nothing to filter — pass the inner response through
+    filtered_results = [record for record in rows if record.get('number') != record_number]
+    if filtered_results:
+        response = {
+            "result": filtered_results,
+            "message": f"Found {len(filtered_results)} similar records (excluding original record)",
+        }
+    else:
+        response = {"result": [], "message": NO_SIMILAR_RECORDS_FOUND}
+    return carry_partial(response, similar_data)
+
 
 async def find_similar_records(table_name: str, record_number: str) -> dict[str, Any]:
-    """Generic function to find similar records based on a given record's description."""
+    """Generic function to find similar records based on a given record's description.
+
+    Both inner calls return their own failure dicts now, so a transport failure
+    is passed through as-is rather than being reported as "no description found"
+    or as the generic CONNECTION_ERROR string.
+    """
     try:
         desc_data = await get_record_description(table_name, record_number)
-        
-        # Extract description text from the response
-        if desc_data and desc_data.get('result') and len(desc_data['result']) > 0:
-            desc_text = desc_data['result'][0].get('short_description', '')
-            if desc_text and desc_text.strip():
-                # Get similar records using text search
-                similar_data = await query_table_by_text(table_name, desc_text)
-                
-                # Filter out the original record from results
-                if similar_data and similar_data.get('result'):
-                    filtered_results = [
-                        record for record in similar_data['result'] 
-                        if record.get('number') != record_number
-                    ]
-                    
-                    result_count = len(filtered_results)
-                    if filtered_results:
-                        return {
-                            "result": filtered_results,
-                            "message": f"Found {result_count} similar records (excluding original record)"
-                        }
-                    else:
-                        return {"result": [], "message": NO_SIMILAR_RECORDS_FOUND}
+        if is_read_failure(desc_data):
+            return desc_data
 
-                return similar_data  # Return original result if no filtering needed
-        return {"result": [], "message": NO_DESCRIPTION_FOUND}
+        desc_text = _first_short_description(desc_data)
+        if not desc_text:
+            return {"result": [], "message": NO_DESCRIPTION_FOUND}
+
+        similar_data = await query_table_by_text(table_name, desc_text)
+        if is_read_failure(similar_data):
+            return similar_data
+        return _exclude_original_record(similar_data, record_number)
+    except ServiceNowRequestError as error:
+        # Defensive: the calls above map their own failures, so reaching this
+        # arm means a new raise path appeared. Map it into the error vocabulary
+        # rather than letting CONNECTION_ERROR become a fourth error dialect.
+        return error.to_error_dict()
     except Exception:
         return {"result": [], "message": CONNECTION_ERROR}
 
@@ -654,7 +754,15 @@ async def _make_paginated_request(
     page_size: int = 250,
     default_sort: str = "ORDERBYDESCsys_created_on"
 ) -> List[Dict[str, Any]]:
-    """Make paginated requests to get complete result sets."""
+    """Make paginated requests to get complete result sets.
+
+    Raises:
+        PartialPageReadError: a page after the first failed. Carries the rows
+            collected so far — they are real records and are not discarded
+            because a later page timed out.
+        ServiceNowRequestError: the first page failed, so there is nothing to
+            keep and the whole read is a failure.
+    """
     if default_sort:
         url = _inject_sort_order(url, default_sort)
     all_results = []
@@ -662,11 +770,17 @@ async def _make_paginated_request(
 
     while len(all_results) < max_results:
         paginated_url = f"{url}&sysparm_offset={offset}&sysparm_limit={page_size}"
-        data = await make_nws_request(paginated_url)
-        
+        try:
+            data = await make_nws_request(paginated_url)
+        except ServiceNowRequestError as error:
+            if all_results:
+                raise PartialPageReadError(all_results[:max_results], error) from error
+            raise
+
+        # A 200 with no rows ends the walk normally — empty is success.
         if not data or not data.get('result'):
             break
-        
+
         batch_results = data['result']
         if not batch_results:
             break
@@ -698,6 +812,10 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
     caller can detect silent caps. truncated=True is a heuristic — it fires when
     returned_count == max_results (may be a false positive on exact-boundary
     result sets, but never a false negative).
+
+    A read failure returns {"error": {code, message}}. A failure *after* some
+    pages succeeded returns the collected rows plus `partial: true` and the
+    error, so the caller can use the rows and still know the set is incomplete.
     """
     fields = params.fields or ESSENTIAL_FIELDS.get(table_name, ["number", "short_description"])
 
@@ -718,7 +836,13 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
         base_url += f"&sysparm_query={encoded_query}"
 
     max_results = params.max_results
-    all_results = await _make_paginated_request(base_url, max_results=max_results)
+    partial_read: Optional[PartialPageReadError] = None
+    try:
+        all_results = await _make_paginated_request(base_url, max_results=max_results)
+    except PartialPageReadError as partial:
+        all_results, partial_read = partial.rows, partial
+    except ServiceNowRequestError as error:
+        return error.to_error_dict()
     returned_count = len(all_results)
     truncated = returned_count >= max_results
 
@@ -728,12 +852,13 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
         if result_validation.has_issues():
             print(f"[generic_table_tools] Result validation warnings: {result_validation.warnings}", file=sys.stderr)
 
-        return {
+        response = {
             "result": all_results,
             "returned_count": returned_count,
             "truncated": truncated,
             "max_results": max_results,
         }
+        return _partial_envelope(response, partial_read) if partial_read else response
 
     empty_response = {
         "result": [],
@@ -890,17 +1015,29 @@ async def query_table_intelligently(
 
         query_result = await query_table_with_filters(table_name, params)
 
+        # A failed query is not a reason to fall back to a keyword search: the
+        # transport just failed, so the second request would fail the same way
+        # and the client would be told "no filters matched" instead of why.
+        if is_read_failure(query_result):
+            return query_result
+
         # Return successful response if we got results
         if isinstance(query_result, dict) and query_result.get('result'):
             debug_extras = (
                 _build_debug_extras(intelligence_result, natural_language_query, table_name, context)
                 if debug else None
             )
-            return _build_intelligence_response(query_result, intelligence_result, debug_extras)
+            response = _build_intelligence_response(query_result, intelligence_result, debug_extras)
+            return carry_partial(response, query_result)
 
     # Fallback to keyword-based search
     fallback_result = await query_table_by_text(table_name, natural_language_query)
-    return _build_fallback_response(fallback_result, natural_language_query, table_name, context, debug=debug)
+    if is_read_failure(fallback_result):
+        return fallback_result
+    response = _build_fallback_response(
+        fallback_result, natural_language_query, table_name, context, debug=debug
+    )
+    return carry_partial(response, fallback_result)
 
 
 def explain_filter_query(
@@ -1054,6 +1191,12 @@ async def get_records_by_priority(
     try:
         all_results = await _make_paginated_request(base_url, max_results=max_results)
         return _format_priority_results(all_results, max_results)
+    except PartialPageReadError as partial:
+        return _partial_envelope(_format_priority_results(partial.rows, max_results), partial)
+    except ServiceNowRequestError as error:
+        # Must precede the bare `except Exception` below, or the typed failure
+        # is flattened into the REQUEST_FAILED_ERROR string and the code is lost.
+        return error.to_error_dict()
     except Exception as e:
         return {"error": REQUEST_FAILED_ERROR.format(error=str(e))}
 
@@ -1079,14 +1222,21 @@ async def query_table_with_generic_filters(
     try:
         # Use pagination to prevent excessive results
         all_results = await _make_paginated_request(base_url, max_results=75)  # Limit generic filters to 75 results
-        
-        if all_results:
-            result_count = len(all_results)
-            return {
-                "result": all_results,
-                "message": f"Found {result_count} records" + (" (limited to 75)" if result_count == 75 else "")
-            }
-        else:
-            return {"result": [], "message": NO_RECORDS_FOUND}
+        return _generic_filter_envelope(all_results)
+    except PartialPageReadError as partial:
+        return _partial_envelope(_generic_filter_envelope(partial.rows), partial)
+    except ServiceNowRequestError as error:
+        return error.to_error_dict()
     except Exception as e:
         return {"error": REQUEST_FAILED_ERROR.format(error=str(e))}
+
+
+def _generic_filter_envelope(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Response shape for query_table_with_generic_filters. Empty stays not-found."""
+    if not rows:
+        return {"result": [], "message": NO_RECORDS_FOUND}
+    result_count = len(rows)
+    return {
+        "result": rows,
+        "message": f"Found {result_count} records" + (" (limited to 75)" if result_count == 75 else ""),
+    }

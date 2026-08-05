@@ -153,8 +153,26 @@ class TestClassifyOAuthFailures:
 class TestLegacyNoneShim:
     """PR 1 must not change behavior on main. PRs 2-7 flip modules one at a time."""
 
-    def test_typed_callers_is_empty_in_pr1(self):
-        assert dispatcher._TYPED_CALLERS == frozenset()
+    def test_typed_callers_matches_the_migration_state(self):
+        """Updated deliberately, once per PR — the assertion IS the migration record.
+
+        PR E deletes this class along with the shim.
+        """
+        assert dispatcher._TYPED_CALLERS == frozenset({
+            "Table_Tools.generic_table_tools",
+        })
+
+    def test_typed_caller_names_are_real_module_names(self):
+        """A typo'd dotted name silently leaves a module unmigrated, suite still green.
+
+        `_calling_module()` compares against `frame.f_globals["__name__"]`, so
+        "Table_Tools.generic_tables_tools" would never match anything and the
+        module would keep receiving None with nothing failing to say so.
+        """
+        import importlib
+
+        for name in dispatcher._TYPED_CALLERS:
+            assert importlib.import_module(name).__name__ == name
 
     @pytest.mark.asyncio
     async def test_unmigrated_caller_still_gets_none(self, monkeypatch):
