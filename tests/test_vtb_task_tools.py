@@ -8,6 +8,7 @@ from unittest.mock import patch, AsyncMock, MagicMock
 import httpx
 
 # Import functions to test
+from constants import ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED
 from Table_Tools.vtb_task_tools import (
     _write_private_task,
     _unwrap_write_response,
@@ -61,7 +62,8 @@ class TestWritePrivateTask:
                 "creation",
             )
 
-            assert "successful but no data returned" in result
+            assert result == ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="creation")
+            assert "successful" not in result
 
     @pytest.mark.asyncio
     async def test_write_none_result_returns_fallback_string(self):
@@ -75,7 +77,8 @@ class TestWritePrivateTask:
                 "creation",
             )
 
-            assert "successful but no data returned" in result
+            assert result == ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="creation")
+            assert "successful" not in result
 
     @pytest.mark.asyncio
     async def test_write_401_returns_auth_failed(self):
@@ -169,13 +172,16 @@ class TestUnwrapWriteResponse:
         result = _unwrap_write_response({"result": {"number": "VTB0001"}}, "creation")
         assert result == {"number": "VTB0001"}
 
-    def test_unwrap_empty_dict_returns_fallback(self):
+    def test_unwrap_empty_dict_is_unconfirmed_not_success(self):
+        """An empty write response cannot establish that the write landed."""
         result = _unwrap_write_response({}, "creation")
-        assert "successful but no data returned" in result
+        assert result == ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="creation")
+        assert "successful" not in result
 
-    def test_unwrap_none(self):
+    def test_unwrap_none_is_unconfirmed_not_success(self):
         result = _unwrap_write_response(None, "update")
-        assert "successful but no data returned" in result
+        assert result == ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="update")
+        assert "successful" not in result
 
     def test_unwrap_dict_without_result_key(self):
         result = _unwrap_write_response({"some": "value"}, "creation")

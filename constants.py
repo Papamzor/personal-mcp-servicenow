@@ -137,6 +137,12 @@ ERROR_PRIVATE_TASK_ACCESS_DENIED = "Error during private task {operation}: Acces
 ERROR_PRIVATE_TASK_INVALID_REQUEST = "Error during private task {operation}: Invalid request data"
 ERROR_PRIVATE_TASK_NOT_FOUND = "Error during private task {operation}: Task not found"
 ERROR_PRIVATE_TASK_SERVER_ERROR = "Error during private task {operation}: Server error"
+# A write that came back with no record is unconfirmed, not successful. See
+# ERROR_KB_WRITE_UNCONFIRMED for why this stopped being phrased as a success.
+ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED = (
+    "Private task {operation} could not be confirmed: ServiceNow accepted the request "
+    "but returned no record. Check the task before retrying."
+)
 
 # Write allowlist for update_private_task — blocks writes to sys_* metadata,
 # number, or other fields that should never be caller-settable.
@@ -154,6 +160,14 @@ ERROR_KB_ARTICLE_ACCESS_DENIED = "Error during knowledge article {operation}: Ac
 ERROR_KB_ARTICLE_INVALID_REQUEST = "Error during knowledge article {operation}: Invalid request data"
 ERROR_KB_ARTICLE_NOT_FOUND = "Error during knowledge article {operation}: Article not found"
 ERROR_KB_ARTICLE_SERVER_ERROR = "Error during knowledge article {operation}: Server error"
+# A write that came back with no record is unconfirmed, not successful. The old
+# wording ("... successful but no data returned") asserted the write had landed
+# on the strength of the response being empty, which is the one thing an empty
+# response cannot establish.
+ERROR_KB_WRITE_UNCONFIRMED = (
+    "Knowledge article {operation} could not be confirmed: ServiceNow accepted the "
+    "request but returned no record. Check the article before retrying."
+)
 ERROR_KB_PUBLISH_NOT_CONFIRMED = (
     "Publish for {number} could not be confirmed (workflow endpoint may have "
     "failed, or ServiceNow has not yet committed the state change). Re-check "
@@ -282,6 +296,66 @@ KB_VERIFY_FIELDS = ("sys_id", "number", "workflow_state", "short_description")
 # Retired = explicitly killed; outdated = prior version after a newer publish (ServiceNow versioning artefact).
 # Draft / review / published remain blockers because they represent live or pending content.
 KB_DUPLICATE_IGNORED_STATES = {"retired", "outdated"}
+
+# Row cap on the duplicate-check query. The check LIKE-matches in ServiceNow and
+# then exact-matches in Python, so a page that hits this cap may have left the
+# real duplicate behind — a capped page is inconclusive, not clean. Without an
+# explicit limit the instance default applies silently and truncation is
+# indistinguishable from a complete answer.
+KB_DEDUP_QUERY_LIMIT = 200
+
+# Characters that break the STRUCTURE of an encoded query when they appear
+# inside a value. The read path percent-encodes sysparm_query but keeps the
+# ServiceNow operator characters in its safe-set
+# (http_layer/url_builder.ensure_query_encoded), and it unquotes before
+# re-quoting, so pre-encoding these at the call site does not survive:
+#   "Cost^Center"  ->  short_descriptionLIKECost ^ Center   (two conditions)
+#   "A&B"          ->  short_descriptionLIKEA & B           (a second URL param)
+# Either way the query that runs is not the query that was asked for, and it
+# runs BROADER. A duplicate check cannot be trusted for such a value, so the
+# publish guard treats it as inconclusive rather than clean.
+#
+# Measured against the whole safe-set: only these two break anything. A value
+# containing = < > ( ) : @ ! survives the round trip intact.
+KB_QUERY_UNSAFE_CHARS = ("^", "&")
+
+# The other, quieter way a value fails to survive: `ensure_query_encoded`
+# unquotes before re-quoting, so any "%" followed by two hex digits in the value
+# is decoded as a percent-escape and ServiceNow searches for a DIFFERENT string.
+# "Deal 20%2C off" becomes "Deal 20, off"; "%41dmin" becomes "Admin"; "20%DB"
+# becomes an invalid byte and then U+FFFD. `unquote` never raises, so nothing
+# announces it.
+#
+# Detected by round trip (unquote(value) == value) rather than by blacklisting
+# "%", which would needlessly refuse an ordinary title like "50% off" — a bare
+# "%" not followed by hex digits survives fine. The round trip is also general:
+# it keeps holding if the encoder's safe-set ever changes.
+KB_DEDUP_REASON_PERCENT_ESCAPE = (
+    "the title contains a '%' sequence that the read path decodes as a "
+    "percent-escape, so ServiceNow would be searched for a different string"
+)
+
+# The duplicate check could not produce a trustworthy answer, so the publish did
+# not happen. Fail-closed: "could not check" is not "nothing found".
+ERROR_KB_DUPLICATE_CHECK_INCONCLUSIVE = (
+    "Duplicate check for {number} could not be completed ({reason}), so it was not "
+    "published. Nothing was written. Re-run once the cause is resolved."
+)
+KB_DEDUP_REASON_UNSAFE_CHARS = (
+    "the title contains a character ({chars}) that ServiceNow's encoded-query syntax "
+    "cannot carry inside a value, which would silently widen the search"
+)
+KB_DEDUP_REASON_TRUNCATED = (
+    "the search hit its {limit}-row cap, so a duplicate may have been left off the page"
+)
+
+# The publish workflow fired but the confirming read failed. Distinct from a
+# publish that is known not to have happened: this one may well have committed.
+ERROR_KB_PUBLISH_VERIFY_UNREADABLE = (
+    "Publish for {number} was submitted but could not be confirmed: the verification "
+    "read failed ({message}). The article may or may not be published; check its state "
+    "before retrying, as retrying may publish a second version."
+)
 
 # KB publish workflow tuning — the SN /qonv/.../publish endpoint runs duplicate
 # check + state transition + reindex synchronously and routinely takes 60-90s.

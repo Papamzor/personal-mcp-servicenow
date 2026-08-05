@@ -9,7 +9,10 @@ import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 import httpx
 
+from constants import ERROR_KB_WRITE_UNCONFIRMED
+from http_layer.errors import ErrorCode, ServiceNowRequestError
 from Table_Tools.kb_article_tools import (
+    KbDuplicateCheckInconclusive,
     _handle_kb_error,
     _unwrap_kb_write_response,
     _write_kb_article,
@@ -31,6 +34,13 @@ def _make_http_status_error(status_code: int) -> httpx.HTTPStatusError:
     response = MagicMock()
     response.status_code = status_code
     return httpx.HTTPStatusError(str(status_code), request=MagicMock(), response=response)
+
+
+def _timeout() -> ServiceNowRequestError:
+    """The shape a failed GET now arrives in for this module (v4.4 Tier 0.3)."""
+    return ServiceNowRequestError(
+        ErrorCode.TIMEOUT, "ServiceNow request timed out", retryable=True
+    )
 
 
 class TestHandleKbError:
@@ -62,13 +72,16 @@ class TestUnwrapKbWriteResponse:
         result = _unwrap_kb_write_response({"result": {"number": "KB0001234"}}, "update")
         assert result == {"number": "KB0001234"}
 
-    def test_unwrap_empty_dict_returns_fallback(self):
+    def test_unwrap_empty_dict_is_unconfirmed_not_success(self):
+        """An empty write response cannot establish that the write landed."""
         result = _unwrap_kb_write_response({}, "publish")
-        assert "successful but no data returned" in result
+        assert result == ERROR_KB_WRITE_UNCONFIRMED.format(operation="publish")
+        assert "successful" not in result
 
-    def test_unwrap_none_returns_fallback(self):
+    def test_unwrap_none_is_unconfirmed_not_success(self):
         result = _unwrap_kb_write_response(None, "retire")
-        assert "successful but no data returned" in result
+        assert result == ERROR_KB_WRITE_UNCONFIRMED.format(operation="retire")
+        assert "successful" not in result
 
     def test_unwrap_dict_without_result_key_returns_as_is(self):
         result = _unwrap_kb_write_response({"some": "value"}, "update")
@@ -97,12 +110,13 @@ class TestWriteKbArticle:
             )
 
     @pytest.mark.asyncio
-    async def test_none_result_returns_fallback(self):
+    async def test_none_result_is_unconfirmed_not_success(self):
         with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
             mock_request.return_value = None
 
             result = await _write_kb_article("PATCH", "http://x", {}, "update")
-            assert "successful but no data returned" in result
+            assert result == ERROR_KB_WRITE_UNCONFIRMED.format(operation="update")
+            assert "successful" not in result
 
     @pytest.mark.asyncio
     async def test_http_status_error_mapped(self):
@@ -141,11 +155,17 @@ class TestGetKbArticleSysId:
             assert await _get_kb_article_sys_id("KB9999999") is None
 
     @pytest.mark.asyncio
-    async def test_none_response_returns_none(self):
-        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
-            mock_request.return_value = None
+    async def test_read_failure_propagates_instead_of_looking_absent(self):
+        """Decision (d): None means absent, so a failed read must NOT return None.
 
-            assert await _get_kb_article_sys_id("KB0001234") is None
+        The old test mocked None here and asserted None came back, which is now an
+        input the transport cannot produce -- a failed GET raises. Returning None
+        is what made update/retire report "article not found" for a timeout.
+        """
+        with patch('Table_Tools.kb_article_tools.make_nws_request',
+                   side_effect=_timeout()):
+            with pytest.raises(ServiceNowRequestError):
+                await _get_kb_article_sys_id("KB0001234")
 
     @pytest.mark.asyncio
     async def test_none_result_key_returns_none(self):
@@ -269,11 +289,11 @@ class TestGetKbArticleMeta:
             assert await _get_kb_article_meta("KB9999999") is None
 
     @pytest.mark.asyncio
-    async def test_none_response_returns_none(self):
-        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
-            mock_request.return_value = None
-
-            assert await _get_kb_article_meta("KB0001234") is None
+    async def test_read_failure_propagates_instead_of_looking_absent(self):
+        with patch('Table_Tools.kb_article_tools.make_nws_request',
+                   side_effect=_timeout()):
+            with pytest.raises(ServiceNowRequestError):
+                await _get_kb_article_meta("KB0001234")
 
     @pytest.mark.asyncio
     async def test_workflow_state_appended_to_query_when_provided(self):
@@ -338,11 +358,17 @@ class TestCheckKbDuplicates:
             assert await _check_kb_duplicates("Test", "KB0001234") == []
 
     @pytest.mark.asyncio
-    async def test_none_response_returns_empty_list(self):
-        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
-            mock_request.return_value = None
+    async def test_read_failure_is_not_an_empty_duplicate_list(self):
+        """The headline fix: [] means "checked, clear" and nothing else.
 
-            assert await _check_kb_duplicates("Test", "KB0001234") == []
+        The old test asserted [] for a failed read. Because the only reading of []
+        available to publish_knowledge_article is "clear to publish", that made a
+        timeout during the duplicate check publish the article unchecked.
+        """
+        with patch('Table_Tools.kb_article_tools.make_nws_request',
+                   side_effect=_timeout()):
+            with pytest.raises(ServiceNowRequestError):
+                await _check_kb_duplicates("Test", "KB0001234")
 
     @pytest.mark.asyncio
     async def test_retired_duplicate_skipped(self):
@@ -700,11 +726,16 @@ class TestVerifyKbPublished:
             assert row is None
 
     @pytest.mark.asyncio
-    async def test_returns_none_when_request_fails(self):
-        with patch('Table_Tools.kb_article_tools.make_nws_request') as mock_request:
-            mock_request.return_value = None
-            row = await _verify_kb_published("KB0001234")
-            assert row is None
+    async def test_read_failure_propagates_instead_of_looking_unpublished(self):
+        """None means "no Published row yet"; a failed read is not that.
+
+        Conflating them made _publish_with_verify treat an unreadable verify as
+        evidence the publish had not committed, and fire it a second time.
+        """
+        with patch('Table_Tools.kb_article_tools.make_nws_request',
+                   side_effect=_timeout()):
+            with pytest.raises(ServiceNowRequestError):
+                await _verify_kb_published("KB0001234")
 
     @pytest.mark.asyncio
     async def test_query_filters_by_published_state(self):

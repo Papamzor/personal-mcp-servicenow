@@ -13,6 +13,7 @@ from constants import (
     ERROR_PRIVATE_TASK_INVALID_REQUEST,
     ERROR_PRIVATE_TASK_NOT_FOUND,
     ERROR_PRIVATE_TASK_SERVER_ERROR,
+    ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED,
     VTB_WRITE_TIMEOUT_SECONDS,
     VTB_UPDATABLE_FIELDS
 )
@@ -32,7 +33,7 @@ def _handle_http_error(error: httpx.HTTPStatusError, operation: str) -> str:
 def _unwrap_write_response(result: Any, operation: str) -> Dict[str, Any] | str:
     """Extract the inner result payload from a write response."""
     return unwrap_write_response(
-        result, f"Private Task {operation} successful but no data returned."
+        result, ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation=operation)
     )
 
 async def _write_private_task(
