@@ -304,16 +304,36 @@ KB_DUPLICATE_IGNORED_STATES = {"retired", "outdated"}
 # indistinguishable from a complete answer.
 KB_DEDUP_QUERY_LIMIT = 200
 
-# Characters that cannot be carried inside an encoded-query value. The read path
-# percent-encodes sysparm_query but keeps the ServiceNow operator characters in
-# its safe-set (http_layer/url_builder.ensure_query_encoded), and it unquotes
-# before re-quoting, so pre-encoding these at the call site does not survive:
+# Characters that break the STRUCTURE of an encoded query when they appear
+# inside a value. The read path percent-encodes sysparm_query but keeps the
+# ServiceNow operator characters in its safe-set
+# (http_layer/url_builder.ensure_query_encoded), and it unquotes before
+# re-quoting, so pre-encoding these at the call site does not survive:
 #   "Cost^Center"  ->  short_descriptionLIKECost ^ Center   (two conditions)
 #   "A&B"          ->  short_descriptionLIKEA & B           (a second URL param)
 # Either way the query that runs is not the query that was asked for, and it
 # runs BROADER. A duplicate check cannot be trusted for such a value, so the
 # publish guard treats it as inconclusive rather than clean.
+#
+# Measured against the whole safe-set: only these two break anything. A value
+# containing = < > ( ) : @ ! survives the round trip intact.
 KB_QUERY_UNSAFE_CHARS = ("^", "&")
+
+# The other, quieter way a value fails to survive: `ensure_query_encoded`
+# unquotes before re-quoting, so any "%" followed by two hex digits in the value
+# is decoded as a percent-escape and ServiceNow searches for a DIFFERENT string.
+# "Deal 20%2C off" becomes "Deal 20, off"; "%41dmin" becomes "Admin"; "20%DB"
+# becomes an invalid byte and then U+FFFD. `unquote` never raises, so nothing
+# announces it.
+#
+# Detected by round trip (unquote(value) == value) rather than by blacklisting
+# "%", which would needlessly refuse an ordinary title like "50% off" — a bare
+# "%" not followed by hex digits survives fine. The round trip is also general:
+# it keeps holding if the encoder's safe-set ever changes.
+KB_DEDUP_REASON_PERCENT_ESCAPE = (
+    "the title contains a '%' sequence that the read path decodes as a "
+    "percent-escape, so ServiceNow would be searched for a different string"
+)
 
 # The duplicate check could not produce a trustworthy answer, so the publish did
 # not happen. Fail-closed: "could not check" is not "nothing found".

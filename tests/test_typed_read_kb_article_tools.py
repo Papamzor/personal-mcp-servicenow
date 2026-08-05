@@ -189,6 +189,52 @@ class TestDuplicateCheckOutcomes:
         with pytest.raises(KbDuplicateCheckInconclusive):
             await _check_kb_duplicates("Sales & Marketing", "KB0001234")
 
+    @pytest.mark.parametrize("title, becomes", [
+        ("Deal 20%2C off", "Deal 20, off"),
+        ("Reset %41dmin password", "Reset Admin password"),
+        ("Up 20%DB backups", None),  # invalid byte -> U+FFFD
+    ])
+    @pytest.mark.asyncio
+    async def test_percent_escape_in_the_title_is_inconclusive(self, title, becomes):
+        """The quiet one: ensure_query_encoded unquotes, so '%XY' is decoded.
+
+        ServiceNow would be searched for a different string than the title, and
+        `unquote` never raises, so nothing announces it. That silently returned
+        `[]` and published the article.
+        """
+        if becomes is not None:
+            from urllib.parse import unquote
+            assert unquote(title) == becomes, "premise of the test"
+        with patch("Table_Tools.kb_article_tools.make_nws_request") as request:
+            with pytest.raises(KbDuplicateCheckInconclusive) as excinfo:
+                await _check_kb_duplicates(title, "KB0001234")
+        request.assert_not_called()
+        assert "percent-escape" in str(excinfo.value)
+
+    @pytest.mark.asyncio
+    async def test_a_bare_percent_is_not_refused(self):
+        """No false positives: a '%' not followed by hex digits survives intact.
+
+        Blacklisting '%' outright would refuse an ordinary title, which is why the
+        check is a round trip on the value rather than a character list.
+        """
+        with patch("Table_Tools.kb_article_tools.make_nws_request") as request:
+            request.return_value = {"result": []}
+            assert await _check_kb_duplicates("Cut costs by 50% off", "KB0001234") == []
+        request.assert_called_once()
+
+    @pytest.mark.parametrize("char", list("=<>():@!"))
+    @pytest.mark.asyncio
+    async def test_the_rest_of_the_operator_safe_set_is_not_refused(self, char):
+        """Only ^ and & break structure; the others survive the round trip.
+
+        Pinned so a future widening of KB_QUERY_UNSAFE_CHARS has to be deliberate
+        rather than a precaution that quietly blocks publishes.
+        """
+        with patch("Table_Tools.kb_article_tools.make_nws_request") as request:
+            request.return_value = {"result": []}
+            assert await _check_kb_duplicates(f"Cost{char}Center guide", "KB0001234") == []
+
     @pytest.mark.asyncio
     async def test_truncated_page_is_inconclusive_not_clear(self):
         """A full page may have left the real duplicate off the end of it."""

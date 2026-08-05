@@ -19,6 +19,7 @@ skipped. "Could not check" is not "nothing found".
 import asyncio
 import sys
 import time
+from urllib.parse import unquote
 from http_layer import ServiceNowRequestError, make_nws_request, NWS_API_BASE
 from typing import Any, Dict, List, Optional
 import anyio
@@ -41,6 +42,7 @@ from constants import (
     ERROR_KB_DUPLICATE_CHECK_INCONCLUSIVE,
     ERROR_KB_PUBLISH_VERIFY_UNREADABLE,
     KB_DEDUP_QUERY_LIMIT,
+    KB_DEDUP_REASON_PERCENT_ESCAPE,
     KB_DEDUP_REASON_TRUNCATED,
     KB_DEDUP_REASON_UNSAFE_CHARS,
     KB_QUERY_UNSAFE_CHARS,
@@ -158,9 +160,24 @@ async def _get_kb_article_meta(article_number: str, workflow_state: str | None =
     return data['result'][0]
 
 
-def _dedup_unsafe_chars(short_description: str) -> list[str]:
-    """Characters in *short_description* that the encoded query cannot carry."""
-    return [c for c in KB_QUERY_UNSAFE_CHARS if c in short_description]
+def _dedup_query_defect(short_description: str) -> Optional[str]:
+    """Why the dedup query would not faithfully carry *short_description*, if so.
+
+    Two independent failures, both ending with ServiceNow running a query nobody
+    asked for. See the constants for the mechanics.
+
+    The percent check is a round trip rather than a character blacklist: it is
+    exactly the condition that matters (`unquote` is what corrupts the value), it
+    does not refuse an ordinary "50% off" title, and it keeps holding if the
+    encoder's safe-set changes. Verified against every character in that safe-set
+    — only ^ and & break structure; = < > ( ) : @ ! survive intact.
+    """
+    unsafe = [c for c in KB_QUERY_UNSAFE_CHARS if c in short_description]
+    if unsafe:
+        return KB_DEDUP_REASON_UNSAFE_CHARS.format(chars=" ".join(unsafe))
+    if unquote(short_description) != short_description:
+        return KB_DEDUP_REASON_PERCENT_ESCAPE
+    return None
 
 
 async def _check_kb_duplicates(short_description: str, exclude_number: str) -> list:
@@ -183,13 +200,11 @@ async def _check_kb_duplicates(short_description: str, exclude_number: str) -> l
             title carries a character the encoded query mangles, or the result
             page hit its row cap and the duplicate may be off the end of it.
     """
-    unsafe = _dedup_unsafe_chars(short_description)
-    if unsafe:
-        # Refused before the request: the query that would run is broader than
-        # the one asked for, so a "no duplicates" answer would be meaningless.
-        raise KbDuplicateCheckInconclusive(
-            KB_DEDUP_REASON_UNSAFE_CHARS.format(chars=" ".join(unsafe))
-        )
+    defect = _dedup_query_defect(short_description)
+    if defect:
+        # Refused before the request: the query that would run is not the one
+        # asked for, so a "no duplicates" answer from it would be meaningless.
+        raise KbDuplicateCheckInconclusive(defect)
 
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
