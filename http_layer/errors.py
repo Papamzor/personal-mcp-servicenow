@@ -14,8 +14,8 @@ correctly:
     retryable   whether retrying the identical request could plausibly succeed.
 
 Classification lives here rather than in the dispatcher so the mapping is
-unit-testable without an HTTP stack, and so every consumer migrated in PRs 2-7
-reads the same table.
+unit-testable without an HTTP stack, and so every migrated consumer reads the
+same table.
 """
 from __future__ import annotations
 

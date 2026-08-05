@@ -163,7 +163,47 @@ class TestLegacyNoneShim:
             "Table_Tools.cmdb_tools",
             "Table_Tools.kb_article_tools",
             "Table_Tools.vtb_task_tools",
+            "Table_Tools.table_tools",
         })
+
+    def test_typed_callers_covers_every_read_path_consumer(self):
+        """The set must be derived from the CODE, not from a planning document.
+
+        The migration inventory listed four consumer modules. There were five —
+        `Table_Tools.table_tools`, whose two functions are registered MCP tools
+        with no exception handling at all. Nothing failed when it was left out,
+        because the shim quietly kept feeding it None; it would have surfaced as
+        an uncaught exception from a live tool the moment the shim was deleted.
+
+        This scan is what makes "the set is complete" checkable rather than
+        asserted. It is scaffold-lifetime: when the shim goes and the raise
+        becomes unconditional, completeness stops being the property that matters
+        and "every consumer HANDLES the raise" takes over — so replace this with
+        a handler check, do not simply delete it.
+        """
+        import pathlib
+
+        repo = pathlib.Path(__file__).resolve().parent.parent
+        # dist/ holds a packaging copy of the tree; http_layer defines the
+        # function; tests mock it. None of those are consumers.
+        skip = {".venv", "venv", "dist", "build", "tests", "http_layer",
+                ".git", "graphify-out", "__pycache__"}
+        consumers = set()
+        for path in repo.rglob("*.py"):
+            parts = path.relative_to(repo).parts
+            if any(p in skip for p in parts):
+                continue
+            if "make_nws_request(" not in path.read_text(encoding="utf-8"):
+                continue
+            consumers.add(".".join(path.relative_to(repo).with_suffix("").parts))
+
+        assert consumers, "scan found no consumers at all — the scan itself is broken"
+        missing = consumers - dispatcher._TYPED_CALLERS
+        assert not missing, (
+            f"unmigrated read-path consumer(s): {sorted(missing)}. Each still "
+            f"receives None for a failed read, and will raise uncaught once the "
+            f"shim is deleted."
+        )
 
     def test_typed_caller_names_are_real_module_names(self):
         """A typo'd dotted name silently leaves a module unmigrated, suite still green.
