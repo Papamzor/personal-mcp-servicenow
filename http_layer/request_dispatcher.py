@@ -65,6 +65,7 @@ def _redact_url(url: str) -> str:
 # ---------------------------------------------------------------------------
 _TYPED_CALLERS: frozenset[str] = frozenset({
     "Table_Tools.generic_table_tools",
+    "Table_Tools.cmdb_tools",
 })
 
 # This package's own name, used for the frame-walk boundary test below.
