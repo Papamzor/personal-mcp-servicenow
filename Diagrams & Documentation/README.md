@@ -75,4 +75,4 @@ httpx → ServiceNow Table API
 
 ---
 
-*Last updated: 2026-07-19 · Project version: 4.3.0*
+*Last updated: 2026-08-06 · Project version: 4.4.0*
