@@ -5,6 +5,176 @@ All notable changes to the Personal MCP ServiceNow project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.4.0] - 2026-08-06
+
+Tier 0 of the v5 "Boron" redesign: correctness only, no tool-count changes. Still 39 tools.
+
+**The theme is that the server stops answering questions it does not know the answer to.**
+Before this release a failed read returned `None`, which every consumer turned into "no
+matching records" — so a 30-second timeout, an expired credential and an empty table all
+produced the same reply. Six months of "it says there are no results" could mean any of them.
+
+That one conflation is the root of most entries below, and it appeared in more places than
+expected once the reads were typed: a CMDB timeout attributed a server to the wrong table, a
+failed duplicate check let a KB article publish unchecked, a failed lookup told users their
+task did not exist and then declined to update it.
+
+**Upgrade note.** Read the "Behavior changes" section before upgrading. Result sets get larger
+(#58), some inputs that used to return rows now return errors (#60, #61), and a KB publish can
+now be refused where it previously went ahead (#66). All of those are deliberate.
+
+### Added
+
+- **Knowledge article SEO fields** — `meta` and `meta_description` are updatable via
+  `update_knowledge_article` and appear in detail reads. They were blocked by the write
+  allowlist. (#54)
+- **`Table_Tools/read_helpers.py`** — `is_read_failure`, `carry_partial`,
+  `carry_partial_after_filter`. The failure and partial-read shapes travel up through several
+  modules that re-wrap each other's responses; these keep both intact, because re-wrapping a
+  failure as an empty result is easy to reintroduce and reads as ordinary code.
+- **A test that derives its own subject matter.** `test_every_read_path_consumer_handles_the_raise`
+  walks the AST for every module importing `make_nws_request` and asserts each has an
+  `except ServiceNowRequestError` arm. Detection is by *import*, not by a text match on
+  `make_nws_request(` — an aliased import binds the name and never spells it at the call site,
+  so a text match would skip the module silently. A new consumer without a handler fails the
+  suite, named. (#67, #68)
+- Golden intent set for tool-selection baselining. (#57)
+
+### Behavior changes
+
+Each of these changes an answer a caller previously received.
+
+- **A failed read is never reported as a missing record.** A failed GET now raises
+  `ServiceNowRequestError`, and consumers return `{"error": {"code", "message"}}` with a code
+  from a fixed seven-value vocabulary (`VALIDATION`, `NOT_FOUND`, `AUTH`, `FORBIDDEN`,
+  `TIMEOUT`, `HTTP`, `INTERNAL`). `NOT_FOUND` is used only when ServiceNow actually returned
+  404. An empty result set keeps its existing not-found message — empty is still success, and
+  deciding what it means stays the consumer's job. (#59, #64-#68)
+- **A partial read keeps its rows.** A page failing mid-pagination returns the rows already
+  collected plus `partial: true` and the error, instead of discarding them; a first-page failure
+  is a plain error. If a filter empties a partial result, the response is the failure, not "no
+  matches" — a confident "nothing found" next to an error saying the read never finished is
+  self-contradicting, and the rows that would have matched may be in the pages that failed. (#64)
+- **KB publish is fail-closed.** The duplicate check now has three outcomes — clear,
+  duplicates-found, inconclusive — and only *clear* permits a publish. Previously a failed
+  check returned `[]`, the one value `publish_knowledge_article` reads as "clear to publish", so
+  a timeout published the article with the guard skipped and reported success. Inconclusive
+  covers: the read failed; the title contains `^` or `&`, which an encoded query cannot carry
+  inside a value; the title contains a `%XY` sequence, which the read path decodes so
+  ServiceNow would be searched for a different string; or the result page hit its new
+  `sysparm_limit=200` and a duplicate may be off the end of it. (#66)
+- **An unreadable publish verification no longer re-fires the workflow.** A failed verify read
+  was indistinguishable from "not published yet", so the publish was submitted a second time —
+  a write retried because a *read* failed. Now one submission, reported as `unconfirmed` with
+  the article's state unknown, because the write did go out and may have committed.
+  `publish_knowledge_articles` gains that status alongside `published`, `blocked` and `error`.
+  (#66)
+- **`check_kb_duplicates` no longer answers "no duplicates" from a check that did not run.**
+  Rows for an indeterminate check omit `has_duplicate` entirely and carry
+  `duplicate_check: "inconclusive"` plus `error`. Previously such a row read
+  `has_duplicate: False` with no error field — and this is the tool the publish-unconfirmed
+  message tells users to re-check with. (#66)
+- **KB and private-task writes that return no record report "could not be confirmed"** instead
+  of "<operation> successful but no data returned". The old wording asserted the write had
+  landed on the strength of an empty response, which is the one thing an empty response cannot
+  establish. (#66)
+- **Domain filtering deleted.** Incident queries no longer silently append
+  `category != Payroll / People Support / Workplace`, and `sc_*` queries no longer append a
+  `People_Pay` catalog exclusion plus 11 assignment-group exclusions. **Result sets get larger
+  and noisier** — this is the change most likely to be noticed. The exclusions were a legacy
+  policy from an earlier deployment; the server is authorized-personnel-only, so they bought
+  nothing while making every query wider, slower and harder to reason about. (#58)
+- **A CMDB probe failure fails the whole lookup** instead of counting as "the CI is not in this
+  table". Every CI also lives in the base `cmdb_ci` table, so a timeout on `cmdb_ci_server`
+  used to make a server CI appear to live in `cmdb_ci` — the wrong table, reported
+  confidently. An incomplete probe set supports neither "not found anywhere" nor attribution to
+  a less specific table. A failure *after* a hit is ignored: the higher-priority table already
+  decided. (#65)
+- **CMDB tools return an error object rather than a not-found string on failure.** Five guards
+  of the form `if data and data.get('result')` were collapsing a failed read into
+  `NO_CIS_FOUND_FOR_TYPE`, `CI_NOT_FOUND`, `NO_CI_TYPES_FOUND` and friends. The module's return
+  type is `dict | str` for now; the strings go in a later tier. (#65)
+- **`ci_type` is validated by shape.** A value that is not a `cmdb_ci*` table name returns an
+  error instead of rows from a different table, and cannot smuggle query parameters into the
+  URL path. `get_all_ci_types` renames `record_count` → `number_prefix_ref`: the underlying
+  `sys_db_object.number_ref` is a reference to the table's numbering configuration, never a row
+  count, and the old name invited callers to read it as a population figure. Use
+  `find_cis_by_type(ci_type)` and read `count` if you need one. (#60)
+- **`task_sla` is guarded on the identity tools.** `search_records`, `get_record_summary`,
+  `get_record` and `find_similar` return an error for `task_sla` instead of unrelated rows —
+  the table has no `number` prefix and uses `stage` rather than `state`, so those tools were
+  answering with whatever came back. `similar_slas_for_text` and natural-language search on
+  `task_sla` return actual matches instead of an arbitrary page, by resolving the text-search
+  field from the table rather than asking callers to pass it. (#61)
+- **An explicit `auth_type` other than `oauth` raises `ConfigError`** at validation instead of
+  being accepted and then failing at request time. (#56)
+- **A pre-write lookup failure is no longer reported as a missing record.**
+  `update_knowledge_article`, `publish_knowledge_article`, `retire_knowledge_article` and
+  `update_private_task` return the classified failure; a genuinely absent record keeps its
+  existing "not found" message. Previously a timeout during the `sys_id` lookup told the user
+  their article or task did not exist, and silently declined to write it. (#66, #67)
+- **The auth-test tools name the actual failure.** `nowtestauth` answered "Authentication test
+  failed" for any failure including a timeout, and `nowtest_auth_input` guessed "table may not
+  exist or no permissions" for a read that never completed. Both are what someone reaches for
+  while trying to find out what is broken, and both were prepared to blame the wrong thing.
+  (#67)
+
+### Fixed
+
+- **Read-failure classification.** `ValueError` was reported as "response is not valid JSON",
+  because `json.JSONDecodeError` subclasses it and the handler paired them — so a missing
+  `.env`, which raises `ValueError("Missing OAuth configuration")` *before any request*, was
+  reported as a JSON parse failure. Separately the OAuth exception hierarchy fell through to
+  `INTERNAL`, so a wrong client secret read as "unexpected internal error" while the identical
+  failure arriving as an httpx 401 mapped to `AUTH`. (#59)
+- **Response flattening is inside the error-handling boundary.** It had drifted outside, which
+  would have propagated a parser failure uncaught to MCP clients for every read caller. (#59)
+- **`ci_type` matched with `fullmatch`, not `match`.** Python's `$` also matches immediately
+  before a single trailing newline, so `"cmdb_ci_server\n"` passed the validation that was
+  meant to close a path-injection hole. (#60)
+- **`search_field` plumbing restored.** Merging #61 after #58 kept #61's docstrings and call
+  sites while taking the pre-#61 code, so the signature, an import and a format placeholder all
+  vanished while everything referencing them stayed. Docstrings surviving a conflict resolution
+  is not evidence the code did. (#63)
+- **Test coverage on the two least-tested modules.** `Table_Tools/cmdb_tools.py` went from
+  62.63% to 88.64% line coverage — its existing test file patched the module's own bound
+  attributes and so asserted nothing about the real functions. `table_tools.py` went from 11.43%
+  to 100%; it had no tests of its own at all, which is why it went unnoticed as an unmigrated
+  read-path consumer until the migration was nearly finished. (#65, #67)
+
+### Removed
+
+- The `_legacy_none_shim` / `_TYPED_CALLERS` / `_calling_module` migration scaffold. It let the
+  five consumer modules be migrated one PR at a time without exposing a half-migrated module,
+  and its deletion is what makes the read contract unconditional. (#68)
+- Domain category and catalog exclusion filtering. (#58)
+- The unusable basic-auth credential path. (#56)
+
+### Internal
+
+No runtime effect; listed so a merge log diffed against this file shows no silent gaps.
+`.gitignore` and stale-artifact cleanup (#53), SonarQube test-smell fixes (#55), doc rot plus
+the backfilled 4.3.0 changelog (#62). The `v4.3.0..HEAD` merge range also contains Bitbucket-
+numbered duplicates (#49-#52) of work already released in 4.3.0 — an artefact of the dual-remote
+history, not additional changes.
+
+### Known limitation
+
+**`^` and `&` inside an encoded-query *value* still produce a query that differs from the one
+requested — and it runs broader.** `ensure_query_encoded` unquotes before re-quoting and keeps
+the ServiceNow operator characters in its safe set, so percent-encoding a value at the call site
+does not survive. `^` is worse than a leak: it is genuinely unrepresentable inside a value,
+because ServiceNow's condition parser splits on it after URL-decoding and the syntax has no
+escape mechanism.
+
+Affected: `search_cis_by_attributes` / `quick_ci_search` (a `^` or `&` in a name or location),
+and caller-supplied filter values via `filter_records` / `query_table_with_filters`. Not
+affected: the text search tools, whose keyword tokenizer drops those characters before they
+reach a query, and the KB duplicate check, which refuses to answer rather than trust it (#66).
+
+The fix is a per-value encoding boundary plus refusing `^`, which touches every table and the
+token-optimization invariant — deliberately not bundled into a correctness release.
+
 ## [4.3.0] - 2026-07-14
 
 Backfilled 2026-08-03 from the 33 non-merge commits between the 4.1.0 work and the `v4.3.0` tag.
