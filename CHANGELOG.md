@@ -138,7 +138,7 @@ Each of these changes an answer a caller previously received.
   is not evidence the code did. (#63)
 - **Test coverage on the two least-tested modules.** `Table_Tools/cmdb_tools.py` went from
   62.63% to 88.64% line coverage — its existing test file patched the module's own bound
-  attributes and so asserted nothing about the real functions. `table_tools.py` went from 11.43%
+  attributes and so asserted nothing about the real functions. `table_tools.py` went from 13.79%
   to 100%; it had no tests of its own at all, which is why it went unnoticed as an unmigrated
   read-path consumer until the migration was nearly finished. (#65, #67)
 
@@ -152,20 +152,33 @@ Each of these changes an answer a caller previously received.
 
 ### Internal
 
-No runtime effect; listed so a merge log diffed against this file shows no silent gaps.
+Listed so a merge log diffed against this file shows no silent gaps.
 `.gitignore` and stale-artifact cleanup (#53), SonarQube test-smell fixes (#55), doc rot plus
 the backfilled 4.3.0 changelog (#62). The `v4.3.0..HEAD` merge range also contains Bitbucket-
 numbered duplicates (#49-#52) of work already released in 4.3.0 — an artefact of the dual-remote
 history, not additional changes.
+
+One of these is visible at runtime, narrowly: #62 corrected the `how_to_use` hint returned by
+`get_servicenow_filter_templates`, which pointed at `getIncidentsByFilter`, a function that no
+longer exists. Copy in a tool's output, not behaviour.
 
 ### Known limitation
 
 **`^` and `&` inside an encoded-query *value* still produce a query that differs from the one
 requested — and it runs broader.** `ensure_query_encoded` unquotes before re-quoting and keeps
 the ServiceNow operator characters in its safe set, so percent-encoding a value at the call site
-does not survive. `^` is worse than a leak: it is genuinely unrepresentable inside a value,
-because ServiceNow's condition parser splits on it after URL-decoding and the syntax has no
-escape mechanism.
+does not survive.
+
+The two fail by different mechanisms, and `&` is the more severe:
+
+- `^` splits the value into two **conditions** inside ServiceNow's own encoded-query parser. It
+  is worse than a leak — it is genuinely *unrepresentable* inside a value, because the parser
+  splits on it after URL-decoding and the syntax has no escape mechanism. No encoder change can
+  carry it; the only options are refusing the value or restructuring the query.
+- `&` escapes `sysparm_query=` and becomes a **sibling URL parameter**, truncating the condition
+  at the `&` and appending a stray parameter — it breaks out of the query string itself rather
+  than being mis-parsed within it. Unlike `^` this one is representable, and survives correctly
+  if the encoding is preserved, so it is fixable.
 
 Affected: `search_cis_by_attributes` / `quick_ci_search` (a `^` or `&` in a name or location),
 and caller-supplied filter values via `filter_records` / `query_table_with_filters`. Not

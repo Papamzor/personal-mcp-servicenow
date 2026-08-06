@@ -16,10 +16,11 @@ MCP server for ServiceNow integration. Uses FastMCP over stdio transport, OAuth 
 
 ## Release highlights
 
-Current version: **4.3.0** — 39 registered tools. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **4.4.0** — 39 registered tools. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 | Release | What changed |
 |---|---|
+| **4.4.0** | Correctness release. A failed read is no longer reported as a missing record — reads raise a classified error instead of returning `None`, so a timeout, an expired credential and an empty table stop producing the same answer. KB publishing is fail-closed on an unusable duplicate check. Legacy domain filtering deleted, so result sets get larger. See the CHANGELOG's "Behavior changes" before upgrading. |
 | **4.3.0** | Claude Desktop `.mcpb` packaging; Nuitka binary builds dropped from the release workflow. Absorbed the performance and token work planned as 4.2 (pooled httpx client, one OR-combined keyword query, concurrent CMDB probes). |
 | 4.1.0 † | v4.0 shims deleted; KB write tools; `get_kb_articles_by_state`; `get_query_syntax_help`; `filter_records` truncation metadata. |
 | **4.0.0** | SLA collapse, `filter/` + `http_layer/` + `oauth/` packages. Breaking — see below. |
