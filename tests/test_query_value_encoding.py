@@ -847,11 +847,14 @@ class TestStructuralPastesRefuseAnAmpersand:
         {"priority": "1^ORpriority=2&x"}
           -> ServiceNow got  priority=1^ORpriority=2   plus a stray `x` parameter
 
-    Reachable from registered tools #7 and #8 (`similar_knowledge_for_text`,
-    `get_knowledge_by_category`), whose `category`/`kb_base` land in exactly that
-    path. Both assembly paths now also encode before interpolating, so a future
-    structural paste that forgets truncates nothing — but the refusal is the fix,
-    because turning a `&` inside caller-built *structure* into a literal is a guess.
+    The `query_table_with_generic_filters` second path was reached by the v4 KB
+    thin-wrappers (`similar_knowledge_for_text`, `get_knowledge_by_category`),
+    culled in v5.0 and removed with that path in the Tier 2.5 sweep. The
+    registered-surface guard is now demonstrated through `filter_records`, whose
+    caller values run the main assembly path's guards. Both assembly paths encode
+    before interpolating, so a future structural paste that forgets truncates
+    nothing — but the refusal is the fix, because turning a `&` inside
+    caller-built *structure* into a literal is a guess.
     """
 
     STRUCTURAL_WITH_AMPERSAND = [
@@ -875,11 +878,16 @@ class TestStructuralPastesRefuseAnAmpersand:
 
     @pytest.mark.asyncio
     async def test_the_registered_kb_tool_refuses_it_too(self):
-        """The reachable surface, not just the internal function."""
-        from Table_Tools.consolidated_tools import get_knowledge_by_category
+        """The reachable surface, not just the internal function.
+
+        v5.0: filter_records is the registered entry point after the KB
+        thin-wrappers were culled; a caller value carrying `^OR` is a structural
+        paste on the main path and must be refused, not escaped.
+        """
+        from Table_Tools.generic_tool_wrappers import filter_records
 
         urls, result = await _send(
-            lambda: get_knowledge_by_category("1^ORkb_category=2&evil")
+            lambda: filter_records("kb_knowledge", {"kb_category": "1^ORkb_category=2&evil"})
         )
         assert not urls
         assert result["error"]["code"] == "VALIDATION"
@@ -912,9 +920,11 @@ class TestStructuralPastesRefuseAnAmpersand:
         "Payroll & Benefits" is a terminal value, so it is escaped, not refused —
         refusing it would make the guard worse than the bug.
         """
-        from Table_Tools.consolidated_tools import get_knowledge_by_category
+        from Table_Tools.generic_tool_wrappers import filter_records
 
-        urls, _ = await _send(lambda: get_knowledge_by_category("Payroll & Benefits"))
+        urls, _ = await _send(
+            lambda: filter_records("kb_knowledge", {"kb_category": "Payroll & Benefits"})
+        )
         assert urls, "an ordinary category containing '&' was refused"
         assert_no_smuggled_parameter(urls[0])
         assert servicenow_value_after(urls[0], "kb_category=") == "Payroll & Benefits"

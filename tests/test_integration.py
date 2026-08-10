@@ -59,12 +59,11 @@ class TestToolRegistry:
 
     def test_expected_tool_count(self):
         import tools
-        # v4.1: KB write expansion + KB de-dup read = 38. v4.1.1 adds
-        # get_query_syntax_help (encoded-query operator reference) = 39.
-        # (5 server/auth + 5 generic + 1 priority + 4 knowledge read +
-        #  2 vtb CRUD + 5 KB write + 5 SLA + 6 CMDB + 6 intelligent).
-        assert len(tools.tools) == 39, (
-            f"Expected 39 registered tools, got {len(tools.tools)}. "
+        # v5.0 "Boron" (Tier 2 cull): 39 -> 25.
+        # (1 health_check + 4 generic + 1 priority + 1 KB state read +
+        #  2 vtb CRUD + 5 KB write + 4 SLA + 6 CMDB + 1 query-syntax help).
+        assert len(tools.tools) == 25, (
+            f"Expected 25 registered tools, got {len(tools.tools)}. "
             "If tool count changed intentionally, update this test and CLAUDE.md."
         )
 
@@ -76,12 +75,12 @@ class TestToolRegistry:
             "search_records", "get_record", "find_similar", "filter_records",
             "create_private_task", "update_private_task",
             "get_priority_incidents",
-            "similar_knowledge_for_text",
+            "get_kb_articles_by_state",
             "find_cis_by_type", "get_ci_details",
-            "intelligent_search",
-            "now_test_oauth",
-            # v4.0 SLA consolidation
-            "similar_slas_for_text", "get_sla_details",
+            "health_check",
+            "get_query_syntax_help",
+            # v4.0 SLA consolidation (v5.0 dropped similar_slas_for_text)
+            "get_sla_details",
             "query_slas_by_task", "query_slas_by_status", "query_slas_custom",
         }
         missing = expected - names

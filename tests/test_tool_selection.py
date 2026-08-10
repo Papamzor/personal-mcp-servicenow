@@ -113,23 +113,18 @@ GOLDEN_INTENTS = (
     {
         'intent': 'show me all P1 incidents from last week',
         'preferred': 'get_priority_incidents',
-        'acceptable': {'filter_records', 'intelligent_search'},
-        'note': 'seeded collision — 4 plausible paths at baseline',
+        'acceptable': {'filter_records'},
+        'note': 'seeded collision',
     },
     {
         'intent': 'find incidents about a server crashing during backup',
         'preferred': 'search_records',
-        'acceptable': {'intelligent_search', 'filter_records'},
-    },
-    {
-        'intent': 'what is the short description of INC0012345',
-        'preferred': 'get_record_summary',
-        'acceptable': {'get_record'},
+        'acceptable': {'filter_records'},
     },
     {
         'intent': 'give me the full details of incident INC0012345',
         'preferred': 'get_record',
-        'acceptable': {'get_record_summary'},
+        'acceptable': {'search_records'},
     },
     {
         'intent': 'find other incidents similar to INC0012345',
@@ -139,24 +134,29 @@ GOLDEN_INTENTS = (
     {
         'intent': 'list change requests where state is 3 and category is network',
         'preferred': 'filter_records',
-        'acceptable': {'intelligent_search'},
+        'acceptable': set(),
     },
-    # --- knowledge reads ---------------------------------------------------
+    {
+        'intent': 'find change requests in the network category',
+        'preferred': 'filter_records',
+        'acceptable': {'search_records'},
+    },
+    # --- knowledge reads (smart-KB tools culled -> generic reads) -----------
     {
         'intent': 'knowledge articles about password reset',
-        'preferred': 'similar_knowledge_for_text',
-        'acceptable': {'search_records', 'get_knowledge_by_category', 'intelligent_search'},
-        'note': 'seeded collision — 3 plausible paths at baseline',
+        'preferred': 'search_records',
+        'acceptable': {'filter_records'},
+        'note': 'seeded collision',
     },
     {
         'intent': 'all knowledge articles in the Workplace category',
-        'preferred': 'get_knowledge_by_category',
-        'acceptable': {'similar_knowledge_for_text', 'filter_records'},
+        'preferred': 'filter_records',
+        'acceptable': {'search_records'},
     },
     {
         'intent': 'which knowledge articles are currently in published state',
         'preferred': 'get_kb_articles_by_state',
-        'acceptable': {'get_active_knowledge_articles', 'filter_records'},
+        'acceptable': {'filter_records'},
     },
     # --- knowledge writes --------------------------------------------------
     {
@@ -200,7 +200,7 @@ GOLDEN_INTENTS = (
         'intent': 'which SLAs are breached',
         'preferred': 'query_slas_by_status',
         'acceptable': {'query_slas_custom', 'filter_records'},
-        'note': 'seeded collision — 3 plausible paths at baseline',
+        'note': 'seeded collision',
     },
     {
         'intent': 'all SLA records attached to INC0012345',
@@ -208,14 +208,14 @@ GOLDEN_INTENTS = (
         'acceptable': {'query_slas_custom', 'filter_records'},
     },
     {
-        'intent': 'SLAs whose task description mentions an email outage',
-        'preferred': 'similar_slas_for_text',
-        'acceptable': {'query_slas_custom'},
-    },
-    {
         'intent': 'SLA query with a filter shape the presets do not cover',
         'preferred': 'query_slas_custom',
         'acceptable': {'filter_records'},
+    },
+    {
+        'intent': 'get the full details of the SLA record with sys_id 26bc0f3b47c1',
+        'preferred': 'get_sla_details',
+        'acceptable': set(),
     },
     # --- CMDB --------------------------------------------------------------
     {
@@ -238,54 +238,47 @@ GOLDEN_INTENTS = (
         'preferred': 'get_all_ci_types',
         'acceptable': set(),
     },
-    # --- health / auth -----------------------------------------------------
+    {
+        'intent': 'find configuration items similar to SRV0001234',
+        'preferred': 'similar_cis_for_ci',
+        'acceptable': {'get_ci_details', 'quick_ci_search'},
+    },
+    {
+        'intent': 'quickly look up the CI named DBSERVER01',
+        'preferred': 'quick_ci_search',
+        'acceptable': {'search_cis_by_attributes', 'get_ci_details'},
+    },
+    # --- diagnostic (5 auth tools collapsed into health_check) --------------
     {
         'intent': 'is the ServiceNow connection up',
-        'preferred': 'now_test_oauth',
-        'acceptable': {'nowtest', 'nowtestauth', 'now_auth_info'},
-        'note': 'seeded collision — 5 plausible paths at baseline',
-    },
-    # --- natural language / help surface -----------------------------------
-    {
-        'intent': 'search for unresolved P2 tickets from May using plain English',
-        'preferred': 'intelligent_search',
-        'acceptable': {'search_records', 'filter_records', 'get_priority_incidents'},
+        'preferred': 'health_check',
+        'acceptable': set(),
+        'note': 'seeded collision',
     },
     {
-        'intent': 'what does the filter priority=1 and state=2 actually do',
-        'preferred': 'explain_servicenow_filters',
-        'acceptable': {'get_query_syntax_help'},
+        'intent': 'run a health check probing the incident table',
+        'preferred': 'health_check',
+        'acceptable': set(),
     },
-    {
-        'intent': 'turn "open P1 incidents" into a ServiceNow filter without running it',
-        'preferred': 'build_smart_servicenow_filter',
-        'acceptable': {'explain_servicenow_filters'},
-    },
+    # --- help surface ------------------------------------------------------
     {
         'intent': 'which encoded query operators does ServiceNow support',
         'preferred': 'get_query_syntax_help',
-        'acceptable': {'get_query_examples', 'get_servicenow_filter_templates'},
+        'acceptable': set(),
     },
+    # --- second priority-incident phrasing ---------------------------------
     {
-        'intent': 'give me a ready made filter template for open incidents',
-        'preferred': 'get_servicenow_filter_templates',
-        'acceptable': {'get_query_examples'},
+        'intent': 'give me a list of critical priority incidents opened today',
+        'preferred': 'get_priority_incidents',
+        'acceptable': {'filter_records'},
     },
 )
 
-# Tools with no golden intent. Kept explicit so adding or renaming a tool
-# forces a decision here rather than silently escaping measurement.
-UNCOVERED_TOOLS = frozenset({
-    'get_active_knowledge_articles',   # appears as `acceptable` only
-    'get_sla_details',                 # sys_id lookup — no natural-language ambiguity
-    'similar_cis_for_ci',
-    'quick_ci_search',                 # appears as `acceptable` only
-    'nowtest',                         # appears as `acceptable` only
-    'now_auth_info',                   # appears as `acceptable` only
-    'nowtestauth',                     # appears as `acceptable` only
-    'nowtest_auth_input',
-    'get_query_examples',              # appears as `acceptable` only
-})
+# Tools with no golden intent. After the v5.0 cull every registered tool is
+# natural-language addressable and has a preferred intent, so this is empty.
+# Kept explicit so adding or renaming a tool forces a decision here rather than
+# silently escaping measurement.
+UNCOVERED_TOOLS = frozenset()
 
 # ---------------------------------------------------------------------------
 # Recorded floors. Floors, not targets: a tier raises them, nothing may lower
@@ -293,21 +286,38 @@ UNCOVERED_TOOLS = frozenset({
 # (`pytest tests/test_tool_selection.py -s`).
 #
 # v4.4.0 (39 tools, pre-Tier-1 docstrings): preferred 21/30, acceptable 22/30,
-# plausible paths 66. The four worst offenders then — full-details-of-incident
-# -> get_sla_details, connection-up -> build_smart_servicenow_filter,
-# all-SLA-attached -> get_record_summary, password-reset ->
-# get_active_knowledge_articles.
+# plausible paths 66.
 #
-# v4.5.0 (Tier 1 docstring protocol): raised to preferred 29/30, acceptable
-# 29/30, plausible paths 50. The single remaining preferred miss is
-# 'is the ServiceNow connection up' -> build_smart_servicenow_filter: a
-# name-bound collision ('servicenow' in the rival's name wins the alphabetical
-# tie no docstring can break), deferred to Tier 2's diagnostic/filter cull. The
-# static router is a floor only — the Tier 1 exit gate is the LLM pass (§3.2).
+# v4.5.0 (Tier 1 docstring protocol, 39 tools): preferred 29/30, acceptable
+# 29/30, plausible paths 50. The one miss was connection-up ->
+# build_smart_servicenow_filter, a name-bound collision Tier 2's cull removes.
+#
+# v5.0.0 "Boron" (Tier 2 cull, 25 tools): the golden set was rewritten — 15
+# tools were removed, so 10 intents whose preferred tool was culled now steer
+# to its replacement (e.g. get_record_summary -> get_record, similar_slas ->
+# get_sla_details, all 5 diagnostics -> health_check, the smart-KB reads ->
+# search_records / filter_records). Measured: preferred 28/30, acceptable
+# 28/30, plausible paths 45.
+#
+# This is a DELIBERATE DOWNWARD re-derivation of the preferred floor (29 -> 28),
+# of the kind the plan sanctions ("where a cull legitimately removes a plausible
+# path, re-derive downward with a documented reason"). The connection-up miss is
+# now FIXED (health_check wins). The two remaining misses are the KB write-tool
+# name-band, unwinnable by the static bag-of-words router and left standing by
+# the deletes-only cull (the plan's cull table renames nothing):
+#   'knowledge articles about password reset' -> publish_knowledge_article
+#   'all knowledge articles in the Workplace category' -> update_knowledge_article
+# `knowledge`+`article` sit in the write tools' NAMES (weight 3 each = 6), which
+# no docstring on the generic read tools can beat, and the router cannot see the
+# WHEN NOT TO USE negation that steers a real model away. Per plan decision 5
+# the static router is a floor, not the gate; the Tier 2 exit gate is the LLM
+# pass, which resolves these (a real client will not call publish with a search
+# phrase and no KB number). Renaming the KB write surface to remove the band was
+# considered and declined for v5.0 to keep the cull deletes-only.
 # ---------------------------------------------------------------------------
-BASELINE_PREFERRED_HITS = 29
-BASELINE_ACCEPTABLE_HITS = 29
-BASELINE_TOTAL_PLAUSIBLE_PATHS = 50
+BASELINE_PREFERRED_HITS = 28
+BASELINE_ACCEPTABLE_HITS = 28
+BASELINE_TOTAL_PLAUSIBLE_PATHS = 45
 
 
 def _evaluate() -> dict:
@@ -424,23 +434,24 @@ class TestSeededCollisions:
     decision 5 puts an LLM pass, not this router, on the Tier 1 and Tier 2
     exits. The assertions ratchet the router number.
 
-    Tier 1 (4.5.0) re-derivation — password-reset moved 5 -> 6. The docstring
-    protocol lifted `similar_knowledge_for_text` to the top of that intent (a
-    preferred-hit gain — it lost to `get_active_knowledge_articles` before), so
-    the 80%-band threshold rose to 5.6 and now admits the whole cluster of KB
-    tools scoring 6. Those six are name-bound: `knowledge`+`article` both sit in
-    their names, four of them WRITE tools (publish x2 / retire / update) that a
-    real client would never pick for a read. Tier 1 cannot rename them out of
-    the band; folding/renaming the KB surface is a Tier 2 target. Net across all
-    30 intents ambiguity fell (66 -> 50); this one collision rose by one as the
-    direct cost of fixing its top pick.
+    v5.0 "Boron" (Tier 2 cull, 25 tools) re-derivation:
+      - P1-incidents 3 -> 1: culling intelligent_search removed a plausible path;
+        get_priority_incidents now wins cleanly.
+      - password-reset 6 -> 4: the three smart-KB read tools were culled, but the
+        four KB WRITE tools still score 6 from `knowledge`+`article` in their
+        names — the name-band the deletes-only cull leaves standing (see the
+        floors note above). This intent is one of the two static preferred
+        misses; the LLM pass is its gate.
+      - breached-SLAs 1 -> 1: unchanged, query_slas_by_status wins.
+      - connection-up 3 -> 1: the five diagnostics collapsed into health_check,
+        which now wins outright — the Tier 1 miss is fixed.
     """
 
     @pytest.mark.parametrize('intent,plan_count,router_count', [
-        ('show me all P1 incidents from last week', 4, 3),
-        ('knowledge articles about password reset', 3, 6),
+        ('show me all P1 incidents from last week', 4, 1),
+        ('knowledge articles about password reset', 3, 4),
         ('which SLAs are breached', 3, 1),
-        ('is the ServiceNow connection up', 5, 3),
+        ('is the ServiceNow connection up', 5, 1),
     ])
     def test_collision_path_count_recorded(self, intent, plan_count, router_count):
         """A change here means the surface shifted — re-derive both counts, don't tweak."""

@@ -411,59 +411,9 @@ class TestConsumersThatReWrap:
             result = await find_similar_records("incident", "INC0012345")
         _assert_plain_failure(result, ErrorCode.TIMEOUT)
 
-    @pytest.mark.asyncio
-    async def test_intelligent_search_keeps_the_error_code(self):
-        from Table_Tools.intelligent_query_tools import (
-            IntelligentQueryParams,
-            intelligent_search,
-        )
-
-        with patch(
-            "Table_Tools.intelligent_query_tools.query_table_intelligently",
-            new=AsyncMock(return_value=TIMEOUT.to_error_dict()),
-        ):
-            result = await intelligent_search(
-                IntelligentQueryParams(query="critical incidents", table="incident")
-            )
-        assert result["success"] is False
-        assert result["error"]["code"] == ErrorCode.TIMEOUT
-
-    @pytest.mark.asyncio
-    async def test_intelligent_search_partial_is_success_with_a_marker(self):
-        from Table_Tools.intelligent_query_tools import (
-            IntelligentQueryParams,
-            intelligent_search,
-        )
-
-        payload = {"result": _rows(2), "intelligence": {}, "partial": True, **TIMEOUT.to_error_dict()}
-        with patch(
-            "Table_Tools.intelligent_query_tools.query_table_intelligently",
-            new=AsyncMock(return_value=payload),
-        ):
-            result = await intelligent_search(
-                IntelligentQueryParams(query="critical incidents", table="incident")
-            )
-        assert result["success"] is True
-        assert result["record_count"] == 2
-        assert result["partial"] is True
-        assert result["error"]["code"] == ErrorCode.TIMEOUT
-
-    @pytest.mark.asyncio
-    async def test_intelligent_search_still_stringifies_unexpected_errors(self):
-        from Table_Tools.intelligent_query_tools import (
-            IntelligentQueryParams,
-            intelligent_search,
-        )
-
-        with patch(
-            "Table_Tools.intelligent_query_tools.query_table_intelligently",
-            new=AsyncMock(side_effect=RuntimeError("boom")),
-        ):
-            result = await intelligent_search(
-                IntelligentQueryParams(query="critical incidents", table="incident")
-            )
-        assert result["success"] is False
-        assert result["error"] == "boom"
+    # v5.0 "Boron" (Tier 2): the intelligent_search re-wrap tests were removed
+    # with the tool; its query_table_intelligently engine is deleted in the
+    # Tier 2.5 sweep.
 
 
 class TestEndToEndThroughTheRealDispatcher:

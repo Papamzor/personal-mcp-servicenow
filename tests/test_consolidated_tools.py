@@ -12,15 +12,11 @@ from Table_Tools.consolidated_tools import (
     _build_priority_result_message,
     # Priority incidents
     get_priority_incidents,
-    # Knowledge tools
-    similar_knowledge_for_text,
-    get_knowledge_by_category,
-    get_active_knowledge_articles,
+    # Knowledge tools (v5.0: smart-KB reads culled; state rollup retained)
     get_kb_articles_by_state,
     _pick_canonical_kb_row,
     _KB_STATE_RANK,
-    # SLA tools (v4.0: 10 -> 5 consolidated)
-    similar_slas_for_text,
+    # SLA tools (v4.0: 10 -> 5 consolidated; v5.0: -similar_slas_for_text)
     get_sla_details,
     query_slas_by_task,
     query_slas_by_status,
@@ -156,54 +152,6 @@ class TestBuildPriorityResultMessage:
         assert "from" not in msg
 
 
-class TestKnowledgeTools:
-    """Test knowledge tool functions."""
-
-    @pytest.mark.asyncio
-    async def test_similar_knowledge_for_text_simple(self):
-        with patch('Table_Tools.consolidated_tools.query_table_by_text') as mock_query:
-            mock_query.return_value = {"result": [{"number": "KB001"}]}
-            result = await similar_knowledge_for_text("password reset")
-            mock_query.assert_called_once_with("kb_knowledge", "password reset")
-
-    @pytest.mark.asyncio
-    async def test_similar_knowledge_with_category(self):
-        with patch('Table_Tools.consolidated_tools.query_table_with_generic_filters') as mock_query:
-            mock_query.return_value = {"result": []}
-            await similar_knowledge_for_text("test", category="IT")
-            assert "kb_category" in mock_query.call_args[0][1]
-
-    @pytest.mark.asyncio
-    async def test_similar_knowledge_with_kb_base(self):
-        with patch('Table_Tools.consolidated_tools.query_table_with_generic_filters') as mock_query:
-            mock_query.return_value = {"result": []}
-            await similar_knowledge_for_text("test", kb_base="IT_KB")
-            assert "kb_knowledge_base" in mock_query.call_args[0][1]
-
-    @pytest.mark.asyncio
-    async def test_get_knowledge_by_category(self):
-        with patch('Table_Tools.consolidated_tools.query_table_with_generic_filters') as mock_query:
-            mock_query.return_value = {"result": []}
-            await get_knowledge_by_category("IT")
-            mock_query.assert_called_once_with("kb_knowledge", {"kb_category": "IT"})
-
-    @pytest.mark.asyncio
-    async def test_get_knowledge_by_category_with_kb_base(self):
-        with patch('Table_Tools.consolidated_tools.query_table_with_generic_filters') as mock_query:
-            mock_query.return_value = {"result": []}
-            await get_knowledge_by_category("IT", kb_base="IT_KB")
-            filters = mock_query.call_args[0][1]
-            assert filters["kb_category"] == "IT"
-            assert filters["kb_knowledge_base"] == "IT_KB"
-
-    @pytest.mark.asyncio
-    async def test_get_active_knowledge_articles(self):
-        with patch('Table_Tools.consolidated_tools.query_table_with_generic_filters') as mock_query:
-            mock_query.return_value = {"result": [{"number": "KB001"}]}
-            result = await get_active_knowledge_articles()
-            mock_query.assert_called_once_with("kb_knowledge", {"workflow_state": "published"})
-
-
 class TestPickCanonicalKbRow:
     """De-dup helper picks highest-priority workflow_state per number."""
 
@@ -317,21 +265,6 @@ class TestGetKbArticlesByState:
 
 class TestSLATools:
     """Test SLA tool functions."""
-
-    @pytest.mark.asyncio
-    async def test_similar_slas_for_text_searches_the_dot_walked_field(self):
-        """task_sla has no short_description — searching it returned unrelated rows.
-
-        ServiceNow silently drops a condition on a field the table lacks, so the
-        old `short_descriptionLIKEx` query carried no effective filter and every
-        row in the returned page was reported as a match.
-        """
-        with patch('Table_Tools.consolidated_tools.query_table_by_text') as mock_query:
-            mock_query.return_value = {"result": []}
-            await similar_slas_for_text("incident")
-            mock_query.assert_called_once_with(
-                "task_sla", "incident", search_field="task.short_description"
-            )
 
     @pytest.mark.asyncio
     async def test_query_slas_by_task(self):
