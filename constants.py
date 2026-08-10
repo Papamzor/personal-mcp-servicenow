@@ -365,6 +365,32 @@ QUERY_VALUE_NEW_QUERY_ERROR = (
     "unscoped table read. Nothing was queried. Value: '{value}'."
 )
 
+# Three filter keys accept a PRE-BUILT fragment rather than a value: `_date_range`,
+# `_complete_caller_exclusion`, and `_complete_query`. They carry their own
+# operators — `build_date_filter` legitimately emits
+# "sys_created_on>=A^sys_created_on<=B" — so they cannot be escaped, and `^` has to
+# be allowed. `&` never is: it is not an encoded-query operator, so it can only
+# escape `sysparm_query=` into a sibling URL parameter and truncate the fragment.
+# Refused because there is nowhere else to catch it.
+QUERY_FRAGMENT_AMPERSAND_ERROR = (
+    "Refusing a pre-built filter fragment containing '&': the fragment carries its "
+    "own operators so it cannot be escaped, and a raw '&' ends the query string and "
+    "silently drops everything after it. Nothing was queried. Fragment: '{value}'."
+)
+
+# Field NAMES are caller-supplied too — they are the keys of the filters dict, and
+# no tool validates them. An unchecked key put the operators straight into the
+# query: {"x^NQstate=99": "1"} built "x^NQstate=99=1", the same unscoped-table-read
+# injection the value guard refuses. Shape check rather than a character blacklist,
+# because a legitimate field name is narrow: identifier characters plus '.' for
+# dot-walking (task.priority) and a leading '_' for the internal fragment keys.
+QUERY_FIELD_NAME_ERROR = (
+    "Refusing the filter field name '{value}': a field name may contain only "
+    "letters, digits, '_' and '.' (for dot-walked references such as "
+    "task.priority). Anything else would be read as query syntax rather than as a "
+    "field. Nothing was queried."
+)
+
 # The publish workflow fired but the confirming read failed. Distinct from a
 # publish that is known not to have happened: this one may well have committed.
 ERROR_KB_PUBLISH_VERIFY_UNREADABLE = (

@@ -24,6 +24,8 @@ from constants import (
     text_search_field_for,
     LOGICMONITOR_CALLER_SYS_ID,
     ENABLE_COMPLETE_QUERY,
+    QUERY_FIELD_NAME_ERROR,
+    QUERY_FRAGMENT_AMPERSAND_ERROR,
     QUERY_VALUE_NEW_QUERY_ERROR,
     TABLE_CONFIGS
 )
@@ -748,37 +750,80 @@ _CONDITION_HANDLERS = (
 )
 
 
+# A legitimate field name: identifier characters, '.' for dot-walked references
+# (task.priority), and a leading '_' for the internal fragment keys.
+_FIELD_NAME_PATTERN = re.compile(r'[A-Za-z_][A-Za-z0-9_.]*')
+
+
+def _reject_new_query_reset(value: str) -> None:
+    """Refuse a `^NQ` new-query-reset anywhere in a caller-supplied string.
+
+    `^NQ` starts a brand-new query, discarding every condition built before it, so
+    one poisoned filter turns a scoped query into an unbounded table read.
+
+    Called at the TOP of `_build_query_condition`, ahead of the fragment
+    early-returns. It used to sit after them, so `_complete_caller_exclusion` and
+    `_complete_query` walked straight past it — and `_build_additional_filters`,
+    a second assembly path, never reached it at all.
+    """
+    if isinstance(value, str) and "^NQ" in value.upper():
+        raise QueryValueError.refused(value, QUERY_VALUE_NEW_QUERY_ERROR)
+
+
+def _reject_unsafe_fragment(value: str) -> None:
+    """Guard for the three keys that take a pre-built fragment instead of a value.
+
+    A fragment carries its own operators, so it cannot be escaped and `^` has to be
+    allowed. `&` cannot be: it is not an encoded-query operator, so it only ever
+    ends the query string and drops the rest of the fragment. See
+    `QUERY_FRAGMENT_AMPERSAND_ERROR`.
+    """
+    _reject_new_query_reset(value)
+    if isinstance(value, str) and "&" in value:
+        raise QueryValueError.refused(value, QUERY_FRAGMENT_AMPERSAND_ERROR)
+
+
+def _reject_unsafe_field_name(field: str) -> None:
+    """Refuse a field name that is not a plain field name.
+
+    The keys of a `filters` dict are caller-supplied and were never checked, so
+    `{"x^NQstate=99": "1"}` built `x^NQstate=99=1` — the value guard refuses that
+    payload in a value and used to wave it through in a key.
+    """
+    if not isinstance(field, str) or not _FIELD_NAME_PATTERN.fullmatch(field):
+        raise QueryValueError.refused(str(field), QUERY_FIELD_NAME_ERROR)
+
+
 def _build_query_condition(field: str, value: str) -> str:
     """Build a single query condition based on field and value."""
-    # Handle special complete query cases first
+    _reject_unsafe_field_name(field)
+    # Ahead of every early return below: a fragment key must not be a way past it.
+    _reject_new_query_reset(value)
+
+    # Handle special complete query cases first. Both are pre-built fragments, so
+    # both get the fragment guard rather than value escaping — and both are reached
+    # only after the `^NQ` refusal above, which is the point.
     if field == "_complete_query":
         # `_complete_query` hands a raw, caller-built encoded query straight
-        # through, bypassing every per-field handler and the `^NQ` defense
-        # below. Gated off by default; drop it entirely (rather than call the
-        # handler) unless explicitly re-enabled.
+        # through, bypassing every per-field handler. Gated off by default; drop it
+        # entirely (rather than call the handler) unless explicitly re-enabled.
         if not ENABLE_COMPLETE_QUERY:
             return ""
+        _reject_unsafe_fragment(value)
         return _handle_complete_query_condition(value)
     if field == "_complete_caller_exclusion":
+        _reject_unsafe_fragment(value)
         return value  # Already in complete ServiceNow format
 
     # Rewrite GlideRecord-only operators (CONTAINS/NOTCONTAINS) to their
     # encoded-query equivalents (LIKE/NOT LIKE) before any handler runs.
-    value = _normalize_operator(value)
-
-    # Defend against a `^NQ` new-query-reset smuggled inside an otherwise
-    # ordinary filter value: `^NQ` starts a brand-new query, discarding every
-    # condition built before it — so one poisoned filter value turns a scoped
-    # query into an unbounded table read.
     #
-    # Checked HERE, before the handlers, and not left to `encode_query_value`:
-    # the structural handlers would claim `1^ORpriority=2^NQactive=true` as a
-    # caller-built fragment and never reach an encoder. v4.4.1 turned the
-    # response from a silent drop into a refusal — dropping the poisoned
-    # condition still ran the remaining ones, so the caller got real-looking rows
-    # from a query they did not ask for.
-    if "^NQ" in value.upper():
-        raise QueryValueError.refused(value, QUERY_VALUE_NEW_QUERY_ERROR)
+    # The `^NQ` refusal runs BEFORE this, at the top of the function: it has to
+    # precede the fragment early-returns above, and normalisation cannot introduce
+    # or remove a `^NQ`. The structural handlers below would otherwise claim
+    # `1^ORpriority=2^NQactive=true` as a caller-built fragment and never reach an
+    # encoder, which is why the check is not left to `encode_query_value`.
+    value = _normalize_operator(value)
 
     # Try each condition handler until one matches
     for handler in _CONDITION_HANDLERS:
@@ -1245,8 +1290,16 @@ def _build_additional_filters(additional_filters: Optional[Dict[str, str]]) -> L
     """Convert additional_filters dict into a list of filter strings.
 
     The second filter-assembly path (the first is `_build_query_string`), so it
-    escapes its values the same way. `_date_range` is the one structural key: a
-    pre-built fragment, complete with its operator.
+    escapes its values the same way — and it has to repeat the guards, because it
+    does not route through `_build_query_condition` and so reaches none of them.
+    That gap was live: `get_priority_incidents(additional_filters={"_date_range":
+    "1^NQstate=99"})` sent the reset to ServiceNow verbatim, past a release whose
+    whole claim was that it refuses exactly that.
+
+    `_date_range` is the one fragment key here: pre-built, complete with its
+    operators, and legitimately containing `^` (`build_date_filter` emits
+    `sys_created_on>=A^sys_created_on<=B`). So it gets the fragment guard, not
+    escaping.
     """
     if not additional_filters:
         return []
@@ -1254,8 +1307,11 @@ def _build_additional_filters(additional_filters: Optional[Dict[str, str]]) -> L
     for field, value in additional_filters.items():
         if field == "_date_range":
             # Pre-built date filter string (e.g., "sys_created_on>=2026-01-01 00:00:00")
+            _reject_unsafe_fragment(value)
             result.append(value)
         else:
+            _reject_unsafe_field_name(field)
+            _reject_new_query_reset(value)
             result.append(f"{field}={encode_query_value(value)}")
     return result
 

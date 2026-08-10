@@ -29,11 +29,16 @@ a test matrix rather than incrementally.
   before re-quoting, so a search for `Deal 20%2C off` ran against `Deal 20, off` and `%41dmin`
   against `Admin`. `unquote` never raises, so nothing announced it. Values escape their own `%`
   to `%25` now.
-- **Nine escaping seams, not the four the plan listed.** Derived from the code: the exact-match
+- **Sixteen escaping seams, not the four the plan listed.** Derived from the code: the exact-match
   default, the operator-prefix handler, the suffix-operator handler, the date-range `>=`/`<=`
-  branch, both priority builders, the caller-exclusion list, `_build_additional_filters`, and the
-  CMDB/KB/VTB call sites. The three the plan missed included the *default* handler — the one most
-  callers reach. A source scan now fails, by name, if a new terminal handler forgets.
+  branch, all three priority builders, the caller-exclusion list, `_build_additional_filters`, and
+  the CMDB/KB/VTB call sites. The three the plan missed included the *default* handler — the one
+  most callers reach; review then found four more that were escaped correctly but **unasserted**
+  (`_build_priority_filter`'s single-priority branch and the CMDB `ip_address`/`location`/`status`
+  attributes), so reverting any of them left the suite green. A taint-propagating AST scan over the
+  condition-building closure now fails by name if a new terminal handler forgets. Its first version
+  was a regex with a hardcoded name whitelist, which `priorities[0]` walked straight past — a
+  subscript is not a bare name.
 - **A `sys_id`/`number` lookup that selects a write target is escaped.** `kb_article_tools`,
   `cmdb_tools` and `vtb_task_tools` resolve a record by `number=` and then PATCH or attribute the
   result; a `^` there could have OR'd in a second condition and resolved to a *different* record.
@@ -51,7 +56,22 @@ a test matrix rather than incrementally.
   which is what an LLM writing `{"priority": "1^ORpriority=2"}` means.
 - **A `^NQ` new-query-reset in a filter value is refused instead of silently dropped.** The drop
   removed the poisoned condition but still ran the rest, handing back real-looking rows from a
-  query the caller did not ask for.
+  query the caller did not ask for. The check now runs at the *top* of
+  `_build_query_condition`: review found it sat below the pre-built-fragment early returns, so
+  `filter_records({"_complete_caller_exclusion": "caller_id!=x^NQstate=99"})` walked straight past
+  it, and `_build_additional_filters` — a second, parallel assembly path — never reached it at
+  all, so `get_priority_incidents(additional_filters={"_date_range": "1^NQstate=99"})` sent the
+  reset to ServiceNow verbatim and returned rows. Both verified live before and after the fix.
+- **The three pre-built-fragment filter keys are guarded.** `_date_range`,
+  `_complete_caller_exclusion` and `_complete_query` carry their own operators, so they cannot be
+  escaped and `^` has to be allowed — `build_date_filter` emits
+  `sys_created_on>=A^sys_created_on<=B`. `&` is refused there instead, because it is not an
+  operator and can only truncate the fragment. Previously a `&` in `_date_range` silently cut the
+  query short at it.
+- **Filter field *names* are validated.** The keys of a `filters` dict are caller-supplied and
+  nothing checked them, so `{"x^NQstate=99": "1"}` built `x^NQstate=99=1` — the same unscoped
+  table read the value guard refuses, arriving through the key. A field name must now be
+  identifier characters plus `.` for dot-walking (`task.priority`).
 - **A KB title containing `&` or `%` no longer blocks a publish.** The duplicate check refused
   those as inconclusive because it could not trust the query; it can now. `^` still blocks —
   fail-closed, since a check that ran broader than asked cannot clear a publish. `KB_QUERY_UNSAFE_CHARS`

@@ -285,6 +285,44 @@ async def _seam_date_range_operator(value):
     ))
 
 
+async def _seam_priority_builder_single(value):
+    """`_build_priority_filter`'s single-priority branch — a THIRD priority path.
+
+    Distinct from `_parse_priority_list`'s two helpers, reached from
+    `get_priority_incidents` whenever exactly one priority is asked for, which is
+    the common case. Review caught that it was escaped and entirely unasserted:
+    reverting it left 1108 passed.
+    """
+    from Table_Tools.generic_table_tools import get_records_by_priority
+
+    return await _send(lambda: get_records_by_priority("incident", [value]))
+
+
+async def _seam_priority_builder_multi(value):
+    """`_build_priority_filter`'s OR-joined branch. Sibling of the above."""
+    from Table_Tools.generic_table_tools import get_records_by_priority
+
+    return await _send(lambda: get_records_by_priority("incident", ["1", value]))
+
+
+async def _seam_cmdb_ip_address(value):
+    from Table_Tools.cmdb_tools import search_cis_by_attributes
+
+    return await _send(lambda: search_cis_by_attributes(ip_address=value))
+
+
+async def _seam_cmdb_location(value):
+    from Table_Tools.cmdb_tools import search_cis_by_attributes
+
+    return await _send(lambda: search_cis_by_attributes(location=value))
+
+
+async def _seam_cmdb_status(value):
+    from Table_Tools.cmdb_tools import search_cis_by_attributes
+
+    return await _send(lambda: search_cis_by_attributes(status=value))
+
+
 async def _seam_priority_comma_list(value):
     """`_parse_priority_list` -> `_process_comma_separated_priorities`.
 
@@ -372,7 +410,12 @@ VALUE_SEAMS = [
     (_seam_priority_single, "priority="),
     (_seam_date_range_operator, "sys_created_on>="),
     (_seam_priority_additional_filters, "assigned_to="),
+    (_seam_priority_builder_single, "priority="),
+    (_seam_priority_builder_multi, "ORpriority="),
     (_seam_cmdb_attributes, "nameLIKE"),
+    (_seam_cmdb_ip_address, "ip_address="),
+    (_seam_cmdb_location, "locationLIKE"),
+    (_seam_cmdb_status, "operational_status="),
     (_seam_cmdb_quick_search, "nameLIKE"),
     (_seam_kb_duplicate_check, "short_descriptionLIKE"),
     (_seam_vtb_sys_id_lookup, "number="),
@@ -550,36 +593,140 @@ def test_every_terminal_condition_handler_escapes_its_value():
     exact-match default and both priority helpers — and every existing test
     stayed green.
 
-    A function that interpolates a bare `{value}`-family name into an f-string is
-    pasting a caller value into a query and must escape it. STRUCTURAL exceptions
-    are listed with why, so adding one is a decision rather than an omission.
+    Anything derived from a function's parameters and interpolated into an f-string
+    is a caller value being pasted into a query, and must go through
+    `encode_query_value`. STRUCTURAL exceptions are listed with why, so adding one
+    is a decision rather than an omission.
+
+    **Taint-propagating AST walk, not a regex over source.** The first version was
+    a regex requiring a literal double-quoted f-string and a hardcoded whitelist of
+    variable names — `f'{x}={y}'` in single quotes would have slipped past it, and
+    `priorities[0]` demonstrably did, because a subscript is not a bare name. That
+    miss was a real unescaped call site found in review. Taint starts at the
+    parameters and follows assignments and comprehension targets, so it does not
+    care what anything is named.
+
+    Field names are exempt, because they are guarded by
+    `_reject_unsafe_field_name`'s shape check rather than by escaping — but the
+    exemption is *earned*, not granted by name: a name drops out of the taint set
+    when the same function actually calls that validator on it. Delete the guard call
+    and the interpolation is flagged again. The one exception is a parameter literally
+    named `field`, which a handler receives already validated by
+    `_build_query_condition`. `TestFieldNamesAreCallerSuppliedToo` holds up the
+    validator itself.
     """
+    import ast
     import inspect
-    import re
 
     from Table_Tools import generic_table_tools as gtt
 
-    # Names that hold a caller-supplied value at the point of interpolation.
-    VALUE_NAMES = ("value", "p", "priority_num", "caller_id", "keyword")
     STRUCTURAL = {
-        # value IS a query fragment; escaping it would destroy the operators
-        # it is built from.
+        # The value IS a query fragment; escaping it would destroy the operators it
+        # is built from. Guarded by `_reject_unsafe_fragment` instead.
         "_handle_complete_query_condition",
         "_handle_servicenow_filter_condition",
         "_handle_bare_or_value_condition",
     }
-    pattern = re.compile(
-        r"f\"[^\"\n]*\{(?:" + "|".join(VALUE_NAMES) + r")\}[^\"\n]*\""
-    )
+    SYNTHESISED = {
+        # Interpolate a value they built themselves rather than the caller's bytes,
+        # so there is nothing to escape.
+        #   date range: `f"{year}-{month:02d}-{day:02d}"` from regex-matched ints.
+        #               Its one terminal branch (`>=`/`<=`) does escape.
+        #   caller map: `known_callers[value_lower]` — the caller's text is a dict
+        #               KEY into a hardcoded map; the interpolated result is one of
+        #               our own sys_id constants.
+        "_handle_date_range_condition",
+        "_parse_caller_exclusions",
+    }
+
+    # The functions whose job is to turn a field and a value into a condition —
+    # derived by following calls from the three query-assembly entry points, so a
+    # new handler or a new helper under one is covered without editing this test.
+    # Scoping matters: taint from parameters legitimately reaches table names, field
+    # lists and message strings everywhere else in the module.
+    def call_closure(seeds: set[str]) -> set[str]:
+        seen, frontier = set(), set(seeds)
+        while frontier:
+            name = frontier.pop()
+            if name in seen:
+                continue
+            seen.add(name)
+            target = getattr(gtt, name, None)
+            if not inspect.isfunction(target) or target.__module__ != gtt.__name__:
+                continue
+            tree = ast.parse(inspect.getsource(target).lstrip())
+            frontier |= {
+                node.func.id
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            } - seen
+        return seen
+
+    CONDITION_BUILDERS = call_closure({
+        "_build_query_condition",      # the main filter path
+        "_build_additional_filters",   # the second assembly path
+        "_build_priority_filter",      # the third priority path
+    })
+
+    def tainted_names(func: ast.AST) -> set[str]:
+        """Parameter names plus everything that flows out of them."""
+        args = func.args
+        names = {
+            a.arg
+            for a in (*args.posonlyargs, *args.args, *args.kwonlyargs)
+            if a.arg != "field"
+        }
+        # Fixed-point: an assignment can chain (value -> parsed -> parts[0]).
+        for _ in range(len(list(ast.walk(func)))):
+            grew = False
+            for node in ast.walk(func):
+                targets = []
+                if isinstance(node, ast.Assign):
+                    targets, source = node.targets, node.value
+                elif isinstance(node, ast.comprehension):
+                    targets, source = [node.target], node.iter
+                elif isinstance(node, ast.For):
+                    targets, source = [node.target], node.iter
+                else:
+                    continue
+                if not (names & {n.id for n in ast.walk(source) if isinstance(n, ast.Name)}):
+                    continue
+                for target in targets:
+                    for bound in ast.walk(target):
+                        if isinstance(bound, ast.Name) and bound.id not in names:
+                            names.add(bound.id)
+                            grew = True
+            if not grew:
+                break
+        # A name this function passes to the field-name validator is guarded by shape
+        # instead of by escaping. Earned per call site: remove the call and the
+        # interpolation below is flagged again.
+        for node in ast.walk(func):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)):
+                continue
+            if node.func.id != "_reject_unsafe_field_name" or not node.args:
+                continue
+            if isinstance(node.args[0], ast.Name):
+                names.discard(node.args[0].id)
+        return names
 
     offenders = []
-    for name, obj in vars(gtt).items():
-        if name in STRUCTURAL or not inspect.isfunction(obj):
+    for name in sorted(CONDITION_BUILDERS):
+        obj = getattr(gtt, name, None)
+        if name in STRUCTURAL or name in SYNTHESISED or not inspect.isfunction(obj):
             continue
         if obj.__module__ != gtt.__name__:
             continue
-        if pattern.search(inspect.getsource(obj)):
-            offenders.append(name)
+        func = ast.parse(inspect.getsource(obj).lstrip()).body[0]
+        tainted = tainted_names(func)
+        for interpolation in (n for n in ast.walk(func) if isinstance(n, ast.FormattedValue)):
+            expr = interpolation.value
+            if isinstance(expr, ast.Call) and isinstance(expr.func, ast.Name) \
+                    and expr.func.id == "encode_query_value":
+                continue
+            referenced = {n.id for n in ast.walk(expr) if isinstance(n, ast.Name)}
+            if referenced & tainted:
+                offenders.append(f"{name} (interpolates {sorted(referenced & tainted)})")
 
     assert not offenders, (
         f"{offenders} paste a caller value into a query without "
@@ -587,6 +734,153 @@ def test_every_terminal_condition_handler_escapes_its_value():
         "with a reason — a value that reaches ServiceNow unescaped widens the "
         "query instead of failing."
     )
+
+
+class TestPreBuiltFragmentChannels:
+    """The three filter keys that take a fragment instead of a value.
+
+    `_date_range`, `_complete_caller_exclusion` and `_complete_query` hand a
+    pre-built fragment through, complete with its own operators. They cannot be
+    escaped — `build_date_filter` legitimately emits
+    `sys_created_on>=A^sys_created_on<=B`, so `^` has to be allowed — which makes
+    them the one place where a guard, not an encoder, is the only defence.
+
+    Both were live holes found in review, verified by execution before fixing:
+    `get_priority_incidents(additional_filters={"_date_range": "1^NQstate=99"})`
+    and `filter_records({"_complete_caller_exclusion": "caller_id!=x^NQstate=99"})`
+    each sent the reset to ServiceNow verbatim and returned rows, in a release
+    whose stated purpose was refusing exactly that. The `^NQ` check sat *after* the
+    fragment early-returns, and `_build_additional_filters` never reached it at all
+    because it is a second, parallel assembly path.
+    """
+
+    @pytest.mark.asyncio
+    async def test_date_range_refuses_a_new_query_reset(self):
+        from Table_Tools.consolidated_tools import get_priority_incidents
+
+        urls, result = await _send(lambda: get_priority_incidents(
+            priorities=["1"], additional_filters={"_date_range": "1^NQstate=99^active=false"}
+        ))
+        assert not urls, f"the reset reached ServiceNow: {urls!r}"
+        assert result["error"]["code"] == "VALIDATION"
+
+    @pytest.mark.asyncio
+    async def test_date_range_refuses_an_ampersand(self):
+        """It cannot be escaped, and a raw '&' truncates the fragment silently."""
+        from Table_Tools.consolidated_tools import get_priority_incidents
+
+        urls, result = await _send(lambda: get_priority_incidents(
+            priorities=["1"], additional_filters={"_date_range": "sys_created_on>=A&B"}
+        ))
+        assert not urls
+        assert result["error"]["code"] == "VALIDATION"
+
+    @pytest.mark.asyncio
+    async def test_a_legitimate_date_range_still_carries_its_own_caret(self):
+        """The guard must not be so broad it refuses the real thing.
+
+        `build_date_filter(start, end)` joins two conditions with '^'. Refusing '^'
+        in a fragment — the obvious over-correction — would break every dated query.
+        """
+        from Table_Tools.consolidated_tools import get_priority_incidents
+
+        urls, _ = await _send(lambda: get_priority_incidents(
+            priorities=["1"], start_date="2026-01-01", end_date="2026-01-31"
+        ))
+        assert urls, "the legitimate date range was refused"
+        conditions = servicenow_conditions(urls[0])
+        assert "sys_created_on>=2026-01-01 00:00:00" in conditions
+        assert "sys_created_on<=2026-01-31 23:59:59" in conditions
+
+    @pytest.mark.parametrize("payload", [
+        "caller_id!=x^NQstate=99^active=false",
+        "caller_id!=x&y",
+    ], ids=["new_query_reset", "ampersand"])
+    @pytest.mark.asyncio
+    async def test_complete_caller_exclusion_is_guarded(self, payload):
+        from Table_Tools.generic_tool_wrappers import filter_records
+
+        urls, result = await _send(lambda: filter_records(
+            "incident", {"_complete_caller_exclusion": payload}
+        ))
+        assert not urls, f"an unguarded fragment reached ServiceNow: {urls!r}"
+        assert result["error"]["code"] == "VALIDATION"
+
+    @pytest.mark.asyncio
+    async def test_a_legitimate_caller_exclusion_still_works(self):
+        from Table_Tools.generic_tool_wrappers import filter_records
+
+        urls, _ = await _send(lambda: filter_records(
+            "incident", {"_complete_caller_exclusion": "caller_id!=a^caller_id!=b"}
+        ))
+        assert urls, "the legitimate exclusion list was refused"
+        conditions = servicenow_conditions(urls[0])
+        assert "caller_id!=a" in conditions and "caller_id!=b" in conditions
+
+    def test_complete_query_is_guarded_when_the_flag_enables_it(self):
+        """Gated off by default, so the guard behind the gate needs its own test."""
+        from unittest.mock import patch as _patch
+
+        from Table_Tools.generic_table_tools import _build_query_condition
+
+        with _patch("Table_Tools.generic_table_tools.ENABLE_COMPLETE_QUERY", True):
+            with pytest.raises(QueryValueError):
+                _build_query_condition("_complete_query", "priority=1^NQstate=99")
+            with pytest.raises(QueryValueError):
+                _build_query_condition("_complete_query", "priority=1&state=2")
+
+
+class TestFieldNamesAreCallerSuppliedToo:
+    """A filters dict's KEYS come from the caller and nothing validated them.
+
+    `{"x^NQstate=99": "1"}` built `x^NQstate=99=1` — the same unscoped-table-read
+    injection the value guard refuses, arriving through the key instead. Found while
+    auditing the two fragment holes: the guards all read `value` and none read
+    `field`.
+    """
+
+    @pytest.mark.parametrize("field", [
+        "x^NQstate=99",
+        "a&b",
+        "a^b",
+        "a=b",
+        "a b",
+        "",
+        "1field",
+    ])
+    @pytest.mark.asyncio
+    async def test_a_field_name_carrying_query_syntax_is_refused(self, field):
+        from Table_Tools.generic_tool_wrappers import filter_records
+
+        urls, result = await _send(lambda: filter_records("incident", {field: "1"}))
+        assert not urls, f"field name {field!r} reached ServiceNow: {urls!r}"
+        assert result["error"]["code"] == "VALIDATION"
+
+    @pytest.mark.parametrize("field", [
+        "priority",
+        "assigned_to",
+        "task.priority",
+        "sys_created_on",
+        "assigned_to_gte",
+    ])
+    @pytest.mark.asyncio
+    async def test_ordinary_and_dot_walked_field_names_are_accepted(self, field):
+        """Dot-walking is how `task_sla` is queried at all — it must survive."""
+        from Table_Tools.generic_tool_wrappers import filter_records
+
+        urls, result = await _send(lambda: filter_records("incident", {field: "1"}))
+        assert urls, f"field name {field!r} was refused: {result!r}"
+
+    @pytest.mark.asyncio
+    async def test_additional_filters_validates_its_keys_too(self):
+        """The second assembly path has to repeat the check, not inherit it."""
+        from Table_Tools.generic_table_tools import get_records_by_priority
+
+        urls, result = await _send(lambda: get_records_by_priority(
+            "incident", ["1"], additional_filters={"x^NQstate=99": "1"}
+        ))
+        assert not urls
+        assert result["error"]["code"] == "VALIDATION"
 
 
 # ---------------------------------------------------------------------------
