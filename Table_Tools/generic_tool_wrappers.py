@@ -56,13 +56,26 @@ def _validate_identity_table(table: str) -> Optional[Dict[str, Any]]:
 
 
 async def search_records(table: str, query: str) -> Dict[str, Any]:
-    """Search records in a ServiceNow table by text similarity.
+    """Search records in a ServiceNow table by free-text over short_description.
+
+    WHEN TO USE: the user describes a topic or symptom and wants matching
+        records — "incidents about a server crashing during backup".
+    WHEN NOT TO USE: you already know the record number (get_record /
+        get_record_summary); you need field filters like state or priority
+        (filter_records); a priority-plus-date list (get_priority_incidents).
+    PREFER OVER: filter_records when the ask is words, not field values.
+    FOOTGUNS: matching uses LIKE, never CONTAINS — CONTAINS is a GlideRecord
+        scripting operator, silently ignored in an encoded query, and returns
+        zero rows with no error. Reference fields (assignment_group,
+        assigned_to, caller_id) store sys_ids; this text search only covers
+        short_description, not those — filter by sys_id via filter_records.
+    TABLES: incident, change_request, sc_req_item, sc_task, universal_request,
+        kb_knowledge, vtb_task. NOT task_sla — it has no short_description of
+        its own; use similar_slas_for_text for SLA text search.
+    SIDE EFFECT: read-only.
+    EXAMPLE: find incidents about a server crashing during backup.
 
     Tokenises *query* into keywords and searches short_description.
-
-    Supported tables: incident, change_request, sc_req_item, sc_task,
-    universal_request, kb_knowledge, vtb_task. NOT task_sla — it has no
-    short_description of its own; use similar_slas_for_text for SLA text search.
 
     Args:
         table: ServiceNow table name (e.g. "incident")
@@ -80,9 +93,16 @@ async def search_records(table: str, query: str) -> Dict[str, Any]:
 async def get_record_summary(table: str, number: str) -> Dict[str, Any]:
     """Get the short_description for a single record by its number.
 
-    Supported tables: incident, change_request, sc_req_item, sc_task,
-    universal_request, kb_knowledge, vtb_task. NOT task_sla — that table has
-    neither number nor short_description; use get_sla_details(sla_sys_id).
+    WHEN TO USE: you know the number and want only its one-line summary.
+    WHEN NOT TO USE: you need every field (get_record); you have search text,
+        not a number (search_records).
+    PREFER OVER: get_record when a one-liner is enough — this returns far
+        fewer tokens.
+    TABLES: incident, change_request, sc_req_item, sc_task, universal_request,
+        kb_knowledge, vtb_task. NOT task_sla — that table has neither number
+        nor short_description; use get_sla_details(sla_sys_id).
+    SIDE EFFECT: read-only.
+    EXAMPLE: what is the short description of INC0012345.
 
     Args:
         table: ServiceNow table name
@@ -100,14 +120,17 @@ async def get_record_summary(table: str, number: str) -> Dict[str, Any]:
 async def get_record(table: str, number: str) -> Dict[str, Any]:
     """Get full detail fields for a single known record by number.
 
-    Use when you know the record number and need complete field coverage.
-    Returns all DETAIL_FIELDS — more fields (and tokens) than search_records/
-    filter_records, so prefer filter_records for list views and reserve
-    get_record for full detail on one record.
-
-    Tables: incident, change_request, sc_req_item, sc_task, universal_request,
-    kb_knowledge, vtb_task. NOT task_sla — that table has no number field; use
-    get_sla_details(sla_sys_id) or query_slas_by_task(task_number).
+    WHEN TO USE: you know the record number and want its complete detail —
+        "give me the full details of incident INC0012345".
+    WHEN NOT TO USE: a one-line summary is enough (get_record_summary); a list
+        view over many rows (filter_records); text search (search_records).
+    PREFER OVER: get_record_summary only when you need every field, not the
+        one-liner — this returns all DETAIL_FIELDS (more tokens).
+    TABLES: incident, change_request, sc_req_item, sc_task, universal_request,
+        kb_knowledge, vtb_task. NOT task_sla — that table has no number field;
+        use get_sla_details(sla_sys_id) or query_slas_by_task(task_number).
+    SIDE EFFECT: read-only.
+    EXAMPLE: give me the full details of incident INC0012345.
 
     Args:
         table: ServiceNow table name
@@ -125,12 +148,19 @@ async def get_record(table: str, number: str) -> Dict[str, Any]:
 async def find_similar(table: str, number: str) -> Dict[str, Any]:
     """Find records similar to an existing record (by short_description).
 
+    WHEN TO USE: you have one record's number and want others like it —
+        "find other incidents similar to this one".
+    WHEN NOT TO USE: you have search words, not a seed record (search_records);
+        you want that record's own fields (get_record).
+    PREFER OVER: search_records when the seed is an existing record, not text.
+    TABLES: incident, change_request, sc_req_item, sc_task, universal_request,
+        kb_knowledge, vtb_task. NOT task_sla — it has neither number nor
+        short_description; use similar_slas_for_text for SLA text search.
+    SIDE EFFECT: read-only.
+    EXAMPLE: find other incidents similar to one you already have.
+
     Looks up the description of *number*, then searches the same table
     for records with similar text.
-
-    Supported tables: incident, change_request, sc_req_item, sc_task,
-    universal_request, kb_knowledge, vtb_task. NOT task_sla — it has neither
-    number nor short_description; use similar_slas_for_text for SLA text search.
 
     Args:
         table: ServiceNow table name
@@ -152,6 +182,17 @@ async def filter_records(
     max_results: int = 100,
 ) -> Dict[str, Any]:
     """Query a ServiceNow table with field-value filters.
+
+    WHEN TO USE: the user gives field conditions — state, priority, category,
+        date ranges — "list change requests where state is 3 and category is
+        network".
+    WHEN NOT TO USE: free-text topic search (search_records); a single record
+        by number (get_record); a priority-plus-date incident list
+        (get_priority_incidents); KB version rollups (get_kb_articles_by_state).
+    PREFER OVER: the table-specific tools when you need an arbitrary filter
+        shape they do not expose.
+    SIDE EFFECT: read-only.
+    EXAMPLE: list change requests where state is 3 and category is network.
 
     Supports suffix operators (_gte, _lte, _gt, _lt), encoded-query text
     operators (LIKE, NOT LIKE, STARTSWITH, IN, ISEMPTY, BETWEEN, ...), date
