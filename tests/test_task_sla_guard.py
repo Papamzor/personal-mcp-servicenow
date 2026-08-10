@@ -142,34 +142,16 @@ class TestTaskSlaTextSearchField:
             assert condition.startswith("task.short_description"), condition
 
 
-class TestIntelligentSearchPath:
-    """The same bug reached task_sla through the NL query engine.
+class TestQueryTableByTextFieldResolution:
+    """query_table_by_text resolves the search field from the table.
 
-    `query_table_intelligently` (culled tool intelligent_search's engine) fell
-    back to a keyword search, and the NL parser's own fallback built
-    `{"short_description": "LIKE..."}` for any table. On task_sla that condition
-    is silently dropped. The engine and these NL-parser tests are removed in the
-    Tier 2.5 dead-code sweep; the query_table_by_text protection below outlives
-    them.
+    The bug once reached task_sla through the NL query engine
+    (`query_table_intelligently`), whose keyword fallback built
+    `{"short_description": "LIKE..."}` for any table — silently dropped on
+    task_sla. That engine (and the tool intelligent_search) is gone as of v5.0
+    Tier 2/2.5; the durable protection is that query_table_by_text resolves the
+    per-table search field itself, exercised here.
     """
-
-    def test_nl_keyword_fallback_uses_the_table_search_field(self):
-        from filter.intelligence import QueryIntelligence
-
-        incident = QueryIntelligence._build_keyword_fallback("server down", "incident")
-        sla = QueryIntelligence._build_keyword_fallback("server down", "task_sla")
-
-        assert "short_description" in incident["filters"]
-        assert "task.short_description" in sla["filters"]
-        assert "short_description" not in sla["filters"]
-
-    def test_parse_natural_language_threads_the_table_through(self):
-        from filter.intelligence import QueryIntelligence
-
-        parsed = QueryIntelligence.parse_natural_language("server down", "task_sla")
-
-        bare = [f for f in parsed["filters"] if f == "short_description"]
-        assert not bare, f"bare short_description filter on task_sla: {parsed['filters']}"
 
     @pytest.mark.asyncio
     async def test_query_table_by_text_resolves_the_field_from_the_table(self):

@@ -9,8 +9,8 @@ locked here:
 * an empty result set still returns the not-found message (empty is success);
 * a page failing mid-pagination keeps the rows already collected and marks the
   response `partial`, while a first-page failure is a plain error;
-* the modules that re-wrap these responses (`consolidated_tools`,
-  `intelligent_query_tools`) do not relabel a failure as "0 records found".
+* the modules that re-wrap these responses (`consolidated_tools`) do not
+  relabel a failure as "0 records found".
 
 The end-to-end tests at the bottom go through the real dispatcher; everything
 above patches `make_nws_request` inside the consumer module and so cannot see
@@ -28,9 +28,7 @@ from Table_Tools.generic_table_tools import (
     get_record_details,
     get_records_by_priority,
     query_table_by_text,
-    query_table_intelligently,
     query_table_with_filters,
-    query_table_with_generic_filters,
     TableFilterParams,
 )
 
@@ -185,15 +183,6 @@ class TestFilteredQueryEnvelopes:
         assert result["error"]["code"] == ErrorCode.TIMEOUT
 
     @pytest.mark.asyncio
-    async def test_generic_filters_failure_is_not_the_request_failed_string(self):
-        """The bare `except Exception` must not flatten the code into a message."""
-        with patch(
-            "Table_Tools.generic_table_tools._make_paginated_request", side_effect=FORBIDDEN
-        ):
-            result = await query_table_with_generic_filters("incident", {"priority": "1"})
-        _assert_plain_failure(result, ErrorCode.FORBIDDEN)
-
-    @pytest.mark.asyncio
     async def test_priority_query_failure_is_not_the_request_failed_string(self):
         with patch(
             "Table_Tools.generic_table_tools._make_paginated_request", side_effect=TIMEOUT
@@ -271,51 +260,6 @@ class TestFindSimilarRecords:
         assert result["result"] == []
         assert "error" not in result
 
-
-class TestIntelligentQueryPath:
-    @pytest.mark.asyncio
-    async def test_failed_filter_query_does_not_fall_back_to_keyword_search(self):
-        """A second doomed request would report "no filters matched" for a timeout."""
-        fallback = AsyncMock(return_value={"result": [], "message": "none"})
-        with patch(
-            "Table_Tools.generic_table_tools.query_table_with_filters",
-            new=AsyncMock(return_value=TIMEOUT.to_error_dict()),
-        ), patch("Table_Tools.generic_table_tools.query_table_by_text", new=fallback):
-            result = await query_table_intelligently("incident", "critical incidents from last week")
-        _assert_plain_failure(result, ErrorCode.TIMEOUT)
-        fallback.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_failed_fallback_search_returns_the_error(self):
-        with patch(
-            "Table_Tools.generic_table_tools.query_table_with_filters",
-            new=AsyncMock(return_value={"result": [], "message": "none"}),
-        ), patch(
-            "Table_Tools.generic_table_tools.query_table_by_text",
-            new=AsyncMock(return_value=TIMEOUT.to_error_dict()),
-        ):
-            result = await query_table_intelligently("incident", "critical incidents from last week")
-        _assert_plain_failure(result, ErrorCode.TIMEOUT)
-
-    @pytest.mark.asyncio
-    async def test_partial_filter_query_marks_the_intelligence_response(self):
-        partial_payload = {
-            "result": _rows(5),
-            "returned_count": 5,
-            "truncated": False,
-            "max_results": 100,
-            "partial": True,
-            **TIMEOUT.to_error_dict(),
-        }
-        with patch(
-            "Table_Tools.generic_table_tools.query_table_with_filters",
-            new=AsyncMock(return_value=partial_payload),
-        ):
-            result = await query_table_intelligently("incident", "critical incidents from last week")
-        assert len(result["result"]) == 5
-        assert result["partial"] is True
-        assert result["error"]["code"] == ErrorCode.TIMEOUT
-        assert "intelligence" in result
 
 
 class TestConsumersThatReWrap:

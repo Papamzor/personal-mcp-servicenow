@@ -37,11 +37,7 @@ from Table_Tools.generic_table_tools import (
     get_record_details,
     find_similar_records,
     query_table_with_filters,
-    query_table_intelligently,
-    explain_filter_query,
-    build_and_validate_smart_filter,
     get_records_by_priority,
-    query_table_with_generic_filters,
     TableFilterParams
 )
 
@@ -752,127 +748,6 @@ class TestAsyncTableOperations:
 
         assert "error" in result
 
-    @pytest.mark.asyncio
-    async def test_query_table_with_generic_filters_success(self):
-        """Test generic filter querying."""
-        with patch("Table_Tools.generic_table_tools._make_paginated_request") as mock_request:
-            mock_request.return_value = [{"number": "INC001"}]
-
-            result = await query_table_with_generic_filters(
-                "incident",
-                {"state": "New", "priority": "1"}
-            )
-
-            assert "result" in result
-            assert len(result["result"]) > 0
-
-
-class TestIntelligentQueries:
-    """Test intelligent query functions."""
-
-    @pytest.mark.asyncio
-    async def test_query_table_intelligently_with_results(self):
-        """Test intelligent querying with results."""
-        with patch("Table_Tools.generic_table_tools.build_smart_filter") as mock_smart, \
-             patch("Table_Tools.generic_table_tools.query_table_with_filters") as mock_query:
-
-            mock_smart.return_value = {
-                "filters": {"priority": "priority=1"},
-                "explanation": "Test",
-                "confidence": 0.8,
-                "suggestions": []
-            }
-            mock_query.return_value = {"result": [{"number": "INC001"}]}
-
-            result = await query_table_intelligently(
-                "incident",
-                "critical incidents from yesterday"
-            )
-
-            assert "result" in result
-            assert "intelligence" in result
-
-    @pytest.mark.asyncio
-    async def test_query_table_intelligently_fallback(self):
-        """Test intelligent querying with fallback to text search."""
-        with patch("Table_Tools.generic_table_tools.build_smart_filter") as mock_smart, \
-             patch("Table_Tools.generic_table_tools.query_table_by_text") as mock_text:
-
-            mock_smart.return_value = {
-                "filters": {},
-                "explanation": "Test",
-                "confidence": 0.3,
-                "suggestions": []
-            }
-            mock_text.return_value = {"result": [{"number": "INC001"}]}
-
-            result = await query_table_intelligently(
-                "incident",
-                "database issues"
-            )
-
-            assert "intelligence" in result
-            assert "fallback" in result["intelligence"]["explanation"].lower()
-
-    def test_explain_filter_query(self):
-        """Test explaining filter query."""
-        with patch("Table_Tools.generic_table_tools.explain_existing_filter") as mock_explain:
-            mock_explain.return_value = {
-                "explanation": "Test explanation",
-                "sql_equivalent": "SELECT * FROM incident",
-                "potential_issues": [],
-                "suggestions": [],
-                "estimated_result_size": "Medium"
-            }
-
-            result = explain_filter_query("incident", {"priority": "1"})
-
-            assert "explanation" in result
-            assert "filter_analysis" in result
-
-    def test_build_and_validate_smart_filter_with_filters(self):
-        """Test building and validating smart filter."""
-        with patch("Table_Tools.generic_table_tools.build_smart_filter") as mock_smart, \
-             patch("Table_Tools.generic_table_tools.validate_query_filters") as mock_validate:
-
-            mock_smart.return_value = {
-                "filters": {"priority": "1"},
-                "explanation": "Test",
-                "confidence": 0.8,
-                "suggestions": []
-            }
-            mock_validate.return_value = MagicMock(
-                is_valid=True,
-                warnings=[],
-                suggestions=[]
-            )
-
-            result = build_and_validate_smart_filter(
-                "critical incidents",
-                "incident"
-            )
-
-            assert "filters" in result
-            assert "validation" in result
-
-    def test_build_and_validate_smart_filter_no_filters(self):
-        """Test building smart filter when no filters generated."""
-        with patch("Table_Tools.generic_table_tools.build_smart_filter") as mock_smart:
-            mock_smart.return_value = {
-                "filters": {},
-                "explanation": "Test",
-                "confidence": 0.1,
-                "suggestions": []
-            }
-
-            result = build_and_validate_smart_filter(
-                "random text",
-                "incident"
-            )
-
-            assert result["filters"] == {}
-            assert result["validation"]["is_valid"] is False
-
 
 class TestEdgeCases:
     """Test edge cases and error handling."""
@@ -933,16 +808,6 @@ class TestEdgeCases:
             mock_request.side_effect = Exception("Test error")
 
             result = await get_records_by_priority("incident", ["1"])
-
-            assert "error" in result
-
-    @pytest.mark.asyncio
-    async def test_query_table_with_generic_filters_exception_handling(self):
-        """Test exception handling in query_table_with_generic_filters."""
-        with patch("Table_Tools.generic_table_tools._make_paginated_request") as mock_request:
-            mock_request.side_effect = Exception("Test error")
-
-            result = await query_table_with_generic_filters("incident", {"priority": "1"})
 
             assert "error" in result
 
