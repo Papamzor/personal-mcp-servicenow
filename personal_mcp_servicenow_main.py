@@ -22,7 +22,7 @@ structlog.configure(
     logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
 )
 
-__version__ = "4.4.1"
+__version__ = "4.5.0"
 
 
 def parse_args():

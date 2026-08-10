@@ -114,7 +114,17 @@ async def get_priority_incidents(
     **deprecated_kwargs
 ) -> Dict[str, Any]:
     """
-    Get incidents by priority with optional date range filtering.
+    Get incidents filtered by priority value, with an optional date window.
+
+    WHEN TO USE: the user names a priority (P1/P2/"priority 1") and wants the
+        matching incidents, optionally within a date range.
+    WHEN NOT TO USE: free-text topic search ("incidents about X") — use
+        search_records; arbitrary field filters — use filter_records.
+    PREFER OVER: filter_records only for the priority-plus-date shape, which
+        this tool builds with reliable >= / <= operators.
+    TABLES: incident only.
+    SIDE EFFECT: read-only.
+    EXAMPLE: show me all P1 incidents from last week.
 
     Uses simple >= / <= date operators (not JavaScript date functions) for
     reliability.
@@ -195,7 +205,17 @@ def _build_priority_result_message(
 # ---------------------------------------------------------------------------
 
 async def similar_knowledge_for_text(input_text: str, kb_base: Optional[str] = None, category: Optional[str] = None) -> Dict[str, Any]:
-    """Find knowledge articles based on input text."""
+    """Find knowledge articles by topic / keyword text (kb_knowledge search).
+
+    WHEN TO USE: the user describes a subject and wants matching KB articles —
+        "knowledge articles about password reset", "KB on VPN setup".
+    WHEN NOT TO USE: listing a whole category (use get_knowledge_by_category);
+        filtering by publication state (use get_kb_articles_by_state).
+    PREFER OVER: search_records for the kb_knowledge table specifically.
+    TABLES: kb_knowledge only.
+    SIDE EFFECT: read-only.
+    EXAMPLE: knowledge articles about password reset.
+    """
     if category or kb_base:
         filters = {}
         if category:
@@ -207,14 +227,32 @@ async def similar_knowledge_for_text(input_text: str, kb_base: Optional[str] = N
     return await query_table_by_text("kb_knowledge", input_text)
 
 async def get_knowledge_by_category(category: str, kb_base: Optional[str] = None) -> Dict[str, Any]:
-    """Get knowledge articles by category."""
+    """List every knowledge article in one KB category.
+
+    WHEN TO USE: the user names a category and wants all its articles.
+    WHEN NOT TO USE: topic/keyword search (use similar_knowledge_for_text).
+    PREFER OVER: filter_records when the only filter is category (+ kb_base).
+    TABLES: kb_knowledge only.
+    SIDE EFFECT: read-only.
+    EXAMPLE: all knowledge articles in the Workplace category.
+    """
     filters = {"kb_category": category}
     if kb_base:
         filters["kb_knowledge_base"] = kb_base
     return await query_table_with_generic_filters("kb_knowledge", filters)
 
 async def get_active_knowledge_articles() -> Dict[str, Any]:
-    """Get active knowledge articles."""
+    """List the live knowledge articles — the whole active set, unfiltered.
+
+    WHEN TO USE: caller wants every live KB article and applies no further
+        filter.
+    WHEN NOT TO USE: when you need to search or narrow the set; the other KB
+        tools cover subject search, single-topic grouping, and status rollups.
+    PREFER OVER: nothing; this is the plain "everything live" listing.
+    TABLES: kb_knowledge only.
+    SIDE EFFECT: read-only.
+    EXAMPLE: give me the live knowledge articles.
+    """
     filters = {"workflow_state": "published"}
     return await query_table_with_generic_filters("kb_knowledge", filters)
 
@@ -275,6 +313,16 @@ async def get_kb_articles_by_state(
     max_results: int = 100,
 ) -> Dict[str, Any]:
     """List kb_knowledge articles de-duplicated by article number.
+
+    WHEN TO USE: the user asks which articles are in a given publication state
+        ("currently in published state", "drafts", "retired KB").
+    WHEN NOT TO USE: subject search (similar_knowledge_for_text); one category
+        with no state question (get_knowledge_by_category).
+    PREFER OVER: filter_records — this collapses ServiceNow's version rows that
+        a raw filter would return duplicated.
+    TABLES: kb_knowledge only.
+    SIDE EFFECT: read-only.
+    EXAMPLE: which knowledge articles are currently in published state.
 
     ServiceNow KB versioning surfaces one article number across several
     workflow states (publish creates a new sys_id and marks the prior row
@@ -439,6 +487,16 @@ def _build_sla_status_filter(
 async def similar_slas_for_text(input_text: str) -> Dict[str, Any]:
     """Find SLAs whose related task descriptions match the given text.
 
+    WHEN TO USE: the user describes the underlying task in words and wants the
+        SLAs on matching tasks — "SLAs whose task description mentions an email
+        outage".
+    WHEN NOT TO USE: you already have the task number (use query_slas_by_task);
+        filtering by SLA status or stage (use query_slas_by_status).
+    PREFER OVER: query_slas_custom for a free-text task search.
+    TABLES: task_sla (dot-walks task.short_description).
+    SIDE EFFECT: read-only.
+    EXAMPLE: SLAs whose task description mentions an email outage.
+
     Searches the dot-walked ``task.short_description``, not ``short_description``.
     task_sla has no description column of its own, and ServiceNow silently drops
     a filter on a field the table does not have — so the previous query carried
@@ -456,21 +514,37 @@ async def similar_slas_for_text(input_text: str) -> Dict[str, Any]:
 
 
 async def get_sla_details(sla_sys_id: str) -> Dict[str, Any]:
-    """Get a single SLA record by its sys_id.
+    """Get one SLA record by its sys_id (task_sla lookup).
 
-    v4.0 routes via a `sys_id={sla_sys_id}` filter. v3.0 routed via
-    `get_record_details("task_sla", sla_sys_id)` which built a
-    `number={sla_sys_id}` filter — but the `task_sla` table has no
-    `number` field, so the filter was silently ignored and the call
-    returned the full default page (10,000 rows / ~1.2M tokens). The
-    v4.0 lookup returns the single record (~69 tokens).
+    WHEN TO USE: you hold the SLA's 32-char sys_id and want that single row.
+    WHEN NOT TO USE: you have a task number rather than a sys_id — use
+        query_slas_by_task; a status or stage query — use query_slas_by_status.
+    PREFER OVER: query_slas_custom for a known-sys_id point lookup.
+    TABLES: task_sla only.
+    SIDE EFFECT: read-only.
+    EXAMPLE: get SLA sys_id 26bc0f3b47c1... .
+
+    Routes via a `sys_id=` filter. (A prior version used `number=`, which
+    task_sla lacks, so ServiceNow silently returned the default 10,000-row
+    page (~1.2M tokens); the sys_id lookup returns the single ~69-token row.)
     """
     params = TableFilterParams(filters={"sys_id": sla_sys_id})
     return await query_table_with_filters("task_sla", params)
 
 
 async def query_slas_by_task(task_number: str) -> Dict[str, Any]:
-    """Get all SLA records attached to a given task number."""
+    """Get every SLA record attached to one task, addressed by task number.
+
+    WHEN TO USE: you have a task number (INC/CHG/RITM/SCTASK/...) and want the
+        SLAs attached to it.
+    WHEN NOT TO USE: matching SLAs by the task's wording — use
+        similar_slas_for_text; filtering by status or stage — use
+        query_slas_by_status.
+    PREFER OVER: query_slas_custom for this exact task-number lookup.
+    TABLES: task_sla (filters on the task reference).
+    SIDE EFFECT: read-only.
+    EXAMPLE: all SLA records attached to INC0012345.
+    """
     params = TableFilterParams(filters={TASK_NUMBER_FIELD: task_number})
     return await query_table_with_filters("task_sla", params)
 
@@ -483,6 +557,17 @@ async def query_slas_by_status(
     extra_filters: OptJsonDict = None,
 ) -> Dict[str, Any]:
     """Query SLA records by a named status preset.
+
+    WHEN TO USE: the intent maps to a preset — breached, breaching, active,
+        critical, by_stage, performance ("which SLAs are breached").
+    WHEN NOT TO USE: SLAs for one task number (query_slas_by_task); free-text
+        task search (similar_slas_for_text); a filter no preset covers
+        (query_slas_custom).
+    PREFER OVER: query_slas_custom whenever a preset fits — presets carry
+        curated field lists that protect the token budget.
+    TABLES: task_sla only.
+    SIDE EFFECT: read-only.
+    EXAMPLE: which SLAs are breached.
 
     Args:
         status: one of:
@@ -516,6 +601,16 @@ async def query_slas_custom(
     days: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Custom SLA query — escape hatch for filter shapes the presets do not cover.
+
+    WHEN TO USE: the SLA filter you need is not one of query_slas_by_status's
+        presets, and it is not a plain task-number or task-text lookup.
+    WHEN NOT TO USE: a preset fits (query_slas_by_status); one task number
+        (query_slas_by_task); free-text task search (similar_slas_for_text).
+    PREFER OVER: filter_records only when you want task_sla ESSENTIAL_FIELDS
+        defaulting and the optional last-N-days convenience.
+    TABLES: task_sla only.
+    SIDE EFFECT: read-only.
+    EXAMPLE: SLA query with a filter shape the presets do not cover.
 
     Args:
         filters: arbitrary ServiceNow filter dict (required).

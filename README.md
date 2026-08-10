@@ -16,10 +16,11 @@ MCP server for ServiceNow integration. Uses FastMCP over stdio transport, OAuth 
 
 ## Release highlights
 
-Current version: **4.4.1** — 39 registered tools. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current version: **4.5.0** — 39 registered tools. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 | Release | What changed |
 |---|---|
+| **4.5.0** | Tool-selection docstring protocol on all 39 tools (WHEN TO USE / WHEN NOT TO USE / PREFER OVER / TABLES / SIDE EFFECT / EXAMPLE). Non-breaking — no tool added, removed, or re-signatured. The fatal footguns (LIKE-not-CONTAINS, reference fields hold sys_ids) now sit inline on `search_records` and `filter_records`. Static tool-selection preferred-hit rose 21/30 → 29/30, ambiguity 66 → 50 plausible paths. |
 | **4.4.1** | Encoded-query values are carried faithfully. A `&` or a literal `%XY` in a search value no longer silently changes the query into a broader one; a `^` is refused rather than answered, because ServiceNow's syntax cannot carry it inside a value. A KB title containing `&` or `%` no longer blocks a publish. |
 | **4.4.0** | Correctness release. A failed read is no longer reported as a missing record — reads raise a classified error instead of returning `None`, so a timeout, an expired credential and an empty table stop producing the same answer. KB publishing is fail-closed on an unusable duplicate check. Legacy domain filtering deleted, so result sets get larger. See the CHANGELOG's "Behavior changes" before upgrading. |
 | **4.3.0** | Claude Desktop `.mcpb` packaging; Nuitka binary builds dropped from the release workflow. Absorbed the performance and token work planned as 4.2 (pooled httpx client, one OR-combined keyword query, concurrent CMDB probes). |

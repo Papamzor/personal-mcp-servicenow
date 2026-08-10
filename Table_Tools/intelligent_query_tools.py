@@ -40,6 +40,19 @@ class SmartFilterParams(BaseModel):
 async def intelligent_search(params: IntelligentQueryParams) -> Dict[str, Any]:
     """Search ServiceNow records using natural-language queries.
 
+    WHEN TO USE: the user hands you a plain-English request to RUN and get rows
+        back — "search for unresolved P2 tickets from May using plain English".
+    WHEN NOT TO USE: you already know exact field filters (filter_records); you
+        only want the filter string, not results (build_smart_servicenow_filter);
+        keyword search on one field (search_records).
+    PREFER OVER: search_records / filter_records when the input is a natural
+        sentence rather than keywords or field values.
+    TABLES: any of the eight supported tables (incident, change_request,
+        sc_req_item, sc_task, universal_request, kb_knowledge, vtb_task,
+        task_sla); defaults to incident.
+    SIDE EFFECT: read-only — executes the query.
+    EXAMPLE: search for unresolved P2 tickets from May using plain English.
+
     Converts NL (e.g. "high priority incidents from last week", "unassigned
     P1 changes today") to ServiceNow filter syntax, validates it, and returns
     results with an explanation of what was searched.
@@ -88,13 +101,22 @@ async def intelligent_search(params: IntelligentQueryParams) -> Dict[str, Any]:
 
 
 def explain_servicenow_filters(params: FilterExplanationParams) -> Dict[str, Any]:
-    """
-    Explain what ServiceNow filters will do and identify potential issues.
-    
+    """Explain what ServiceNow filters will do and identify potential issues.
+
+    WHEN TO USE: the user wants to understand an EXISTING filter — "what does
+        the filter priority=1 and state=2 actually do".
+    WHEN NOT TO USE: turning plain English INTO a filter
+        (build_smart_servicenow_filter); the operator reference
+        (get_query_syntax_help); running a query (intelligent_search).
+    PREFER OVER: get_query_syntax_help when the question is about one concrete
+        filter, not operators in general.
+    SIDE EFFECT: none — analyses the filter, runs nothing.
+    EXAMPLE: what does the filter priority=1 and state=2 actually do.
+
     This tool helps understand complex ServiceNow filter syntax and provides
     suggestions for improvement. Useful for debugging queries that return
     unexpected results.
-    
+
     Example filters:
     - {"priority": "1^ORpriority=2", "sys_created_on": ">=2024-01-01"}
     - {"state": "!=6^state!=7", "assigned_to": "NULL"}
@@ -121,14 +143,22 @@ def explain_servicenow_filters(params: FilterExplanationParams) -> Dict[str, Any
 
 
 def build_smart_servicenow_filter(params: SmartFilterParams) -> Dict[str, Any]:
-    """
-    Convert natural language to ServiceNow filters without executing the query.
-    
+    """Convert natural language to ServiceNow filters without executing the query.
+
+    WHEN TO USE: the user wants the filter STRING built but NOT run — "turn
+        'open P1 incidents' into a ServiceNow filter without running it".
+    WHEN NOT TO USE: actually fetching rows (intelligent_search); explaining an
+        existing filter (explain_servicenow_filters); a live reachability or
+        health probe (now_test_oauth) — this tool never contacts ServiceNow.
+    PREFER OVER: intelligent_search when you want to inspect the filter first.
+    SIDE EFFECT: none — builds and validates a filter, runs nothing.
+    EXAMPLE: turn "open P1 incidents" into a ServiceNow filter without running it.
+
     This tool is useful for:
     - Testing filter generation
     - Understanding what filters will be created
     - Debugging query conversion issues
-    
+
     Examples:
     - "critical incidents from yesterday"
     - "unassigned high priority tickets"
@@ -159,16 +189,25 @@ def build_smart_servicenow_filter(params: SmartFilterParams) -> Dict[str, Any]:
 
 
 def get_servicenow_filter_templates() -> Dict[str, Any]:
-    """
-    Get predefined filter templates for common ServiceNow queries.
-    
+    """Get predefined filter templates for common ServiceNow queries.
+
+    WHEN TO USE: the user wants a ready-made filter to copy — "give me a ready
+        made filter template for open incidents".
+    WHEN NOT TO USE: converting a specific sentence (build_smart_servicenow_filter);
+        the operator reference (get_query_syntax_help); NL query examples
+        (get_query_examples).
+    PREFER OVER: get_query_examples when you want copyable filter dicts, not
+        example phrasings.
+    SIDE EFFECT: none — returns static templates.
+    EXAMPLE: give me a ready made filter template for open incidents.
+
     These templates provide correctly formatted filters for frequent use cases:
     - High priority incidents from last week
     - Critical recent incidents
     - Unassigned recent tickets
     - Resolved incidents this month
     - Active P1/P2 incidents
-    
+
     Use these as examples or starting points for building custom queries.
     """
     try:
@@ -238,6 +277,15 @@ QUERY_EXAMPLES = {
 def get_query_syntax_help() -> Dict[str, Any]:
     """Return the authoritative ServiceNow encoded-query operator reference.
 
+    WHEN TO USE: you need the operator vocabulary in general — "which encoded
+        query operators does ServiceNow support".
+    WHEN NOT TO USE: explaining one concrete filter (explain_servicenow_filters);
+        ready-made filter dicts (get_servicenow_filter_templates).
+    PREFER OVER: get_query_examples when the question is about operators, not
+        natural-language phrasings.
+    SIDE EFFECT: none — returns a static reference.
+    EXAMPLE: which encoded query operators does ServiceNow support.
+
     Use this BEFORE constructing a `sysparm_query` / filter value to avoid
     guessing operator syntax. Key gotcha: the substring/"contains" operator in
     encoded queries is **LIKE** (`fieldLIKEvalue`), NOT `CONTAINS` — `CONTAINS`
@@ -259,9 +307,17 @@ def get_query_syntax_help() -> Dict[str, Any]:
 
 
 def get_query_examples() -> Dict[str, Any]:
-    """
-    Get examples of natural language queries that work with the intelligent search.
-    
+    """Get examples of natural-language queries that work with intelligent_search.
+
+    WHEN TO USE: the user wants sample phrasings to learn what NL search accepts.
+    WHEN NOT TO USE: copyable filter dicts (get_servicenow_filter_templates);
+        the operator reference (get_query_syntax_help); running a search
+        (intelligent_search).
+    PREFER OVER: get_servicenow_filter_templates when you want example wordings,
+        not filter structures.
+    SIDE EFFECT: none — returns static examples.
+    EXAMPLE: show me example plain-English searches I can run.
+
     Provides categorized examples showing different types of queries supported
     by the intelligent search functionality.
     """
