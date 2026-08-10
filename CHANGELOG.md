@@ -34,9 +34,13 @@ a test matrix rather than incrementally.
   branch, both priority builders, the caller-exclusion list, `_build_additional_filters`, and the
   CMDB/KB/VTB call sites. The three the plan missed included the *default* handler — the one most
   callers reach. A source scan now fails, by name, if a new terminal handler forgets.
-- **A `sys_id`/`number` lookup that selects a write target is escaped.** `kb_article_tools` and
-  `vtb_task_tools` resolve a record by `number=` and then PATCH the result; a `^` there could
-  have OR'd in a second condition and resolved to a *different* record.
+- **A `sys_id`/`number` lookup that selects a write target is escaped.** `kb_article_tools`,
+  `cmdb_tools` and `vtb_task_tools` resolve a record by `number=` and then PATCH or attribute the
+  result; a `^` there could have OR'd in a second condition and resolved to a *different* record.
+  Five such lookups, and review caught that only one of them was pinned — reverting the escaping
+  on the other four left the suite green. An AST scan across `Table_Tools/` now names any
+  `number=` interpolation that is not escaped, following a one-hop local assignment so an
+  already-escaped variable is not a false positive.
 
 ### Changed
 

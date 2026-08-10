@@ -891,6 +891,18 @@ async def _make_paginated_request(
     return all_results[:max_results]
 
 
+def _warn_on_validation_issues(validation: Optional[Any], label: str) -> None:
+    """Log a validation result's warnings to stderr, if it has any.
+
+    Extracted because the caller ran this shape twice — once for the filters and
+    once for the result count — and each copy nested an `if has_issues()` inside
+    another branch. Warnings go to stderr only: stdout is reserved for the MCP
+    JSON-RPC frame stream.
+    """
+    if validation and validation.has_issues():
+        print(f"[generic_table_tools] {label}: {validation.warnings}", file=sys.stderr)
+
+
 async def query_table_with_filters(table_name: str, params: TableFilterParams) -> dict[str, Any]:
     """Generic function to query table with custom filters and fields.
 
@@ -914,13 +926,9 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
     """
     fields = params.fields or ESSENTIAL_FIELDS.get(table_name, ["number", "short_description"])
 
-    # Validate filters before making request
-    validation_result = None
-    if params.filters:
-        validation_result = validate_query_filters(params.filters)
-        if validation_result.has_issues():
-            # Log warnings but continue with query
-            print(f"[generic_table_tools] Query validation warnings: {validation_result.warnings}", file=sys.stderr)
+    # Validate filters before making the request; warnings do not stop the query.
+    validation_result = validate_query_filters(params.filters) if params.filters else None
+    _warn_on_validation_issues(validation_result, "Query validation warnings")
 
     try:
         query_string = _build_query_string(params.filters)
@@ -948,10 +956,12 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
     truncated = returned_count >= max_results
 
     if all_results:
-        # Validate result completeness
-        result_validation = validate_result_count(table_name, params.filters or {}, returned_count)
-        if result_validation.has_issues():
-            print(f"[generic_table_tools] Result validation warnings: {result_validation.warnings}", file=sys.stderr)
+        # Validate result completeness. Only on a non-empty set — an empty result
+        # has nothing to check, and this costs a pass over the filters.
+        _warn_on_validation_issues(
+            validate_result_count(table_name, params.filters or {}, returned_count),
+            "Result validation warnings",
+        )
 
         response = {
             "result": all_results,

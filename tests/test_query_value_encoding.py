@@ -330,6 +330,37 @@ async def _seam_vtb_sys_id_lookup(value):
     return await _send(lambda: _get_task_sys_id(value))
 
 
+# The write-target lookups. These resolve a record by `number=` and hand the
+# sys_id to a PATCH, so an unescaped '^' could OR in a second condition and
+# resolve a DIFFERENT record than the one named. Added after review: the first
+# draft of this file covered only the VTB one, so reverting the escaping on the
+# other four left the suite green while restoring exactly the defect the release
+# claims to close.
+
+async def _seam_kb_sys_id_lookup(value):
+    from Table_Tools.kb_article_tools import _get_kb_article_sys_id
+
+    return await _send(lambda: _get_kb_article_sys_id(value))
+
+
+async def _seam_kb_meta_lookup(value):
+    from Table_Tools.kb_article_tools import _get_kb_article_meta
+
+    return await _send(lambda: _get_kb_article_meta(value))
+
+
+async def _seam_kb_publish_verify(value):
+    from Table_Tools.kb_article_tools import _verify_kb_published
+
+    return await _send(lambda: _verify_kb_published(value))
+
+
+async def _seam_cmdb_ci_probe(value):
+    from Table_Tools.cmdb_tools import _probe_ci_table
+
+    return await _send(lambda: _probe_ci_table("cmdb_ci_server", value))
+
+
 # (seam, condition prefix ServiceNow should see). Derived from the code, not from
 # a plan document: every module that pastes a caller value into a sysparm_query.
 VALUE_SEAMS = [
@@ -345,6 +376,10 @@ VALUE_SEAMS = [
     (_seam_cmdb_quick_search, "nameLIKE"),
     (_seam_kb_duplicate_check, "short_descriptionLIKE"),
     (_seam_vtb_sys_id_lookup, "number="),
+    (_seam_kb_sys_id_lookup, "number="),
+    (_seam_kb_meta_lookup, "number="),
+    (_seam_kb_publish_verify, "number="),
+    (_seam_cmdb_ci_probe, "number="),
 ]
 
 SEAM_IDS = [seam.__name__.removeprefix("_seam_") for seam, _ in VALUE_SEAMS]
@@ -426,6 +461,82 @@ async def test_a_javascript_date_operand_is_sent_byte_for_byte():
     assert "sys_created_on>=javascript:gs.daysAgoStart(14)" in sent
     assert servicenow_value_after(sent, "sys_created_on>=") == (
         "javascript:gs.daysAgoStart(14)"
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_ci_details_maps_a_refusal_instead_of_re_raising_it():
+    """`get_ci_details` gathers its probes with `return_exceptions=True`.
+
+    Its loop re-raises anything that is not a classified read failure, so without
+    an explicit arm a `QueryValueError` from the number would escape the tool as an
+    exception rather than an error response. The arm has to precede the
+    `BaseException` one, which is not something a coverage number would reveal.
+    """
+    from Table_Tools.cmdb_tools import get_ci_details
+
+    urls, result = await _send(lambda: get_ci_details("Cost^Center"))
+    assert not urls, f"a probe was sent with an unqueryable number: {urls!r}"
+    assert isinstance(result, dict), result
+    assert result["error"]["code"] == "VALIDATION"
+
+
+def test_no_module_interpolates_a_record_number_unescaped():
+    """Cross-module scan for the write-target class specifically.
+
+    The handler scan below only reads `generic_table_tools`, so it says nothing
+    about the `number=` lookups in the KB, CMDB and VTB modules — and those are the
+    ones whose sys_id feeds a PATCH. Reverting the escaping on four of the five left
+    the suite green until the seams above existed; this makes the *next* one a named
+    failure rather than a silent regression.
+
+    Scanned over the AST rather than over lines: a line-based version flagged three
+    docstrings that merely *describe* `number={x}`, and missed that an escaped value
+    can arrive through a local variable. Prose is not code and a variable is not a
+    defect, so this reads f-strings and follows a one-hop assignment.
+    """
+    import ast
+    from pathlib import Path
+
+    def escaped_names(func: ast.AST) -> set[str]:
+        """Locals assigned directly from `encode_query_value(...)` in this function."""
+        names = set()
+        for node in ast.walk(func):
+            if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Call):
+                continue
+            called = node.value.func
+            if isinstance(called, ast.Name) and called.id == "encode_query_value":
+                names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+        return names
+
+    def is_escaped(expr: ast.AST, safe_locals: set[str]) -> bool:
+        if isinstance(expr, ast.Call):
+            return isinstance(expr.func, ast.Name) and expr.func.id == "encode_query_value"
+        return isinstance(expr, ast.Name) and expr.id in safe_locals
+
+    offenders = []
+    for module in sorted((Path(__file__).resolve().parent.parent / "Table_Tools").glob("*.py")):
+        tree = ast.parse(module.read_text(encoding="utf-8"))
+        for func in ast.walk(tree):
+            if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            safe_locals = escaped_names(func)
+            for fstring in (n for n in ast.walk(func) if isinstance(n, ast.JoinedStr)):
+                parts = fstring.values
+                for literal, following in zip(parts, parts[1:]):
+                    if not (isinstance(literal, ast.Constant) and isinstance(literal.value, str)):
+                        continue
+                    if not literal.value.endswith("number="):
+                        continue
+                    if not isinstance(following, ast.FormattedValue):
+                        continue
+                    if not is_escaped(following.value, safe_locals):
+                        offenders.append(f"{module.name}:{func.name}:{fstring.lineno}")
+
+    assert not offenders, (
+        f"{offenders} paste a record number into a query without encode_query_value. "
+        "These lookups pick the record a write then targets, so a '^' in the number "
+        "can resolve a different record than the one named."
     )
 
 
