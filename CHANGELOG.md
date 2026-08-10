@@ -5,6 +5,62 @@ All notable changes to the Personal MCP ServiceNow project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.5.0] - 2026-08-10
+
+Tier 1 of the MCP-surface redesign: a **docstring protocol** on all 39 tools so a
+client can tell them apart from the intent alone. Non-breaking — no tool is added, removed, or
+re-signatured (`tests/test_integration.py` still asserts 39). Only docstrings, two inline
+footguns, and test floors change.
+
+**Why docstrings, and why measured.** The tool docstrings are what an MCP client sends the model
+to choose between tools; they are also the cheapest lever, sent once per conversation and cached.
+The point of the tier is not prose but a **measurement** — whether the surface is discriminating
+enough — so the change is gated on tool-selection numbers, not on the docstrings reading nicely.
+
+### Added
+
+- **A six-field protocol on every tool**: `WHEN TO USE` / `WHEN NOT TO USE` / `PREFER OVER` /
+  `TABLES` / `SIDE EFFECT` / `EXAMPLE`. The register matches the existing `filter_records`
+  reference. `SIDE EFFECT: WRITE` is stated on every write tool (the four KB writes and the two
+  private-task tools); everything else is marked read-only.
+- **The fatal footguns moved inline** onto the two entry points, not left only in
+  `get_query_syntax_help` (plan §3.3): use `LIKE`, never `CONTAINS` (a GlideRecord scripting
+  operator, silently ignored in an encoded query, returns zero rows); reference fields
+  (`assignment_group`, `assigned_to`, `caller_id`, `cmdb_ci`) hold sys_ids, so filter by sys_id or
+  dot-walk. `search_records` gained them; `filter_records` already carried them.
+- **A tool-listing token-footprint budget** (`tests/test_token_footprint.py`). The per-response
+  budgets never covered the listing payload; this one does, and records the trade below.
+
+### Changed
+
+- **Static tool-selection preferred-hit rose 21/30 → 29/30, acceptable 22/30 → 29/30, and total
+  ambiguity fell 66 → 50 plausible paths** (`tests/test_tool_selection.py`). The floors are raised
+  to lock the gain in. Fixes include the costliest class — a *write* mis-selection where
+  "set my private task VTB0001234 to closed complete" chose `create_private_task` over
+  `update_private_task` — plus the full-details, change-request-filter, SLA-by-task, SLA-by-text,
+  server-crash-search, password-reset and batch-publish intents.
+- **The one intent the static router cannot fix is `is the ServiceNow connection up`**, which still
+  scores to `build_smart_servicenow_filter`: `servicenow` sits in that tool's *name* and wins the
+  bag-of-words tie no docstring can break. It is a name-bound collision, deferred to Tier 2's
+  diagnostic/filter cull. An **LLM-reasoned pass** over the same 30 intents resolves it correctly
+  (reading `now_test_oauth`'s "verify ServiceNow is reachable — connectivity/health probe" against
+  `build_smart_servicenow_filter`'s "never contacts ServiceNow"), reaching 30/30 preferred — which
+  is exactly why the plan gates the tier on an LLM read and not the static router (§3.2).
+  *Caveat:* that 30/30 is a reasoned judgement, not an independent adversarial harness; the
+  CI-enforced, reproducible number is the static 29/30.
+- **Tier 2 scope signal.** Docstrings alone carry *selection* nearly all the way, so Tier 2's
+  39→25 cull is justified by residual name-collisions (connection-up; the KB write-tool band that
+  scores 6 on "knowledge articles about password reset" from `knowledge`+`article` in their names)
+  and surface simplicity — not by a selection deficit. "Count is not the metric; overlap is."
+- **Tool-listing token footprint grew 4693 → 8925 cl100k_base tokens (+90%)**, measured in a
+  worktree at each commit. This is the price of the protocol: a one-time, cached, per-conversation
+  cost that buys the selection gain and averts far more expensive wrong-tool calls. The
+  per-response token budgets (the token-optimization invariant) are untouched. Tier 2's cull is the
+  lever that brings the listing size back down.
+- **One seeded-collision ratchet re-derived** (password-reset, 5 → 6 plausible paths). Lifting
+  `similar_knowledge_for_text` to the top of that intent raised the 80% band threshold, admitting
+  the name-bound KB cluster; the top pick is now correct and total ambiguity still fell.
+
 ## [4.4.1] - 2026-08-10
 
 Closes the one correctness defect 4.4.0 shipped with a "Known limitation" heading: a `^`, `&` or
