@@ -12,16 +12,11 @@ from filter import QueryValueError, encode_query_value
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 from .read_helpers import is_read_failure
+from .response import error_response, list_response, record_response
 from constants import (
-    NO_CIS_FOUND_FOR_TYPE,
-    NO_CIS_FOUND_MATCHING_CRITERIA,
-    CI_NOT_FOUND,
     CI_NUMBER_REQUIRED,
     CI_TYPE_REQUIRED,
     INVALID_CI_TYPE,
-    NO_SIMILAR_CIS_FOUND,
-    NO_CI_TYPES_FOUND,
-    NO_CIS_FOUND_FOR_SEARCH,
     ERROR_SEARCHING_CIS,
     ERROR_SEARCHING_CIS_BY_TYPE,
     ERROR_FINDING_SIMILAR_CIS,
@@ -49,19 +44,22 @@ DEFAULT_CI_PROBE_TABLES = [
 _CI_TYPE_PATTERN = re.compile(r'cmdb_ci[a-z0-9_]*')
 
 # ---------------------------------------------------------------------------
-# Read-failure contract (v4.4 Tier 0.3). A failed GET raises
-# `ServiceNowRequestError` instead of returning None. Rules, as settled in the
-# generic_table_tools migration:
+# Response contract (v5.0 "Boron" Tier 3.1; read-failure contract v4.4 Tier 0.3).
+# Every tool here returns a shape from Table_Tools/response.py — the 16 bare
+# strings this module used through v4.5 are gone:
 #
-#   * A raise returns `error.to_error_dict()` -> {"error": {code, message}}.
-#     Every other return here is a bare string; the union is deliberate and
-#     temporary (Tier 3.1 removes all 16 strings). Inventing an error *string*
-#     to keep the return type uniform would ship a lie to preserve tidiness.
-#   * An empty result set keeps its existing not-found string. Empty is success.
-#   * `except ServiceNowRequestError` precedes every bare `except Exception`,
-#     or the ERROR_* string swallows the code.
+#   * Caller errors (missing/invalid ci_type or ci_number, no attribute given)
+#     -> error_response("VALIDATION", ...).
+#   * A classified read failure -> error.to_error_dict() ({"error": {code, msg}}).
+#     `except ServiceNowRequestError` precedes every bare `except Exception`.
+#   * A bare `except Exception` -> error_response("INTERNAL", ERROR_* base text).
+#   * An empty result set is SUCCESS: list_response([], ...) for the list tools,
+#     record_response(None) for the single-record get_ci_details. Deciding empty
+#     means "not found" is the caller's call, not the transport's.
+#   * Single record -> record_response(...) under `record`, never `result`
+#     (kills the result-is-sometimes-a-dict polymorphism at the old :302).
 #   * These reads are single-request (sysparm_limit, no pagination), so there is
-#     no `partial` shape in this module.
+#     no `partial` shape in this module; `truncated` is len == the limit.
 # ---------------------------------------------------------------------------
 
 
@@ -117,31 +115,27 @@ async def find_cis_by_type(ci_type: str, detailed: bool = False) -> dict[str, An
     simply yields no results rather than a misleading "invalid type".
     """
     if not ci_type:
-        return CI_TYPE_REQUIRED
+        return error_response("VALIDATION", CI_TYPE_REQUIRED)
     type_error = _ci_type_error(ci_type)
     if type_error:
-        return type_error
+        return error_response("VALIDATION", type_error)
 
     fields = DETAILED_CI_FIELDS if detailed else ESSENTIAL_CI_FIELDS
-    
+
     try:
         url = f"{NWS_API_BASE}/api/now/table/{ci_type}?sysparm_fields={','.join(fields)}&sysparm_display_value=true&sysparm_limit=100"
         data = await make_nws_request(url)
-        
-        if data and data.get('result'):
-            return {
-                "ci_type": ci_type,
-                "count": len(data['result']),
-                "result": data['result']
-            }
-        return NO_CIS_FOUND_FOR_TYPE.format(ci_type=ci_type)
+
+        rows = data['result'] if data and data.get('result') else []
+        return list_response(rows, truncated=len(rows) >= 100, ci_type=ci_type)
 
     except ServiceNowRequestError as error:
         # Ahead of the bare except below: a failed read is not "this type has
-        # no CIs", and ERROR_SEARCHING_CIS_BY_TYPE would drop the code.
+        # no CIs" (which is now an empty list_response), and the INTERNAL
+        # fallback would drop the classified code.
         return error.to_error_dict()
     except Exception:
-        return ERROR_SEARCHING_CIS_BY_TYPE
+        return error_response("INTERNAL", ERROR_SEARCHING_CIS_BY_TYPE)
 
 async def search_cis_by_attributes(
     name: Optional[str] = None,
@@ -176,13 +170,13 @@ async def search_cis_by_attributes(
         Dictionary with CI results or error string
     """
     if not any([name, ip_address, location, status]):
-        return "At least one search attribute must be provided"
+        return error_response("VALIDATION", "At least one search attribute must be provided")
 
     table = "cmdb_ci"
     if ci_type:
         type_error = _ci_type_error(ci_type)
         if type_error:
-            return type_error
+            return error_response("VALIDATION", type_error)
         table = ci_type
 
     fields = DETAILED_CI_FIELDS if detailed else ESSENTIAL_CI_FIELDS
@@ -207,29 +201,26 @@ async def search_cis_by_attributes(
 
     query_string = "^".join(query_parts)
 
+    search_criteria = {
+        "name": name,
+        "ip_address": ip_address,
+        "location": location,
+        "status": status,
+    }
 
     try:
         url = f"{NWS_API_BASE}/api/now/table/{table}?sysparm_fields={','.join(fields)}&sysparm_query={query_string}&sysparm_display_value=true&sysparm_limit=100"
         data = await make_nws_request(url)
-        
-        if data and data.get('result'):
-            return {
-                "table": table,
-                "search_criteria": {
-                    "name": name,
-                    "ip_address": ip_address,
-                    "location": location,
-                    "status": status
-                },
-                "count": len(data['result']),
-                "result": data['result']
-            }
-        return NO_CIS_FOUND_MATCHING_CRITERIA
+
+        rows = data['result'] if data and data.get('result') else []
+        return list_response(
+            rows, truncated=len(rows) >= 100, table=table, search_criteria=search_criteria
+        )
 
     except ServiceNowRequestError as error:
         return error.to_error_dict()
     except Exception:
-        return ERROR_SEARCHING_CIS
+        return error_response("INTERNAL", ERROR_SEARCHING_CIS)
 
 async def _probe_ci_table(table: str, ci_number: str) -> Optional[Dict[str, Any]]:
     """Fetch a CI by number from one table; return the first row, or None if absent.
@@ -280,12 +271,12 @@ async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[
     probe fails before any table yields a row, the failure is returned.
     """
     if not ci_number:
-        return CI_NUMBER_REQUIRED
+        return error_response("VALIDATION", CI_NUMBER_REQUIRED)
 
     if ci_type:
         type_error = _ci_type_error(ci_type)
         if type_error:
-            return type_error
+            return error_response("VALIDATION", type_error)
         tables_to_search = [ci_type]
     else:
         tables_to_search = list(DEFAULT_CI_PROBE_TABLES)
@@ -322,13 +313,13 @@ async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[
             # rather than silently degrading it to a not-found string.
             raise outcome
         if outcome:
-            return {
-                "ci_table": table,
-                "ci_number": ci_number,
-                "result": outcome,
-            }
+            # Single record under `record`, never `result` — this is the fix for
+            # the old result-is-sometimes-a-dict polymorphism.
+            return record_response(outcome, ci_table=table, ci_number=ci_number)
 
-    return CI_NOT_FOUND.format(ci_number=ci_number)
+    # Probed every candidate table, all answered 200-empty: a genuine miss, not
+    # a transport failure. Empty is success; the caller reads record is None.
+    return record_response(None, ci_number=ci_number)
 
 def _extract_ci_search_attributes(ci_data: Dict, ci_table: str) -> Dict[str, str]:
     """Extract search attributes from CI data. Complexity: 4"""
@@ -356,13 +347,10 @@ def _filter_and_limit_ci_results(similar_cis: Dict, ci_number: str, limit: int =
     return filtered_results[:limit]
 
 def _build_similar_ci_response(ci_number: str, search_attrs: Dict, filtered_results: List[Dict]) -> Dict[str, Any]:
-    """Build response for similar CIs. Complexity: 2"""
-    return {
-        "original_ci": ci_number,
-        "similar_criteria": search_attrs,
-        "count": len(filtered_results),
-        "result": filtered_results
-    }
+    """Build the list-contract response for similar CIs. Complexity: 2"""
+    return list_response(
+        filtered_results, original_ci=ci_number, similar_criteria=search_attrs
+    )
 
 async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
     """Find Configuration Items similar to a given CI, by shared attributes.
@@ -391,16 +379,18 @@ async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
         # half rather than escaping to the client from one arm of one function.
         ci_details = await get_ci_details(ci_number)
 
-        if isinstance(ci_details, str):
-            return ci_details
-        # get_ci_details can now answer with a failure dict, which has no
-        # 'result' key — pass it through instead of indexing into it.
+        # get_ci_details answers with a failure dict (no 'record' key) — pass it
+        # through instead of indexing into it.
         if is_read_failure(ci_details):
             return ci_details
+        # A seed CI that does not exist (record is None) has no attributes to
+        # match on: no similar CIs, reported as an empty list, not an error.
+        if ci_details.get("record") is None:
+            return list_response([], original_ci=ci_number)
 
         # Extract key attributes for similarity search
         search_attrs = _extract_ci_search_attributes(
-            ci_details['result'], ci_details['ci_table']
+            ci_details['record'], ci_details['ci_table']
         )
 
         similar_cis = await search_cis_by_attributes(**search_attrs, detailed=True)
@@ -413,10 +403,7 @@ async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
         # Filter and limit results
         filtered_results = _filter_and_limit_ci_results(similar_cis, ci_number, limit=20)
 
-        if filtered_results:
-            return _build_similar_ci_response(ci_number, search_attrs, filtered_results)
-
-        return NO_SIMILAR_CIS_FOUND.format(ci_number=ci_number)
+        return _build_similar_ci_response(ci_number, search_attrs, filtered_results)
 
     except ServiceNowRequestError as error:
         # Unreachable on today's call graph, and kept deliberately: both callees
@@ -427,7 +414,7 @@ async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
         # of the Tier 0.3 contract asks for the arm in every function touched.
         return error.to_error_dict()
     except Exception:
-        return ERROR_FINDING_SIMILAR_CIS
+        return error_response("INTERNAL", ERROR_FINDING_SIMILAR_CIS)
 
 async def get_all_ci_types() -> dict[str, Any] | str:
     """Get all available CI types/classes in the CMDB.
@@ -458,28 +445,22 @@ async def get_all_ci_types() -> dict[str, Any] | str:
         url = f"{NWS_API_BASE}/api/now/table/sys_db_object?sysparm_query=super_class.name=cmdb_ci^ORname=cmdb_ci&sysparm_fields=name,label,number_ref"
         data = await make_nws_request(url)
 
-        if data and data.get('result'):
-            ci_types = []
-            for table_info in data['result']:
-                table_name = table_info.get('name')
-                if table_name and table_name.startswith('cmdb_ci'):
-                    ci_types.append({
-                        "table_name": table_name,
-                        "display_name": table_info.get('label', table_name),
-                        "number_prefix_ref": table_info.get('number_ref', 'Unknown')
-                    })
-            
-            return {
-                "total_ci_types": len(ci_types),
-                "ci_types": sorted(ci_types, key=lambda x: x['table_name'])
-            }
-        
-        return NO_CI_TYPES_FOUND
+        ci_types = []
+        for table_info in (data['result'] if data and data.get('result') else []):
+            table_name = table_info.get('name')
+            if table_name and table_name.startswith('cmdb_ci'):
+                ci_types.append({
+                    "table_name": table_name,
+                    "display_name": table_info.get('label', table_name),
+                    "number_prefix_ref": table_info.get('number_ref', 'Unknown')
+                })
+
+        return list_response(sorted(ci_types, key=lambda x: x['table_name']))
 
     except ServiceNowRequestError as error:
         return error.to_error_dict()
     except Exception:
-        return ERROR_GETTING_CI_TYPES
+        return error_response("INTERNAL", ERROR_GETTING_CI_TYPES)
 
 # Convenience function for quick CI search
 async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
@@ -513,15 +494,9 @@ async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
         query_string = "^OR".join(query_parts)
         url = f"{NWS_API_BASE}/api/now/table/cmdb_ci?sysparm_fields={','.join(ESSENTIAL_CI_FIELDS)}&sysparm_query={query_string}&sysparm_display_value=true&sysparm_limit=50"
         data = await make_nws_request(url)
-        
-        if data and data.get('result'):
-            return {
-                "search_term": search_term,
-                "count": len(data['result']),
-                "result": data['result']
-            }
-        
-        return NO_CIS_FOUND_FOR_SEARCH.format(search_term=search_term)
+
+        rows = data['result'] if data and data.get('result') else []
+        return list_response(rows, truncated=len(rows) >= 50, search_term=search_term)
 
     except QueryValueError as refusal:
         # Ahead of the bare except below, for the same reason
@@ -531,4 +506,4 @@ async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
     except ServiceNowRequestError as error:
         return error.to_error_dict()
     except Exception:
-        return ERROR_QUICK_CI_SEARCH
+        return error_response("INTERNAL", ERROR_QUICK_CI_SEARCH)
