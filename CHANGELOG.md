@@ -5,6 +5,82 @@ All notable changes to the Personal MCP ServiceNow project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.4.1] - 2026-08-10
+
+Closes the one correctness defect 4.4.0 shipped with a "Known limitation" heading: a `^`, `&` or
+literal `%XY` inside an encoded-query **value** produced a query that differed from the one
+requested — and always a broader one. Same family as the silently-dropped-filter class 4.4.0
+was about: the server answered a question nobody asked and presented the rows as matches.
+
+**Why it needed its own release.** The fix is a coordinated flip. The transport was silently
+normalising every producer's query, so it could not stop doing that until every producer escaped
+its own values, and no producer could usefully escape while the transport undid it. Half a flip
+gives either double-encoded values or raw structural characters, so it lands in one commit with
+a test matrix rather than incrementally.
+
+### Fixed
+
+- **`&` in a query value no longer truncates the condition.** It was never mis-parsed *within*
+  the query — it escaped `sysparm_query=` and became a sibling URL parameter, so
+  `nameLIKESales & Marketing` searched for "Sales " and sent a stray `Marketing` parameter.
+  `&` is not an encoded-query operator (conditions separate on `^`), so it left the transport's
+  safe-set; values are now escaped at the producer and that escaping survives.
+- **A literal `%XY` in a value is no longer decoded on its way out.** The transport unquoted
+  before re-quoting, so a search for `Deal 20%2C off` ran against `Deal 20, off` and `%41dmin`
+  against `Admin`. `unquote` never raises, so nothing announced it. Values escape their own `%`
+  to `%25` now.
+- **Nine escaping seams, not the four the plan listed.** Derived from the code: the exact-match
+  default, the operator-prefix handler, the suffix-operator handler, the date-range `>=`/`<=`
+  branch, both priority builders, the caller-exclusion list, `_build_additional_filters`, and the
+  CMDB/KB/VTB call sites. The three the plan missed included the *default* handler — the one most
+  callers reach. A source scan now fails, by name, if a new terminal handler forgets.
+- **A `sys_id`/`number` lookup that selects a write target is escaped.** `kb_article_tools` and
+  `vtb_task_tools` resolve a record by `number=` and then PATCH the result; a `^` there could
+  have OR'd in a second condition and resolved to a *different* record.
+
+### Changed
+
+- **A `^` in a query value is refused instead of answered.** It is unrepresentable, not merely
+  mis-transported: ServiceNow's parser splits on the *decoded* value, so no encoding can carry
+  it. Affected tools return `{"error": {"code": "VALIDATION", ...}}` and send no request.
+  `^OR` inside a filter value is unchanged — it is still read as caller-supplied query structure,
+  which is what an LLM writing `{"priority": "1^ORpriority=2"}` means.
+- **A `^NQ` new-query-reset in a filter value is refused instead of silently dropped.** The drop
+  removed the poisoned condition but still ran the rest, handing back real-looking rows from a
+  query the caller did not ask for.
+- **A KB title containing `&` or `%` no longer blocks a publish.** The duplicate check refused
+  those as inconclusive because it could not trust the query; it can now. `^` still blocks —
+  fail-closed, since a check that ran broader than asked cannot clear a publish. `KB_QUERY_UNSAFE_CHARS`
+  went from `("^", "&")` to `("^",)` and the percent round-trip check is gone.
+- **`Table_Tools.generic_table_tools._encode_query_string` is an alias for the transport's
+  encoder.** It was a second, independent `quote(safe=...)` with a different safe-set and no
+  idempotency, so a value could pass through two encoders that disagreed and be round-trip-stable
+  by luck. One implementation now.
+
+### Added
+
+- **`filter/value_encoding.py`** — `encode_query_value`, `QueryValueError`, `QUERY_VALUE_SAFE`.
+  The producer half of the contract. Its safe-set is deliberately the transport's minus `^`, and
+  a test pins that relationship: the transport's idempotency-by-decoding is only sound while
+  decoding cannot resurrect a structural character.
+- **`tests/test_query_value_encoding.py`** and **`tests/sn_query_probe.py`** — the matrix asserts
+  the value ServiceNow's parser *decodes*, plus the condition count and the URL parameter count,
+  across 24 characters and 12 producer seams. Asserting on the encoded URL string is how you
+  write a test that passes while the query is still wrong. 15 mutations were run against the
+  fix; each is caught by a named behavioural test.
+- A regression test pinning the text-search tokenizer's `\b[a-zA-Z]{4,}\b` character class. The
+  text-search tools were never affected by any of this, but only because a keyword cannot contain
+  `^`, `&` or `%` — protection nobody designed, which a widened tokenizer would have removed
+  silently.
+
+### Known limitation
+
+`_has_operator_in_value` still treats any `=` in a filter value as caller-supplied operator
+syntax, so `{"short_description": "Cost=Center"}` builds a condition on a field that does not
+exist, which ServiceNow drops silently. Not an encoding defect — escaping cannot decide whether
+the caller meant an operator — and pinned by a test rather than left unrecorded. The value
+round-trips correctly once the operator is explicit (`LIKECost=Center`).
+
 ## [4.4.0] - 2026-08-06
 
 Tier 0 of the v5 "Boron" redesign: correctness only, no tool-count changes. Still 39 tools.
@@ -164,10 +240,13 @@ longer exists. Copy in a tool's output, not behaviour.
 
 ### Known limitation
 
-**`^` and `&` inside an encoded-query *value* still produce a query that differs from the one
+**`^` and `&` inside an encoded-query *value* produce a query that differs from the one
 requested — and it runs broader.** `ensure_query_encoded` unquotes before re-quoting and keeps
 the ServiceNow operator characters in its safe set, so percent-encoding a value at the call site
 does not survive.
+
+> **Fixed in [4.4.1].** `&` and a literal `%XY` are carried faithfully; `^` is refused rather
+> than answered. Kept here as the record of what 4.4.0 shipped with.
 
 The two fail by different mechanisms, and `&` is the more severe:
 
