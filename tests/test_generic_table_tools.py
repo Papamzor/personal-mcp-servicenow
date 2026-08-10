@@ -401,9 +401,17 @@ class TestQueryBuilding:
         assert result == "priority=1^ORpriority=2"
 
     def test_build_query_condition_servicenow_in_operator(self):
-        """Test ServiceNow IN operator handling (e.g., task.priorityIN1,2)."""
+        """Test ServiceNow IN operator handling (e.g., task.priorityIN1,2).
+
+        The comma arrives escaped since v4.4.1, because the operand is escaped at
+        this boundary instead of by the transport. The bytes ServiceNow receives
+        are unchanged — ',' was never in either encoder's safe-set, so the URL has
+        always carried '%2C'; only the layer that applies it moved. Asserted on the
+        decoded value ServiceNow parses rather than on this intermediate string in
+        tests/test_query_value_encoding.py.
+        """
         result = _build_query_condition("task.priority", "IN1,2")
-        assert result == "task.priorityIN1,2"
+        assert result == "task.priorityIN1%2C2"
 
     def test_build_query_string_with_malformed_or_value(self):
         """Test full query string building with the MCP bug pattern.
@@ -437,9 +445,17 @@ class TestQueryBuilding:
         assert result == "priority=1^state=2"
 
     def test_build_query_condition_nq_defense(self):
-        """A ^NQ new-query-reset smuggled inside an ordinary filter value is dropped."""
-        result = _build_query_condition("short_description", "fooLIKEbar^NQactive=true")
-        assert result == ""
+        """A ^NQ new-query-reset smuggled inside an ordinary filter value is refused.
+
+        v4.4.1 changed the response from a silent drop to a raise. Dropping the
+        poisoned condition still ran the remaining ones, so the caller was handed
+        real-looking rows from a broader query than they asked for — the same
+        failure family as the encoded-query value defect this release fixes.
+        """
+        from filter import QueryValueError
+
+        with pytest.raises(QueryValueError):
+            _build_query_condition("short_description", "fooLIKEbar^NQactive=true")
 
     def test_build_query_condition_priority(self):
         """Test building priority condition."""

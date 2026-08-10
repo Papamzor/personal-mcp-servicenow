@@ -7,8 +7,8 @@ Provides CI discovery, search, and analysis functionality.
 
 import asyncio
 import re
-from urllib.parse import quote
 from http_layer import ServiceNowRequestError, make_nws_request, NWS_API_BASE
+from filter import QueryValueError, encode_query_value
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 from .read_helpers import is_read_failure
@@ -171,22 +171,27 @@ async def search_cis_by_attributes(
 
     fields = DETAILED_CI_FIELDS if detailed else ESSENTIAL_CI_FIELDS
     
-    # Build query conditions. User values are percent-encoded (safe='') so
-    # structural characters (#, +, %, ?, ...) in a name/location don't corrupt
-    # the sysparm_query. (Operator chars in the locked encode safe-set —
-    # & ^ = etc. — still pass through and remain unsupported inside values.)
-    query_parts = []
-    if name:
-        query_parts.append(f"nameLIKE{quote(name, safe='')}")
-    if ip_address:
-        query_parts.append(f"ip_address={quote(ip_address, safe='')}")
-    if location:
-        query_parts.append(f"locationLIKE{quote(location, safe='')}")
-    if status:
-        query_parts.append(f"operational_status={quote(status, safe='')}")
-    
+    # Build query conditions. Each user value is escaped at this boundary and the
+    # escaping now SURVIVES: through v4.4.0 the transport unquoted before
+    # re-quoting, so the `quote(safe='')` here was undone and a `&` in a CI name
+    # still escaped sysparm_query= into a second URL parameter. A `^` is refused
+    # outright — no encoding can carry it (see filter/value_encoding.py).
+    try:
+        query_parts = []
+        if name:
+            query_parts.append(f"nameLIKE{encode_query_value(name)}")
+        if ip_address:
+            query_parts.append(f"ip_address={encode_query_value(ip_address)}")
+        if location:
+            query_parts.append(f"locationLIKE{encode_query_value(location)}")
+        if status:
+            query_parts.append(f"operational_status={encode_query_value(status)}")
+    except QueryValueError as refusal:
+        return refusal.to_error_dict()
+
     query_string = "^".join(query_parts)
-    
+
+
     try:
         url = f"{NWS_API_BASE}/api/now/table/{table}?sysparm_fields={','.join(fields)}&sysparm_query={query_string}&sysparm_display_value=true&sysparm_limit=100"
         data = await make_nws_request(url)
@@ -220,7 +225,12 @@ async def _probe_ci_table(table: str, ci_number: str) -> Optional[Dict[str, Any]
     — the wrong table, reported confidently. Failures propagate now and
     `get_ci_details` decides what a missing probe means.
     """
-    url = f"{NWS_API_BASE}/api/now/table/{table}?sysparm_fields={','.join(DETAILED_CI_FIELDS)}&sysparm_query=number={ci_number}&sysparm_display_value=true"
+    url = (
+        f"{NWS_API_BASE}/api/now/table/{table}"
+        f"?sysparm_fields={','.join(DETAILED_CI_FIELDS)}"
+        f"&sysparm_query=number={encode_query_value(ci_number)}"
+        f"&sysparm_display_value=true"
+    )
     data = await make_nws_request(url)
     if data and data.get('result'):
         return data['result'][0]
@@ -277,6 +287,11 @@ async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[
     )
     for table, outcome in zip(tables_to_search, outcomes):
         if isinstance(outcome, ServiceNowRequestError):
+            return outcome.to_error_dict()
+        if isinstance(outcome, QueryValueError):
+            # The ci_number itself is unqueryable, so every probe refused it
+            # identically. Must precede the BaseException arm below, which would
+            # re-raise it out of the tool.
             return outcome.to_error_dict()
         if isinstance(outcome, BaseException):
             # Not a classified read failure — a real bug. Propagate as before
@@ -438,9 +453,10 @@ async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
         Dictionary with CI results or error string
     """
     try:
-        # Try multiple search approaches. Percent-encode the term so special
-        # characters in it don't corrupt the sysparm_query structure.
-        safe_term = quote(search_term, safe='')
+        # Try multiple search approaches. The term is escaped at this boundary
+        # and the escaping survives the transport (v4.4.1); a term containing '^'
+        # is refused instead of silently becoming extra conditions.
+        safe_term = encode_query_value(search_term)
         query_parts = [
             f"nameLIKE{safe_term}",
             f"ip_address={safe_term}",
@@ -460,6 +476,11 @@ async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
         
         return NO_CIS_FOUND_FOR_SEARCH.format(search_term=search_term)
 
+    except QueryValueError as refusal:
+        # Ahead of the bare except below, for the same reason
+        # ServiceNowRequestError is: ERROR_QUICK_CI_SEARCH would replace the
+        # explanation of what about the term is unqueryable with a generic string.
+        return refusal.to_error_dict()
     except ServiceNowRequestError as error:
         return error.to_error_dict()
     except Exception:

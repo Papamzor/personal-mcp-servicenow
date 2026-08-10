@@ -18,8 +18,8 @@ skipped. "Could not check" is not "nothing found".
 import asyncio
 import sys
 import time
-from urllib.parse import unquote
 from http_layer import ServiceNowRequestError, make_nws_request, NWS_API_BASE
+from filter import QueryValueError, encode_query_value
 from typing import Any, Dict, List, Optional
 import anyio
 import httpx
@@ -41,7 +41,6 @@ from constants import (
     ERROR_KB_DUPLICATE_CHECK_INCONCLUSIVE,
     ERROR_KB_PUBLISH_VERIFY_UNREADABLE,
     KB_DEDUP_QUERY_LIMIT,
-    KB_DEDUP_REASON_PERCENT_ESCAPE,
     KB_DEDUP_REASON_TRUNCATED,
     KB_DEDUP_REASON_UNSAFE_CHARS,
     KB_QUERY_UNSAFE_CHARS,
@@ -128,8 +127,14 @@ async def _get_kb_article_sys_id(article_number: str, workflow_state: str | None
     None means "looked, absent" and nothing else (decision (d)). A failed read
     raises `ServiceNowRequestError` and the caller maps it, so a write can no
     longer report "article not found" because the lookup timed out.
+
+    The number is escaped because this lookup picks the sys_id a write then
+    PATCHes: a `^` in it could append or OR-in a condition and resolve to a
+    *different* article. Refused (`QueryValueError`) rather than escaped, since no
+    encoding can carry a `^`. `workflow_state` is an internal literal, so its `^`
+    is ours and stays structural.
     """
-    query = f"number={article_number}"
+    query = f"number={encode_query_value(article_number)}"
     if workflow_state:
         query += f"^workflow_state={workflow_state}"
     url = f"{NWS_API_BASE}/api/now/table/kb_knowledge?sysparm_fields=sys_id&sysparm_query={query}"
@@ -143,9 +148,10 @@ async def _get_kb_article_meta(article_number: str, workflow_state: str | None =
     """Fetch sys_id + short_description in one GET — avoids a second round-trip in publish.
 
     Same boundary as `_get_kb_article_sys_id`: None means absent, a failed read
-    raises (decision (d)).
+    raises (decision (d)), and the number is escaped because it selects a write
+    target.
     """
-    query = f"number={article_number}"
+    query = f"number={encode_query_value(article_number)}"
     if workflow_state:
         query += f"^workflow_state={workflow_state}"
     url = (
@@ -162,20 +168,19 @@ async def _get_kb_article_meta(article_number: str, workflow_state: str | None =
 def _dedup_query_defect(short_description: str) -> Optional[str]:
     """Why the dedup query would not faithfully carry *short_description*, if so.
 
-    Two independent failures, both ending with ServiceNow running a query nobody
-    asked for. See the constants for the mechanics.
+    v4.4.1 narrowed this from three refusals to one. `&` and a literal `%XY` were
+    only ever mis-transported — the encoder unquoted before re-quoting, undoing
+    any escaping — and are carried faithfully now that the escaping survives and
+    `_check_kb_duplicates` escapes the title itself. Titles like
+    "Sales & Marketing" and "Deal 20%2C" no longer block a publish.
 
-    The percent check is a round trip rather than a character blacklist: it is
-    exactly the condition that matters (`unquote` is what corrupts the value), it
-    does not refuse an ordinary "50% off" title, and it keeps holding if the
-    encoder's safe-set changes. Verified against every character in that safe-set
-    — only ^ and & break structure; = < > ( ) : @ ! survive intact.
+    `^` still refuses, because it is unrepresentable rather than merely
+    mis-transported: ServiceNow's condition parser splits on the *decoded* value.
+    A duplicate check that ran broader than asked cannot clear a publish.
     """
     unsafe = [c for c in KB_QUERY_UNSAFE_CHARS if c in short_description]
     if unsafe:
         return KB_DEDUP_REASON_UNSAFE_CHARS.format(chars=" ".join(unsafe))
-    if unquote(short_description) != short_description:
-        return KB_DEDUP_REASON_PERCENT_ESCAPE
     return None
 
 
@@ -208,7 +213,7 @@ async def _check_kb_duplicates(short_description: str, exclude_number: str) -> l
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
         f"?sysparm_fields={','.join(KB_DEDUP_FIELDS)}"
-        f"&sysparm_query=short_descriptionLIKE{short_description}"
+        f"&sysparm_query=short_descriptionLIKE{encode_query_value(short_description)}"
         f"&sysparm_limit={KB_DEDUP_QUERY_LIMIT}"
     )
     data = await make_nws_request(url)
@@ -263,7 +268,7 @@ async def _verify_kb_published(article_number: str) -> Dict[str, Any] | None:
     is not evidence the publish did not commit, and treating it as such is what
     made an unreadable verify re-fire the publish write.
     """
-    query = f"number={article_number}^workflow_state={KB_PUBLISHED_STATE}"
+    query = f"number={encode_query_value(article_number)}^workflow_state={KB_PUBLISHED_STATE}"
     url = (
         f"{NWS_API_BASE}/api/now/table/kb_knowledge"
         f"?sysparm_fields={','.join(KB_VERIFY_FIELDS)}"
@@ -376,9 +381,11 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
     t0 = time.monotonic()
     try:
         sys_id = await _get_kb_article_sys_id(article_number, workflow_state="draft")
-    except ServiceNowRequestError as error:
+    except (ServiceNowRequestError, QueryValueError) as error:
         # A failed lookup is not a missing article, and reporting it as one sent
         # people looking for an article that was there all along (decision (d)).
+        # An unqueryable article number is the same kind of answer — the lookup
+        # did not happen — and both types expose the same `to_error_dict()`.
         return error.to_error_dict()
     t1 = time.monotonic()
     print(f"[kb] {article_number} sys_id GET took {t1 - t0:.1f}s", file=sys.stderr)
@@ -409,7 +416,7 @@ async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str
     """
     try:
         meta = await _get_kb_article_meta(article_number, workflow_state="draft")
-    except ServiceNowRequestError as error:
+    except (ServiceNowRequestError, QueryValueError) as error:
         return error.to_error_dict()
     if not meta:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
@@ -469,7 +476,7 @@ async def _check_single_kb_duplicate(article_number: str) -> Dict[str, Any]:
     """Lookup meta then check duplicates for one article. Used by check_kb_duplicates fan-out."""
     try:
         meta = await _get_kb_article_meta(article_number)
-    except ServiceNowRequestError as error:
+    except (ServiceNowRequestError, QueryValueError) as error:
         return _duplicate_row_inconclusive(article_number, error.message)
     if not meta:
         # A genuinely absent article: the check did run, so has_duplicate stands.
@@ -497,7 +504,7 @@ async def _check_single_kb_duplicate(article_number: str) -> Dict[str, Any]:
 
 def _outcome_error_message(outcome: BaseException) -> str:
     """Message for an exception that escaped a per-article coroutine."""
-    if isinstance(outcome, ServiceNowRequestError):
+    if isinstance(outcome, (ServiceNowRequestError, QueryValueError)):
         return outcome.message
     if isinstance(outcome, KbDuplicateCheckInconclusive):
         return outcome.reason
@@ -670,7 +677,7 @@ async def retire_knowledge_article(article_number: str) -> Dict[str, Any] | str:
     """
     try:
         sys_id = await _get_kb_article_sys_id(article_number, workflow_state="published")
-    except ServiceNowRequestError as error:
+    except (ServiceNowRequestError, QueryValueError) as error:
         return error.to_error_dict()
     if not sys_id:
         return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)

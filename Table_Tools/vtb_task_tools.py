@@ -10,6 +10,7 @@ absence, so an update no longer tells the user their task does not exist because
 the lookup timed out.
 """
 from http_layer import ServiceNowRequestError, make_nws_request, NWS_API_BASE
+from filter import QueryValueError, encode_query_value
 from typing import Any, Dict
 import anyio
 import httpx
@@ -91,8 +92,15 @@ async def _get_task_sys_id(task_number: str) -> str | None:
     raises `ServiceNowRequestError` for the caller to map — returning None for it
     is what let a timeout report the task as missing, on the one code path where
     that answer stops a write.
+
+    The number is escaped (v4.4.1) because this lookup chooses the record the
+    PATCH then writes to: a `^` in it could OR-in a second condition and resolve
+    to a different task. Unrepresentable, so refused rather than escaped.
     """
-    sys_id_url = f"{NWS_API_BASE}/api/now/table/vtb_task?sysparm_fields=sys_id&sysparm_query=number={task_number}"
+    sys_id_url = (
+        f"{NWS_API_BASE}/api/now/table/vtb_task"
+        f"?sysparm_fields=sys_id&sysparm_query=number={encode_query_value(task_number)}"
+    )
     sys_id_data = await make_nws_request(sys_id_url)
 
     if not sys_id_data or not sys_id_data.get('result') or not sys_id_data['result']:
@@ -138,9 +146,11 @@ async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> 
 
     try:
         sys_id = await _get_task_sys_id(task_number)
-    except ServiceNowRequestError as error:
+    except (ServiceNowRequestError, QueryValueError) as error:
         # Not "task not found": the lookup never answered. Reporting absence here
         # sends the user looking for a task that is probably sitting right there.
+        # An unqueryable task number means the same thing — no lookup happened —
+        # and both types expose the same `to_error_dict()`.
         return error.to_error_dict()
     if not sys_id:
         return PRIVATE_TASK_NOT_FOUND_UPDATE

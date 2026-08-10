@@ -27,6 +27,7 @@ import asyncio
 
 import pytest
 from unittest.mock import AsyncMock, patch
+from urllib.parse import unquote
 
 from constants import (
     ERROR_KB_ARTICLE_NOT_FOUND_OP,
@@ -173,9 +174,11 @@ class TestDuplicateCheckOutcomes:
     async def test_unsafe_character_is_inconclusive_before_any_request(self):
         """A '^' in the title splits the encoded query, silently widening it.
 
-        Percent-encoding at the call site does not help: ensure_query_encoded
-        unquotes before re-quoting and keeps '^' in its safe-set, so the operator
-        survives either way. The check therefore refuses to answer.
+        Encoding does not help, at any layer: ServiceNow's condition parser splits
+        the DECODED value, so a correctly transmitted '^' still separates two
+        conditions. Unrepresentable rather than mis-transported, which is why this
+        one refusal outlived the v4.4.1 encoder fix. Proven in
+        tests/test_query_value_encoding.py::test_a_caret_would_have_produced_two_conditions.
         """
         with patch("Table_Tools.kb_article_tools.make_nws_request") as request:
             with pytest.raises(KbDuplicateCheckInconclusive) as excinfo:
@@ -184,51 +187,58 @@ class TestDuplicateCheckOutcomes:
         assert "widen" in str(excinfo.value)
 
     @pytest.mark.asyncio
-    async def test_ampersand_is_also_inconclusive(self):
-        with pytest.raises(KbDuplicateCheckInconclusive):
-            await _check_kb_duplicates("Sales & Marketing", "KB0001234")
+    async def test_ampersand_no_longer_blocks_a_publish(self):
+        """v4.4.1: '&' was a transport defect, not an unrepresentable value.
 
-    @pytest.mark.parametrize("title, becomes", [
-        ("Deal 20%2C off", "Deal 20, off"),
-        ("Reset %41dmin password", "Reset Admin password"),
-        ("Up 20%DB backups", None),  # invalid byte -> U+FFFD
+        The encoder unquoted before re-quoting, so the escaping applied at the
+        call site was undone and the raw '&' escaped `sysparm_query=` into a
+        sibling URL parameter — truncating the condition. Escapes survive now, so
+        an extremely ordinary KB title is checked properly instead of being refused.
+        """
+        with patch("Table_Tools.kb_article_tools.make_nws_request") as request:
+            request.return_value = {"result": []}
+            assert await _check_kb_duplicates("Sales & Marketing", "KB0001234") == []
+        url = request.call_args[0][0]
+        assert "short_descriptionLIKESales%20%26%20Marketing" in url
+
+    @pytest.mark.parametrize("title", [
+        "Deal 20%2C off",
+        "Reset %41dmin password",
+        "Up 20%DB backups",
     ])
     @pytest.mark.asyncio
-    async def test_percent_escape_in_the_title_is_inconclusive(self, title, becomes):
-        """The quiet one: ensure_query_encoded unquotes, so '%XY' is decoded.
+    async def test_a_percent_escape_in_the_title_is_now_carried_literally(self, title):
+        """The quiet one, fixed: '%XY' used to be decoded on its way out.
 
-        ServiceNow would be searched for a different string than the title, and
-        `unquote` never raises, so nothing announces it. That silently returned
-        `[]` and published the article.
+        v4.4.0 searched ServiceNow for "Deal 20, off" when asked for
+        "Deal 20%2C off", and `unquote` never raises so nothing announced it. The
+        title's '%' is escaped to '%25' at the producer now, and the transport
+        preserves escapes instead of decoding them, so the search runs against the
+        title as written. The dedup answer is trustworthy, so the publish proceeds.
         """
-        if becomes is not None:
-            from urllib.parse import unquote
-            assert unquote(title) == becomes, "premise of the test"
         with patch("Table_Tools.kb_article_tools.make_nws_request") as request:
-            with pytest.raises(KbDuplicateCheckInconclusive) as excinfo:
-                await _check_kb_duplicates(title, "KB0001234")
-        request.assert_not_called()
-        assert "percent-escape" in str(excinfo.value)
+            request.return_value = {"result": []}
+            assert await _check_kb_duplicates(title, "KB0001234") == []
+        url = request.call_args[0][0]
+        assert "%25" in url, "the literal '%' was not escaped"
+        assert unquote(url.split("short_descriptionLIKE")[1].split("&")[0]) == title
 
     @pytest.mark.asyncio
     async def test_a_bare_percent_is_not_refused(self):
-        """No false positives: a '%' not followed by hex digits survives intact.
-
-        Blacklisting '%' outright would refuse an ordinary title, which is why the
-        check is a round trip on the value rather than a character list.
-        """
+        """No false positives: an ordinary "50% off" title is checked, not refused."""
         with patch("Table_Tools.kb_article_tools.make_nws_request") as request:
             request.return_value = {"result": []}
             assert await _check_kb_duplicates("Cut costs by 50% off", "KB0001234") == []
         request.assert_called_once()
 
-    @pytest.mark.parametrize("char", list("=<>():@!"))
+    @pytest.mark.parametrize("char", list("=<>():@!&%"))
     @pytest.mark.asyncio
     async def test_the_rest_of_the_operator_safe_set_is_not_refused(self, char):
-        """Only ^ and & break structure; the others survive the round trip.
+        """Only ^ is unrepresentable; everything else survives the round trip.
 
         Pinned so a future widening of KB_QUERY_UNSAFE_CHARS has to be deliberate
-        rather than a precaution that quietly blocks publishes.
+        rather than a precaution that quietly blocks publishes. '&' and '%' joined
+        this list in v4.4.1 when the transport stopped undoing their escaping.
         """
         with patch("Table_Tools.kb_article_tools.make_nws_request") as request:
             request.return_value = {"result": []}
