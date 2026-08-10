@@ -14,12 +14,14 @@ forgotten exclude_reference_link), not single-row data churn.
 """
 from __future__ import annotations
 
+import inspect
 import json
 from unittest.mock import patch
 
 import pytest
 import tiktoken
 
+import tools
 from Table_Tools.consolidated_tools import (
     _SLA_CRITICAL_FIELDS,
     _SLA_PERFORMANCE_FIELDS,
@@ -34,6 +36,55 @@ ENCODER = tiktoken.get_encoding("cl100k_base")
 
 def _count_tokens(payload) -> int:
     return len(ENCODER.encode(json.dumps(payload, default=str)))
+
+
+# ---------------------------------------------------------------------------
+# Tool-listing footprint (v4.5.0 Tier 1).
+#
+# The docstrings are sent to the model on every tool listing, once per
+# conversation (and cached). Tier 1's docstring protocol lengthened all 39, so
+# this measures the whole listing payload — name + signature + docstring per
+# tool — the payload the earlier per-response budgets never covered.
+#
+# Recorded trade (cl100k_base tokens, measured in a worktree at each commit):
+#   c951471 (v4.4.1, pre-Tier-1):   4693
+#   this branch (v4.5.0, Tier 1):   8925   (+4232, +90%)
+# The gain it buys: static tool-selection preferred 21/30 -> 29/30, plausible
+# paths 66 -> 50 (see tests/test_tool_selection.py). Tier 2's 39->25 cull is the
+# lever that brings the listing size back down.
+# ---------------------------------------------------------------------------
+
+# Ceiling with headroom for ordinary doc edits; a runaway (e.g. a re-introduced
+# unconditional envelope, or protocol duplication) trips it. Lower it if Tier 2
+# shrinks the surface — floors ratchet down, never silently up.
+BUDGET_TOOL_LISTING = 9_500
+
+
+def _tool_listing_tokens() -> int:
+    """Total tokens of the registered tool listing: name + signature + docstring."""
+    total = 0
+    for fn in tools.tools:
+        doc = inspect.getdoc(fn) or ""
+        text = f"{fn.__name__}{inspect.signature(fn)}\n{doc}"
+        total += len(ENCODER.encode(text))
+    return total
+
+
+class TestToolListingFootprint:
+    """The one-time tool-listing payload must not balloon past its budget."""
+
+    def test_tool_listing_under_budget(self):
+        total = _tool_listing_tokens()
+        assert total <= BUDGET_TOOL_LISTING, (
+            f"tool-listing footprint {total} tokens exceeds budget "
+            f"{BUDGET_TOOL_LISTING}; a docstring grew unexpectedly or the "
+            f"protocol was duplicated. Re-measure and justify before raising."
+        )
+
+    def test_every_tool_has_a_docstring(self):
+        """The protocol is worthless if a tool ships with no docstring at all."""
+        missing = [fn.__name__ for fn in tools.tools if not (inspect.getdoc(fn) or "").strip()]
+        assert not missing, f"tools with no docstring: {missing}"
 
 
 # ---------------------------------------------------------------------------

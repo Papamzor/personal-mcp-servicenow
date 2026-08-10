@@ -288,23 +288,26 @@ UNCOVERED_TOOLS = frozenset({
 })
 
 # ---------------------------------------------------------------------------
-# Recorded baseline — v4.4.0, 39 tools, pre-Tier-1 docstrings.
-# Measured by test_report_baseline below (`pytest tests/test_tool_selection.py -s`).
-# Floors, not targets: Tier 1 raises them, nothing may lower them silently.
+# Recorded floors. Floors, not targets: a tier raises them, nothing may lower
+# them silently. Measured by test_report_baseline below
+# (`pytest tests/test_tool_selection.py -s`).
 #
-# Worst offenders at baseline, all of which Tier 1 should move:
-#   'full details of incident INC0012345'  -> get_sla_details   (beats get_record;
-#       'details' sits in the SLA tool's *name* while get_record carries none of
-#       the intent's vocabulary)
-#   'is the ServiceNow connection up'      -> build_smart_servicenow_filter
-#       ('servicenow' in the name outweighs everything the health tools say)
-#   'all SLA records attached to INC0012345' -> get_record_summary
-#   'knowledge articles about password reset' -> get_active_knowledge_articles
-#       (5-way tie across the whole KB surface — every KB tool scores 6)
+# v4.4.0 (39 tools, pre-Tier-1 docstrings): preferred 21/30, acceptable 22/30,
+# plausible paths 66. The four worst offenders then — full-details-of-incident
+# -> get_sla_details, connection-up -> build_smart_servicenow_filter,
+# all-SLA-attached -> get_record_summary, password-reset ->
+# get_active_knowledge_articles.
+#
+# v4.5.0 (Tier 1 docstring protocol): raised to preferred 29/30, acceptable
+# 29/30, plausible paths 50. The single remaining preferred miss is
+# 'is the ServiceNow connection up' -> build_smart_servicenow_filter: a
+# name-bound collision ('servicenow' in the rival's name wins the alphabetical
+# tie no docstring can break), deferred to Tier 2's diagnostic/filter cull. The
+# static router is a floor only — the Tier 1 exit gate is the LLM pass (§3.2).
 # ---------------------------------------------------------------------------
-BASELINE_PREFERRED_HITS = 21
-BASELINE_ACCEPTABLE_HITS = 22
-BASELINE_TOTAL_PLAUSIBLE_PATHS = 66
+BASELINE_PREFERRED_HITS = 29
+BASELINE_ACCEPTABLE_HITS = 29
+BASELINE_TOTAL_PLAUSIBLE_PATHS = 50
 
 
 def _evaluate() -> dict:
