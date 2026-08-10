@@ -47,8 +47,9 @@ async def intelligent_search(params: IntelligentQueryParams) -> Dict[str, Any]:
         keyword search on one field (search_records).
     PREFER OVER: search_records / filter_records when the input is a natural
         sentence rather than keywords or field values.
-    TABLES: incident, change_request, sc_req_item, universal_request,
-        kb_knowledge, vtb_task.
+    TABLES: any of the eight supported tables (incident, change_request,
+        sc_req_item, sc_task, universal_request, kb_knowledge, vtb_task,
+        task_sla); defaults to incident.
     SIDE EFFECT: read-only — executes the query.
     EXAMPLE: search for unresolved P2 tickets from May using plain English.
 

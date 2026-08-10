@@ -432,7 +432,7 @@ class TestSeededCollisions:
     their names, four of them WRITE tools (publish x2 / retire / update) that a
     real client would never pick for a read. Tier 1 cannot rename them out of
     the band; folding/renaming the KB surface is a Tier 2 target. Net across all
-    30 intents ambiguity fell (66 -> 55); this one collision rose by one as the
+    30 intents ambiguity fell (66 -> 50); this one collision rose by one as the
     direct cost of fixing its top pick.
     """
 

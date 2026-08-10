@@ -52,7 +52,7 @@ enough — so the change is gated on tool-selection numbers, not on the docstrin
   39→25 cull is justified by residual name-collisions (connection-up; the KB write-tool band that
   scores 6 on "knowledge articles about password reset" from `knowledge`+`article` in their names)
   and surface simplicity — not by a selection deficit. "Count is not the metric; overlap is."
-- **Tool-listing token footprint grew 4693 → 8925 cl100k_base tokens (+90%)**, measured in a
+- **Tool-listing token footprint grew 4693 → 8946 cl100k_base tokens (+91%)**, measured in a
   worktree at each commit. This is the price of the protocol: a one-time, cached, per-conversation
   cost that buys the selection gain and averts far more expensive wrong-tool calls. The
   per-response token budgets (the token-optimization invariant) are untouched. Tier 2's cull is the

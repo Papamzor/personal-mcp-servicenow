@@ -48,7 +48,7 @@ def _count_tokens(payload) -> int:
 #
 # Recorded trade (cl100k_base tokens, measured in a worktree at each commit):
 #   c951471 (v4.4.1, pre-Tier-1):   4693
-#   this branch (v4.5.0, Tier 1):   8925   (+4232, +90%)
+#   this branch (v4.5.0, Tier 1):   8946   (+4253, +91%)
 # The gain it buys: static tool-selection preferred 21/30 -> 29/30, plausible
 # paths 66 -> 50 (see tests/test_tool_selection.py). Tier 2's 39->25 cull is the
 # lever that brings the listing size back down.
