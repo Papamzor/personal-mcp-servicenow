@@ -19,7 +19,6 @@ from .generic_table_tools import (
     get_record_details,
     find_similar_records,
     query_table_with_filters,
-    query_table_with_generic_filters,
     TableFilterParams,
 )
 
