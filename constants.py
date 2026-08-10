@@ -225,8 +225,8 @@ def text_search_field_for(table_name: str) -> str:
 
 # Tables the number- and text-addressed generic tools cannot query at all.
 # task_sla has neither `number` (number_prefix is None) nor its own
-# `short_description`, so get_record / get_record_summary / find_similar /
-# search_records can only build queries against fields that do not exist.
+# `short_description`, so get_record / find_similar / search_records can only
+# build queries against fields that do not exist.
 TABLES_WITHOUT_RECORD_IDENTITY = frozenset({"task_sla"})
 
 TABLE_LACKS_RECORD_IDENTITY = (
@@ -234,7 +234,7 @@ TABLE_LACKS_RECORD_IDENTITY = (
     "cannot address its records — ServiceNow silently drops a filter on a "
     "missing field and would return unrelated rows. Use query_slas_by_task("
     "task_number), query_slas_by_status(status), get_sla_details(sla_sys_id), "
-    "similar_slas_for_text(text), or filter_records('{table}', filters)."
+    "or filter_records('{table}', filters)."
 )
 
 # Table Field Definitions

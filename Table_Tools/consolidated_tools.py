@@ -11,10 +11,8 @@ Kept:
 import logging
 from datetime import datetime, timezone
 from .generic_table_tools import (
-    query_table_by_text,
     query_table_with_filters,
     get_records_by_priority,
-    query_table_with_generic_filters,
     TableFilterParams
 )
 from .read_helpers import carry_partial, carry_partial_after_filter, is_read_failure
@@ -24,7 +22,7 @@ from .date_utils import (
     build_last_n_days_filter,
 )
 from typing import Any, Dict, Optional, List
-from constants import TABLE_ERROR_MESSAGES, TASK_NUMBER_FIELD, TASK_SLA_TEXT_SEARCH_FIELD
+from constants import TABLE_ERROR_MESSAGES, TASK_NUMBER_FIELD
 from param_coercion import OptJsonList, OptJsonDict
 
 logger = logging.getLogger(__name__)
@@ -204,57 +202,13 @@ def _build_priority_result_message(
 # Knowledge-specific tools (unique params / logic)
 # ---------------------------------------------------------------------------
 
-async def similar_knowledge_for_text(input_text: str, kb_base: Optional[str] = None, category: Optional[str] = None) -> Dict[str, Any]:
-    """Find knowledge articles by topic / keyword text (kb_knowledge search).
-
-    WHEN TO USE: the user describes a subject and wants matching KB articles —
-        "knowledge articles about password reset", "KB on VPN setup".
-    WHEN NOT TO USE: listing a whole category (use get_knowledge_by_category);
-        filtering by publication state (use get_kb_articles_by_state).
-    PREFER OVER: search_records for the kb_knowledge table specifically.
-    TABLES: kb_knowledge only.
-    SIDE EFFECT: read-only.
-    EXAMPLE: knowledge articles about password reset.
-    """
-    if category or kb_base:
-        filters = {}
-        if category:
-            filters["kb_category"] = category
-        if kb_base:
-            filters["kb_knowledge_base"] = kb_base
-        return await query_table_with_generic_filters("kb_knowledge", filters)
-
-    return await query_table_by_text("kb_knowledge", input_text)
-
-async def get_knowledge_by_category(category: str, kb_base: Optional[str] = None) -> Dict[str, Any]:
-    """List every knowledge article in one KB category.
-
-    WHEN TO USE: the user names a category and wants all its articles.
-    WHEN NOT TO USE: topic/keyword search (use similar_knowledge_for_text).
-    PREFER OVER: filter_records when the only filter is category (+ kb_base).
-    TABLES: kb_knowledge only.
-    SIDE EFFECT: read-only.
-    EXAMPLE: all knowledge articles in the Workplace category.
-    """
-    filters = {"kb_category": category}
-    if kb_base:
-        filters["kb_knowledge_base"] = kb_base
-    return await query_table_with_generic_filters("kb_knowledge", filters)
-
-async def get_active_knowledge_articles() -> Dict[str, Any]:
-    """List the live knowledge articles — the whole active set, unfiltered.
-
-    WHEN TO USE: caller wants every live KB article and applies no further
-        filter.
-    WHEN NOT TO USE: when you need to search or narrow the set; the other KB
-        tools cover subject search, single-topic grouping, and status rollups.
-    PREFER OVER: nothing; this is the plain "everything live" listing.
-    TABLES: kb_knowledge only.
-    SIDE EFFECT: read-only.
-    EXAMPLE: give me the live knowledge articles.
-    """
-    filters = {"workflow_state": "published"}
-    return await query_table_with_generic_filters("kb_knowledge", filters)
+# v5.0 "Boron" (Tier 2): similar_knowledge_for_text, get_knowledge_by_category
+# and get_active_knowledge_articles were culled. Replacements:
+#   similar_knowledge_for_text  -> search_records("kb_knowledge", text)
+#   get_knowledge_by_category   -> filter_records("kb_knowledge", {"kb_category": ...})
+#   get_active_knowledge_articles -> get_kb_articles_by_state("published")
+# The old "smart" KB search silently discarded input_text when category/kb_base
+# was set; do not reintroduce it (plan §Tier 2).
 
 
 # Canonical workflow_state precedence for KB de-duplication.
@@ -316,8 +270,8 @@ async def get_kb_articles_by_state(
 
     WHEN TO USE: the user asks which articles are in a given publication state
         ("currently in published state", "drafts", "retired KB").
-    WHEN NOT TO USE: subject search (similar_knowledge_for_text); one category
-        with no state question (get_knowledge_by_category).
+    WHEN NOT TO USE: subject search (search_records on kb_knowledge); one
+        category with no state question (filter_records with kb_category).
     PREFER OVER: filter_records — this collapses ServiceNow's version rows that
         a raw filter would return duplicated.
     TABLES: kb_knowledge only.
@@ -484,33 +438,10 @@ def _build_sla_status_filter(
     return filters, fields
 
 
-async def similar_slas_for_text(input_text: str) -> Dict[str, Any]:
-    """Find SLAs whose related task descriptions match the given text.
-
-    WHEN TO USE: the user describes the underlying task in words and wants the
-        SLAs on matching tasks — "SLAs whose task description mentions an email
-        outage".
-    WHEN NOT TO USE: you already have the task number (use query_slas_by_task);
-        filtering by SLA status or stage (use query_slas_by_status).
-    PREFER OVER: query_slas_custom for a free-text task search.
-    TABLES: task_sla (dot-walks task.short_description).
-    SIDE EFFECT: read-only.
-    EXAMPLE: SLAs whose task description mentions an email outage.
-
-    Searches the dot-walked ``task.short_description``, not ``short_description``.
-    task_sla has no description column of its own, and ServiceNow silently drops
-    a filter on a field the table does not have — so the previous query carried
-    no effective condition and returned an arbitrary page of SLAs, every one of
-    them reported as a match. Same failure mode as the get_sla_details bug
-    documented below.
-
-    The field is passed explicitly even though ``query_table_by_text`` would now
-    resolve it from the table anyway: this is the one tool whose whole purpose is
-    that dot-walk, so it should not read as an accident of configuration.
-    """
-    return await query_table_by_text(
-        "task_sla", input_text, search_field=TASK_SLA_TEXT_SEARCH_FIELD
-    )
+# v5.0 "Boron" (Tier 2): similar_slas_for_text was culled. It queried a bare
+# short_description that task_sla lacks, so ServiceNow dropped the condition and
+# returned an arbitrary page of SLAs — it never worked. For a free-text task
+# search use filter_records("task_sla", {"task.short_description": "LIKE..."}).
 
 
 async def get_sla_details(sla_sys_id: str) -> Dict[str, Any]:
@@ -538,8 +469,8 @@ async def query_slas_by_task(task_number: str) -> Dict[str, Any]:
     WHEN TO USE: you have a task number (INC/CHG/RITM/SCTASK/...) and want the
         SLAs attached to it.
     WHEN NOT TO USE: matching SLAs by the task's wording — use
-        similar_slas_for_text; filtering by status or stage — use
-        query_slas_by_status.
+        filter_records('task_sla', {'task.short_description': 'LIKE...'});
+        filtering by status or stage — use query_slas_by_status.
     PREFER OVER: query_slas_custom for this exact task-number lookup.
     TABLES: task_sla (filters on the task reference).
     SIDE EFFECT: read-only.
@@ -560,9 +491,8 @@ async def query_slas_by_status(
 
     WHEN TO USE: the intent maps to a preset — breached, breaching, active,
         critical, by_stage, performance ("which SLAs are breached").
-    WHEN NOT TO USE: SLAs for one task number (query_slas_by_task); free-text
-        task search (similar_slas_for_text); a filter no preset covers
-        (query_slas_custom).
+    WHEN NOT TO USE: SLAs for one task number (query_slas_by_task); a filter no
+        preset covers (query_slas_custom).
     PREFER OVER: query_slas_custom whenever a preset fits — presets carry
         curated field lists that protect the token budget.
     TABLES: task_sla only.
@@ -605,7 +535,7 @@ async def query_slas_custom(
     WHEN TO USE: the SLA filter you need is not one of query_slas_by_status's
         presets, and it is not a plain task-number or task-text lookup.
     WHEN NOT TO USE: a preset fits (query_slas_by_status); one task number
-        (query_slas_by_task); free-text task search (similar_slas_for_text).
+        (query_slas_by_task).
     PREFER OVER: filter_records only when you want task_sla ESSENTIAL_FIELDS
         defaulting and the optional last-N-days convenience.
     TABLES: task_sla only.

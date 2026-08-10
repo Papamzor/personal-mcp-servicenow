@@ -16,7 +16,6 @@ from constants import (
 from param_coercion import OptJsonList
 from .generic_table_tools import (
     query_table_by_text,
-    get_record_description,
     get_record_details,
     find_similar_records,
     query_table_with_filters,
@@ -60,9 +59,9 @@ async def search_records(table: str, query: str) -> Dict[str, Any]:
 
     WHEN TO USE: the user describes a topic or symptom and wants matching
         records — "incidents about a server crashing during backup".
-    WHEN NOT TO USE: you already know the record number (get_record /
-        get_record_summary); you need field filters like state or priority
-        (filter_records); a priority-plus-date list (get_priority_incidents).
+    WHEN NOT TO USE: you already know the record number (get_record); you need
+        field filters like state or priority (filter_records); a
+        priority-plus-date list (get_priority_incidents).
     PREFER OVER: filter_records when the ask is words, not field values.
     FOOTGUNS: matching uses LIKE, never CONTAINS — CONTAINS is a GlideRecord
         scripting operator, silently ignored in an encoded query, and returns
@@ -71,7 +70,7 @@ async def search_records(table: str, query: str) -> Dict[str, Any]:
         short_description, not those — filter by sys_id via filter_records.
     TABLES: incident, change_request, sc_req_item, sc_task, universal_request,
         kb_knowledge, vtb_task. NOT task_sla — it has no short_description of
-        its own; use similar_slas_for_text for SLA text search.
+        its own; use filter_records('task_sla', ...) or query_slas_by_task.
     SIDE EFFECT: read-only.
     EXAMPLE: find incidents about a server crashing during backup.
 
@@ -90,42 +89,15 @@ async def search_records(table: str, query: str) -> Dict[str, Any]:
     return await query_table_by_text(table, query)
 
 
-async def get_record_summary(table: str, number: str) -> Dict[str, Any]:
-    """Get the short_description for a single record by its number.
-
-    WHEN TO USE: you know the number and want only its one-line summary.
-    WHEN NOT TO USE: you need every field (get_record); you have search text,
-        not a number (search_records).
-    PREFER OVER: get_record when a one-liner is enough — this returns far
-        fewer tokens.
-    TABLES: incident, change_request, sc_req_item, sc_task, universal_request,
-        kb_knowledge, vtb_task. NOT task_sla — that table has neither number
-        nor short_description; use get_sla_details(sla_sys_id).
-    SIDE EFFECT: read-only.
-    EXAMPLE: what is the short description of INC0012345.
-
-    Args:
-        table: ServiceNow table name
-        number: Record number (e.g. "INC0012345")
-
-    Returns:
-        {"result": [{"short_description": "..."}]}
-    """
-    error = _validate_identity_table(table)
-    if error:
-        return error
-    return await get_record_description(table, number)
-
-
 async def get_record(table: str, number: str) -> Dict[str, Any]:
     """Get full detail fields for a single known record by number.
 
     WHEN TO USE: you know the record number and want its complete detail —
         "give me the full details of incident INC0012345".
-    WHEN NOT TO USE: a one-line summary is enough (get_record_summary); a list
-        view over many rows (filter_records); text search (search_records).
-    PREFER OVER: get_record_summary only when you need every field, not the
-        one-liner — this returns all DETAIL_FIELDS (more tokens).
+    WHEN NOT TO USE: a list view over many rows (filter_records); text search
+        (search_records).
+    PREFER OVER: filter_records when you have the number and want every field of
+        that one record; search_records when you have the number, not keywords.
     TABLES: incident, change_request, sc_req_item, sc_task, universal_request,
         kb_knowledge, vtb_task. NOT task_sla — that table has no number field;
         use get_sla_details(sla_sys_id) or query_slas_by_task(task_number).
@@ -155,7 +127,7 @@ async def find_similar(table: str, number: str) -> Dict[str, Any]:
     PREFER OVER: search_records when the seed is an existing record, not text.
     TABLES: incident, change_request, sc_req_item, sc_task, universal_request,
         kb_knowledge, vtb_task. NOT task_sla — it has neither number nor
-        short_description; use similar_slas_for_text for SLA text search.
+        short_description; use query_slas_by_task or filter_records('task_sla').
     SIDE EFFECT: read-only.
     EXAMPLE: find other incidents similar to one you already have.
 
