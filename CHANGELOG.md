@@ -62,6 +62,17 @@ a test matrix rather than incrementally.
   it, and `_build_additional_filters` — a second, parallel assembly path — never reached it at
   all, so `get_priority_incidents(additional_filters={"_date_range": "1^NQstate=99"})` sent the
   reset to ServiceNow verbatim and returned rows. Both verified live before and after the fix.
+- **Every structural paste of a caller-built fragment refuses `&`.** Four handlers return a
+  caller value verbatim because the value *is* the fragment — the bare-OR repair, a complete
+  `^OR` filter, the `BETWEEN` early return, and the already-`caller_id!=` passthrough. They
+  cannot escape it, so `&` is refused there as it is for the underscore fragment keys. Found in
+  the second review, and invisible from `filter_records`: that route runs
+  `_encode_query_string` and escaped the `&` before the URL was built, while
+  `query_table_with_generic_filters` did not, so `{"priority": "1^ORpriority=2&x"}` reached
+  ServiceNow as `priority=1^ORpriority=2` plus a stray `x` parameter. Reachable from
+  `similar_knowledge_for_text` and `get_knowledge_by_category`, whose `category`/`kb_base` land
+  in exactly that path. A `&` in an *ordinary* value ("Payroll & Benefits") is still escaped and
+  carried, not refused.
 - **The three pre-built-fragment filter keys are guarded.** `_date_range`,
   `_complete_caller_exclusion` and `_complete_query` carry their own operators, so they cannot be
   escaped and `^` has to be allowed — `build_date_filter` emits

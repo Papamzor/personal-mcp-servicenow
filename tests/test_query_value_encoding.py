@@ -830,6 +830,142 @@ class TestPreBuiltFragmentChannels:
                 _build_query_condition("_complete_query", "priority=1&state=2")
 
 
+class TestStructuralPastesRefuseAnAmpersand:
+    """The last `&` hole: structural handlers paste a caller fragment verbatim.
+
+    A structural handler cannot escape its value — the value IS the query fragment,
+    operators included — so `&` has to be refused there, exactly as it is for the
+    three underscore fragment keys. Four such pastes: the bare-OR repair, a complete
+    `^OR` filter, the `BETWEEN` early return, and `_parse_caller_exclusions`'
+    already-`caller_id!=` passthrough.
+
+    Found in the second review. It was invisible from `filter_records`, which routes
+    through `query_table_with_filters` and so gets an `_encode_query_string` pass
+    that escapes the `&` before the URL is built. `query_table_with_generic_filters`
+    had no such pass, so the raw `&` met `ensure_query_encoded`'s first-`&` split:
+
+        {"priority": "1^ORpriority=2&x"}
+          -> ServiceNow got  priority=1^ORpriority=2   plus a stray `x` parameter
+
+    Reachable from registered tools #7 and #8 (`similar_knowledge_for_text`,
+    `get_knowledge_by_category`), whose `category`/`kb_base` land in exactly that
+    path. Both assembly paths now also encode before interpolating, so a future
+    structural paste that forgets truncates nothing — but the refusal is the fix,
+    because turning a `&` inside caller-built *structure* into a literal is a guess.
+    """
+
+    STRUCTURAL_WITH_AMPERSAND = [
+        ("bare_or_repair", {"priority": "1^ORpriority=2&x"}),
+        ("complete_sn_filter", {"_f": "priority=1^ORpriority=2&x"}),
+        ("between_early_return", {"sys_created_on": "BETWEENa&b@c"}),
+        ("caller_id_passthrough", {"exclude_caller": "caller_id!=a&b"}),
+    ]
+
+    @pytest.mark.parametrize(
+        "filters", [f for _, f in STRUCTURAL_WITH_AMPERSAND],
+        ids=[name for name, _ in STRUCTURAL_WITH_AMPERSAND],
+    )
+    @pytest.mark.asyncio
+    async def test_a_structural_paste_refuses_an_ampersand(self, filters):
+        from Table_Tools.generic_table_tools import query_table_with_generic_filters
+
+        urls, result = await _send(lambda: query_table_with_generic_filters("incident", filters))
+        assert not urls, f"a truncated query reached ServiceNow: {urls!r}"
+        assert result["error"]["code"] == "VALIDATION"
+
+    @pytest.mark.asyncio
+    async def test_the_registered_kb_tool_refuses_it_too(self):
+        """The reachable surface, not just the internal function."""
+        from Table_Tools.consolidated_tools import get_knowledge_by_category
+
+        urls, result = await _send(
+            lambda: get_knowledge_by_category("1^ORkb_category=2&evil")
+        )
+        assert not urls
+        assert result["error"]["code"] == "VALIDATION"
+
+    @pytest.mark.parametrize("filters, expected", [
+        ({"priority": "1^ORpriority=2"}, "priority=1^ORpriority=2"),
+        ({"_f": "priority=1^ORpriority=2"}, "priority=1^ORpriority=2"),
+        ({"exclude_caller": "caller_id!=abc"}, "caller_id!=abc"),
+        (
+            {"sys_created_on": "BETWEENjavascript:gs.beginningOfWeek()@javascript:gs.endOfWeek()"},
+            "BETWEENjavascript:gs.beginningOfWeek()@javascript:gs.endOfWeek()",
+        ),
+    ], ids=["bare_or", "complete_filter", "caller_list", "between_javascript"])
+    @pytest.mark.asyncio
+    async def test_legitimate_structural_values_are_untouched(self, filters, expected):
+        """The guard refuses `&` only. Everything these fragments are made of stays."""
+        from Table_Tools.generic_table_tools import query_table_with_generic_filters
+
+        urls, _ = await _send(lambda: query_table_with_generic_filters("incident", filters))
+        assert urls, "a legitimate structural fragment was refused"
+        assert_no_smuggled_parameter(urls[0])
+        conditions = servicenow_conditions(urls[0])
+        for condition in expected.split("^"):
+            assert condition in conditions, (conditions, expected)
+
+    @pytest.mark.asyncio
+    async def test_an_ampersand_in_an_ordinary_value_still_works(self):
+        """The non-regression that matters: a real KB category contains '&'.
+
+        "Payroll & Benefits" is a terminal value, so it is escaped, not refused —
+        refusing it would make the guard worse than the bug.
+        """
+        from Table_Tools.consolidated_tools import get_knowledge_by_category
+
+        urls, _ = await _send(lambda: get_knowledge_by_category("Payroll & Benefits"))
+        assert urls, "an ordinary category containing '&' was refused"
+        assert_no_smuggled_parameter(urls[0])
+        assert servicenow_value_after(urls[0], "kb_category=") == "Payroll & Benefits"
+
+
+@pytest.mark.parametrize("filters", [
+    {"priority": "1"},
+    {"short_description": "LIKESales & Marketing"},
+    {"assigned_to": "Deal 20%2C off"},
+    {"priority": "1^ORpriority=2"},
+], ids=["plain", "ampersand", "percent_escape", "structural_or"])
+@pytest.mark.asyncio
+async def test_all_three_assembly_paths_build_the_same_query(filters):
+    """The same filters must produce the same query however they are assembled.
+
+    Three paths reach ServiceNow — `query_table_with_filters`,
+    `query_table_with_generic_filters` and `get_records_by_priority` — and only the
+    first encoded its assembled query before interpolating it into the URL. That
+    asymmetry is what hid the structural `&` truncation: every test that went through
+    `filter_records` got the encode pass and passed, while the other two paths
+    silently lost the tail of the query.
+
+    Asserting they agree pins the reason the other two now encode as well. Mutation
+    testing shows removing either encode breaks nothing else today, so this is what
+    holds them in place — not a claim that they are load-bearing on their own.
+    """
+    from Table_Tools.generic_table_tools import (
+        get_records_by_priority,
+        query_table_with_filters,
+        query_table_with_generic_filters,
+    )
+    from filter import TableFilterParams
+
+    fields = ["number"]
+    typed_urls, _ = await _send(lambda: query_table_with_filters(
+        "incident", TableFilterParams(filters=filters, fields=fields)
+    ))
+    generic_urls, _ = await _send(lambda: query_table_with_generic_filters("incident", filters))
+    priority_urls, _ = await _send(lambda: get_records_by_priority(
+        "incident", ["1"], additional_filters={"assigned_to": "x"}
+    ))
+
+    assert typed_urls and generic_urls and priority_urls
+    assert servicenow_params(typed_urls[0])["sysparm_query"] == \
+        servicenow_params(generic_urls[0])["sysparm_query"]
+    # The priority path takes its filters differently, so agreement is asserted on
+    # the property that matters rather than on the whole string.
+    for url in (typed_urls[0], generic_urls[0], priority_urls[0]):
+        assert_no_smuggled_parameter(url)
+
+
 class TestFieldNamesAreCallerSuppliedToo:
     """A filters dict's KEYS come from the caller and nothing validated them.
 

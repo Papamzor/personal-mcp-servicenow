@@ -624,10 +624,13 @@ def _parse_caller_exclusions(value: str) -> str:
     if value and not value.startswith("caller_id!="):
         return f"caller_id!={encode_query_value(value)}"
 
+    # Already in `caller_id!=...` form: a caller-built fragment, passed through as
+    # one. Guarded rather than escaped, like every other structural paste.
+    _reject_unsafe_fragment(value)
     return value
 
 def _handle_complete_query_condition(value: str) -> str:
-    """Handle complete query condition."""
+    """Handle complete query condition. Guarded by the caller (`_reject_unsafe_fragment`)."""
     return value
 
 
@@ -641,8 +644,10 @@ def _handle_date_range_condition(field: str, value: str) -> Optional[str]:
     still sent byte-for-byte as before.
     """
     if field == "sys_created_on":
-        # If already in BETWEEN format, return as-is
+        # If already in BETWEEN format, return as-is — a caller-built fragment, so
+        # guarded rather than escaped.
         if "BETWEEN" in value:
+            _reject_unsafe_fragment(value)
             return value
         # If already has operator, return as-is
         if value.startswith((">=", "<=")):
@@ -689,13 +694,15 @@ def _handle_bare_or_value_condition(field: str, value: str) -> Optional[str]:
         return None
     before_or = value.split("^OR")[0]
     if "=" not in before_or:
+        _reject_unsafe_fragment(value)
         return f"{field}={value}"
     return None
 
 
 def _handle_servicenow_filter_condition(field: str, value: str) -> Optional[str]:
-    """Handle complete ServiceNow filters."""
+    """Handle complete ServiceNow filters. Structural, so guarded not escaped."""
     if _is_complete_servicenow_filter(value):
+        _reject_unsafe_fragment(value)
         return value
     return None
 
@@ -850,10 +857,11 @@ def _build_query_string(filters: Dict[str, str]) -> str:
     for field, value in filters.items():
         query_parts.append(_build_query_condition(field, value))
 
-    # A condition handler (e.g. the ENABLE_COMPLETE_QUERY gate, or the ^NQ
-    # defense) may now return "" to drop a condition entirely. Skip empties
-    # so a dropped condition doesn't leave a dangling "^^" or a leading/
-    # trailing "^" in the joined query.
+    # The ENABLE_COMPLETE_QUERY gate returns "" to drop a condition entirely, so
+    # skip empties — a dropped condition must not leave a dangling "^^" or a
+    # leading/trailing "^" in the joined query. That gate is now the ONLY thing
+    # that drops: `^NQ` raises at the top of `_build_query_condition` rather than
+    # silently removing the condition and running the rest (v4.4.1).
     return "^".join(part for part in query_parts if part)
 
 def _encode_query_string(query_string: str) -> str:
@@ -1356,6 +1364,11 @@ async def get_records_by_priority(
     except QueryValueError as refusal:
         return refusal.to_error_dict()
 
+    # Interpolated without a further encode pass, and that is deliberate: every
+    # producer above escapes its own value or refuses it, so there is nothing left
+    # to normalise. An `_encode_query_string` call here was tried and removed —
+    # mutation testing showed no test could tell the difference, including one
+    # asserting the three assembly paths agree, which they do without it.
     final_query = "^".join(filters)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
 
@@ -1389,6 +1402,9 @@ async def query_table_with_generic_filters(
     # (which can drop a condition to "") doesn't leave a dangling "^^" or
     # leading/trailing "^" in the joined query.
     try:
+        # No further encode pass — see `get_records_by_priority`. The `&`
+        # truncation that used to be possible here is closed at the producers
+        # (every structural paste refuses `&`), not by normalising afterwards.
         query = _build_query_string(filters)
     except QueryValueError as refusal:
         return refusal.to_error_dict()
