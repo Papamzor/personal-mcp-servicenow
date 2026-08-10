@@ -410,21 +410,32 @@ class TestSelectionBaseline:
 
 
 class TestSeededCollisions:
-    """The four collisions that motivated the plan. Documented, not yet fixed.
+    """The four collisions that motivated the plan.
 
     The plan's §4 counts (4 / 3 / 3 / 5) were derived by hand from reading the
-    tool surface. The static router measures (3 / 5 / 1 / 3) instead. Both
+    tool surface. The static router measures (3 / 6 / 1 / 3) instead. Both
     numbers are kept: the hand count is the human judgement of how many tools a
     user could reasonably land on, the router count is what bag-of-words
     scoring sees inside the 80% ambiguity band. They diverge because the router
     over-weights a token appearing in a tool *name* — which is exactly why
     decision 5 puts an LLM pass, not this router, on the Tier 1 and Tier 2
     exits. The assertions ratchet the router number.
+
+    Tier 1 (4.5.0) re-derivation — password-reset moved 5 -> 6. The docstring
+    protocol lifted `similar_knowledge_for_text` to the top of that intent (a
+    preferred-hit gain — it lost to `get_active_knowledge_articles` before), so
+    the 80%-band threshold rose to 5.6 and now admits the whole cluster of KB
+    tools scoring 6. Those six are name-bound: `knowledge`+`article` both sit in
+    their names, four of them WRITE tools (publish x2 / retire / update) that a
+    real client would never pick for a read. Tier 1 cannot rename them out of
+    the band; folding/renaming the KB surface is a Tier 2 target. Net across all
+    30 intents ambiguity fell (66 -> 55); this one collision rose by one as the
+    direct cost of fixing its top pick.
     """
 
     @pytest.mark.parametrize('intent,plan_count,router_count', [
         ('show me all P1 incidents from last week', 4, 3),
-        ('knowledge articles about password reset', 3, 5),
+        ('knowledge articles about password reset', 3, 6),
         ('which SLAs are breached', 3, 1),
         ('is the ServiceNow connection up', 5, 3),
     ])
