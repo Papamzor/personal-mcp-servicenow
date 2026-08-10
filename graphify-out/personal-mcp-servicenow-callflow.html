@@ -1,0 +1,2570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>personal-mcp-servicenow — Complete Call Flow &amp; Architecture Documentation</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+:root {
+  --bg: #0f172a; --surface: #1e293b; --border: #334155;
+  --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+  --warn: #fbbf24; --err: #f87171; --ok: #34d399;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+.container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+h1 { font-size: 2.4rem; margin-bottom: 8px; background: linear-gradient(135deg, var(--accent), #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+h2 { font-size: 1.7rem; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+h3 { font-size: 1.25rem; margin: 32px 0 12px; color: var(--accent); }
+h4 { font-size: 1.05rem; margin: 20px 0 8px; color: var(--warn); }
+p { margin: 8px 0; color: var(--muted); }
+.subtitle { color: var(--muted); font-size: 1.1rem; margin-bottom: 32px; }
+.mermaid { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin: 20px 0; overflow-x: auto; position: relative; }
+.mermaid.is-enhanced { padding: 0; overflow: hidden; min-height: 260px; }
+.mermaid-viewport { padding: 54px 24px 24px; overflow: hidden; cursor: grab; touch-action: none; min-height: 260px; }
+.mermaid-viewport.is-dragging { cursor: grabbing; }
+.mermaid-viewport svg { max-width: none !important; height: auto; transform-origin: 0 0; transition: transform 120ms ease; }
+.mermaid-toolbar { position: absolute; top: 10px; right: 10px; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 6px; background: rgba(15,23,42,0.92); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.28); }
+.mermaid-toolbar button, .mermaid-toolbar .zoom-level { height: 28px; min-width: 32px; border: 1px solid var(--border); border-radius: 6px; background: #1e293b; color: var(--text); font: 600 0.78rem system-ui, sans-serif; display: inline-flex; align-items: center; justify-content: center; }
+.mermaid-toolbar button { cursor: pointer; }
+.mermaid-toolbar button:hover { border-color: var(--accent); color: var(--accent); }
+.mermaid-toolbar .zoom-level { min-width: 52px; color: var(--muted); background: transparent; }
+.call-table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }
+.call-table th { background: #1a2744; color: var(--accent); text-align: left; padding: 10px 14px; border: 1px solid var(--border); }
+.call-table td { padding: 8px 14px; border: 1px solid var(--border); vertical-align: top; }
+.call-table tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+.tag-async { background: #7c3aed33; color: #a78bfa; }
+.tag-class { background: #05966933; color: var(--ok); }
+.tag-func { background: #2563eb33; color: var(--accent); }
+.tag-cmd { background: #d9770633; color: var(--warn); }
+.tag-endpoint { background: #dc262633; color: var(--err); }
+.tag-hook { background: #db277733; color: #f472b6; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 16px 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin: 16px 0; }
+.arrow-chain { font-family: 'Fira Code', monospace; font-size: 0.85rem; color: var(--accent); padding: 10px; background: rgba(56,189,248,0.06); border-radius: 6px; }
+code { font-family: 'Fira Code', 'Cascadia Code', monospace; background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 3px; font-size: 0.88em; }
+ul, ol { margin: 8px 0 8px 24px; color: var(--muted); }
+li { margin: 4px 0; }
+a { color: var(--accent); }
+hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+.nav { position: sticky; top: 0; background: var(--bg); z-index: 10; padding: 12px 0; border-bottom: 1px solid var(--border); display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.9rem; }
+.nav a { text-decoration: none; }
+.nav a:hover { text-decoration: underline; }
+@media (max-width: 768px) { .container { padding: 16px; } h1 { font-size: 1.8rem; } }
+
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>personal-mcp-servicenow — Complete Call Flow &amp; Architecture Documentation</h1>
+<p class="subtitle">Generated from graphify knowledge graph: 2904 nodes, 5518 edges, 134 communities. Commit: 02f9524</p>
+
+<div class="nav">
+    <a href="#overview">Architecture Overview</a>
+    <a href="#extract-pipeline">Extraction Pipeline</a>
+    <a href="#build-graph">Graph Build</a>
+    <a href="#analysis-clustering">Analysis &amp; Clustering</a>
+    <a href="#outputs-docs">Outputs &amp; Docs</a>
+    <a href="#ingest-cache-update">Ingestion &amp; Updates</a>
+    <a href="#serve-api">Serving API</a>
+    <a href="#tests-fixtures">Tests &amp; Fixtures</a>
+    <a href="#personal-mcp-servicenow">personal mcp servicenow</a>
+</div>
+
+<!-- ====== Architecture Overview ====== -->
+<h2 id="overview">1. Architecture Overview</h2>
+
+<div class="mermaid">
+
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    EXTRACT_PIPELINE_5F350230("Extraction Pipeline<br/><small>15 nodes</small>")
+    class EXTRACT_PIPELINE_5F350230 module;
+    BUILD_GRAPH_321CBB04("Graph Build<br/><small>79 nodes</small>")
+    class BUILD_GRAPH_321CBB04 module;
+    ANALYSIS_CLUSTERING_C79796DA("Analysis &amp; Clustering<br/><small>118 nodes</small>")
+    class ANALYSIS_CLUSTERING_C79796DA module;
+    OUTPUTS_DOCS_ED82387C("Outputs &amp; Docs<br/><small>77 nodes</small>")
+    class OUTPUTS_DOCS_ED82387C module;
+    INGEST_CACHE_UPDATE_FF457338("Ingestion &amp; Updates<br/><small>12 nodes</small>")
+    class INGEST_CACHE_UPDATE_FF457338 module;
+    SERVE_API_35EC8E86("Serving API<br/><small>60 nodes</small>")
+    class SERVE_API_35EC8E86 module;
+    TESTS_FIXTURES_B84B1DCC("Tests &amp; Fixtures<br/><small>2542 nodes</small>")
+    class TESTS_FIXTURES_B84B1DCC module;
+    PERSONAL_MCP_SERVICENOW_87392569("personal mcp servicenow<br/><small>1 nodes</small>")
+    class PERSONAL_MCP_SERVICENOW_87392569 module;
+    TESTS_FIXTURES_B84B1DCC -->|calls x78| ANALYSIS_CLUSTERING_C79796DA
+    ANALYSIS_CLUSTERING_C79796DA -->|imports x66| TESTS_FIXTURES_B84B1DCC
+    TESTS_FIXTURES_B84B1DCC -->|calls x63| SERVE_API_35EC8E86
+    EXTRACT_PIPELINE_5F350230 -->|imports x9| TESTS_FIXTURES_B84B1DCC
+    TESTS_FIXTURES_B84B1DCC -->|imports x8| EXTRACT_PIPELINE_5F350230
+    SERVE_API_35EC8E86 -->|calls x8| TESTS_FIXTURES_B84B1DCC
+    SERVE_API_35EC8E86 -->|relates x5| OUTPUTS_DOCS_ED82387C
+    INGEST_CACHE_UPDATE_FF457338 -->|contains x4| BUILD_GRAPH_321CBB04
+    ANALYSIS_CLUSTERING_C79796DA -->|contains x3| EXTRACT_PIPELINE_5F350230
+    EXTRACT_PIPELINE_5F350230 -->|imports x3| ANALYSIS_CLUSTERING_C79796DA
+    BUILD_GRAPH_321CBB04 -->|semantically similar to x3| OUTPUTS_DOCS_ED82387C
+    ANALYSIS_CLUSTERING_C79796DA -->|explains x3| OUTPUTS_DOCS_ED82387C
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h4>Architecture Layers</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>Layer</th><th>Nodes</th><th>Communities</th></tr>
+      <tr><td>Extraction Pipeline</td><td>15</td><td><code>60</code></td></tr><tr><td>Graph Build</td><td>79</td><td><code>39, 66, 87, 110, 111, 112, 113, 118, 124</code></td></tr><tr><td>Analysis &amp; Clustering</td><td>118</td><td><code>5, 23, 91</code></td></tr><tr><td>Outputs &amp; Docs</td><td>77</td><td><code>68, 72, 81, 82, 96, 97, 107, 108</code></td></tr><tr><td>Ingestion &amp; Updates</td><td>12</td><td><code>75</code></td></tr><tr><td>Serving API</td><td>60</td><td><code>37, 67, 92, 93, 119</code></td></tr><tr><td>Tests &amp; Fixtures</td><td>2542</td><td><code>0, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 61, 62, 63, 64, 65, 69, 70, 71, 73, 74, 76, 77, 78, 79, 80, 83, 84, 85, 86, 88, 89, 90, 94, 95, 100, 101, 102, 103, 104, 105, 106, 98, 99, 109, 114, 115, 116, 117, 120, 121, 122, 123, 125, 126, 127, 128, 129, 130, 131, 132</code></td></tr><tr><td>personal mcp servicenow</td><td>1</td><td><code>133</code></td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Core Flow</h4>
+    <div class="arrow-chain">Ingestion &amp; Updates -&gt; Graph Build -&gt; Outputs &amp; Docs -&gt; Analysis &amp; Clustering -&gt; Tests &amp; Fixtures -&gt; Serving API -&gt; Extraction Pipeline</div>
+  </div>
+</div>
+<div class="grid">
+  <div class="card">
+    <h4>Graph Report Highlights</h4>
+    <ul>
+      <li>2904 nodes · 5518 edges · 134 communities (127 shown, 7 thin omitted)</li>
+      <li>Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 388 edges (avg confidence: 0.6)</li>
+      <li>Token cost: 90,000 input · 31,226 output</li>
+      <li>1. `ServiceNowRequestError` - 97 edges</li>
+      <li>2. `ErrorCode` - 68 edges</li>
+      <li>3. `ServiceNowOAuthClient` - 59 edges</li>
+    </ul>
+  </div>
+</div>
+<hr>
+<!-- ====== 2. Extraction Pipeline ====== -->
+<h2 id="extract-pipeline">2. Extraction Pipeline</h2>
+<p>Extraction Pipeline groups implementation around utilspy, filter, extract, validatorpy, mostly in utils.py, filter/validator.py, filter/intelligence.py. This section covers 15 nodes and 18 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Extraction Pipeline (15 nodes, 18 edges)
+    subgraph extract_pipeline_utils_py_6755b25b["utils.py"]
+        utils_refine_query_1875a8a5("refine_query()<br/><small>utils.py</small>")
+        utils_extract_keywords_22eb8f67("extract_keywords()<br/><small>utils.py</small>")
+        utils_extract_content_keywords_213cedc9("_extract_content_keywords()<br/><small>utils.py</small>")
+        utils_extract_record_numbers_648fc9c8("_extract_record_numbers()<br/><small>utils.py</small>")
+        utils_d988e7fc("utils.py")
+        utils_rationale_49_1fc9a604("Extract ServiceNow record numbers from...<br/><small>utils.py</small>")
+        utils_rationale_58_2053ac9f("Extract content keywords using basic te...<br/><small>utils.py</small>")
+        utils_rationale_24_06762f88("Extract relevant keywords from input te...<br/><small>utils.py</small>")
+        utils_rationale_73_19d38731("Refine input text for search queries.<br/><small>utils.py</small>")
+    end
+    subgraph extract_pipeline_filter_validator_py_57987ce7["filter/validator.py"]
+        filter_validator_validate_and_correct_filters_3c5a63ef("and correct filters()<br/><small>filter/validator.py</small>")
+        filter_validator_correct_date_ed04600b("_correct_date()<br/><small>filter/validator.py</small>")
+        filter_validator_rationale_188_139e0b6c("Return (corrected_value, suggestion_or_...<br/><small>filter/validator.py</small>")
+        filter_validator_rationale_196_b1ca3f56("Validate filters and auto-correct commo...<br/><small>filter/validator.py</small>")
+    end
+    subgraph extract_pipeline_filter_intelligence_py_63d6d65e["filter/intelligence.py"]
+        filter_intelligence_66074f06("intelligence.py")
+        filter_intelligence_rationale_1_748f6d1e("Natural-language to ServiceNow filter c...<br/><small>filter/intelligence.py</small>")
+    end
+    filter_validator_validate_and_correct_filters_3c5a63ef -->|calls| filter_validator_correct_date_ed04600b
+    utils_extract_keywords_22eb8f67 -->|calls| utils_extract_content_keywords_213cedc9
+    utils_extract_keywords_22eb8f67 -->|calls| utils_extract_record_numbers_648fc9c8
+    utils_refine_query_1875a8a5 -->|calls| utils_extract_keywords_22eb8f67
+    filter_intelligence_66074f06 -->|imports| filter_validator_validate_and_correct_filters_3c5a63ef
+    filter_intelligence_66074f06 -->|imports| utils_d988e7fc
+    filter_intelligence_66074f06 -->|imports| utils_extract_keywords_22eb8f67
+    class utils_refine_query_1875a8a5 function;
+    class utils_extract_keywords_22eb8f67 function;
+    class utils_extract_content_keywords_213cedc9 function;
+    class utils_extract_record_numbers_648fc9c8 function;
+    class utils_d988e7fc module;
+    class utils_rationale_49_1fc9a604 concept;
+    class utils_rationale_58_2053ac9f concept;
+    class utils_rationale_24_06762f88 concept;
+    class utils_rationale_73_19d38731 concept;
+    class filter_validator_validate_and_correct_filters_3c5a63ef function;
+    class filter_validator_correct_date_ed04600b function;
+    class filter_validator_rationale_188_139e0b6c concept;
+    class filter_validator_rationale_196_b1ca3f56 concept;
+    class filter_intelligence_66074f06 module;
+    class filter_intelligence_rationale_1_748f6d1e concept;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>intelligence.py</code><br><small style="color:var(--muted)">filter/intelligence.py</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>explainer.py</code><br><small style="color:var(--muted)">filter/explainer.py</small></td>
+  <td><code>and correct filters()</code><br><small style="color:var(--muted)">filter/validator.py</small><br><code>constants.py</code><br><small style="color:var(--muted)">constants.py</small><br><code>extract_keywords()</code><br><small style="color:var(--muted)">utils.py</small><br>+6 more</td>
+  <td>Module file in filter/intelligence.py.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Natural-language to ServiceNow filter conversion. Pure NL parsing — does not…</code><br><small style="color:var(--muted)">filter/intelligence.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Natural-language to ServiceNow filter conversion. Pure NL parsing — does not….</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>_correct_date()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>and correct filters()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_correct_date() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>validate_and_correct_filters()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_validate_and_improve_filters()</code><br><small style="color:var(--muted)">filter/intelligence.py</small><br><code>intelligence.py</code><br><small style="color:var(--muted)">filter/intelligence.py</small></td>
+  <td><code>_correct_date()</code><br><small style="color:var(--muted)">filter/validator.py</small><br><code>_correct_priority()</code><br><small style="color:var(--muted)">filter/validator.py</small><br><code>validate_query_filters()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>validate_and_correct_filters() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>Return (corrected_value, suggestion_or_None) for a sys_created_on field.</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Return (corrected_value, suggestion_or_None) for a sys_created_on field..</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Validate filters and auto-correct common syntax issues. Returns a result with…</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Validate filters and auto-correct common syntax issues. Returns a result with….</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>utils.py</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>cmdb_tools.py</code><br><small style="color:var(--muted)">Table_Tools/cmdb_tools.py</small><br><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>intelligence.py</code><br><small style="color:var(--muted)">filter/intelligence.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in utils.py.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>extract_keywords()</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_keyword_fallback()</code><br><small style="color:var(--muted)">filter/intelligence.py</small><br><code>cmdb_tools.py</code><br><small style="color:var(--muted)">Table_Tools/cmdb_tools.py</small><br><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br>+3 more</td>
+  <td><code>_extract_content_keywords()</code><br><small style="color:var(--muted)">utils.py</small><br><code>_extract_record_numbers()</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td>extract_keywords() node in utils.py.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>_extract_record_numbers()</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>extract_keywords()</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_extract_record_numbers() node in utils.py.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>_extract_content_keywords()</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>extract_keywords()</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_extract_content_keywords() node in utils.py.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>refine_query()</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>extract_keywords()</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td>refine_query() node in utils.py.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>Extract relevant keywords from input text using lightweight regex patterns.…</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Extract relevant keywords from input text using lightweight regex patterns.….</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>Extract ServiceNow record numbers from text.</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Extract ServiceNow record numbers from text..</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>Extract content keywords using basic text processing.</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Extract content keywords using basic text processing..</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>Refine input text for search queries.</code><br><small style="color:var(--muted)">utils.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Refine input text for search queries..</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>utils.py</code></td><td>9 nodes</td></tr>
+<tr><td><code>filter/validator.py</code></td><td>4 nodes</td></tr>
+<tr><td><code>filter/intelligence.py</code></td><td>2 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: explains x7, calls x4, contains x4, imports x2. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 3. Graph Build ====== -->
+<h2 id="build-graph">3. Graph Build</h2>
+<p>Graph Build groups implementation around manifestjson, build, mcpbpy, scripts, mostly in manifest.json, scripts/build_mcpb.py, CHANGELOG.md. This section covers 79 nodes and 90 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Graph Build (79 nodes, 90 edges)
+    subgraph build_graph_scripts_build_mcpb_py_43845605["scripts/build_mcpb.py"]
+        scripts_build_mcpb_main_eb0487be("main()<br/><small>scripts/build_mcpb.py</small>")
+        scripts_build_mcpb_assert_versions_aligned_290e645f("assert_versions_aligned()<br/><small>scripts/build_mcpb.py</small>")
+        scripts_build_mcpb_assert_no_leaks_b2fc7a9a("assert_no_leaks()<br/><small>scripts/build_mcpb.py</small>")
+        scripts_build_mcpb_copy_package_dirs_e82b4e2a("copy_package_dirs()<br/><small>scripts/build_mcpb.py</small>")
+        scripts_build_mcpb_copy_root_files_596a6897("copy_root_files()<br/><small>scripts/build_mcpb.py</small>")
+        scripts_build_mcpb_read_main_version_776c320b("read_main_version()<br/><small>scripts/build_mcpb.py</small>")
+        scripts_build_mcpb_fail_5da4d019("fail()<br/><small>scripts/build_mcpb.py</small>")
+        scripts_build_mcpb_read_manifest_version_3ed9c482("read_manifest_version()<br/><small>scripts/build_mcpb.py</small>")
+        scripts_build_mcpb_read_pyproject_version_42eb3fc7("read_pyproject_version()<br/><small>scripts/build_mcpb.py</small>")
+        scripts_build_mcpb_resolve_mcpb_f94e463f("resolve_mcpb()<br/><small>scripts/build_mcpb.py</small>")
+        scripts_build_mcpb_clean_staging_fbf530c2("clean_staging()<br/><small>scripts/build_mcpb.py</small>")
+        scripts_build_mcpb_run_mcpb_6eb75376("run_mcpb()<br/><small>scripts/build_mcpb.py</small>")
+    end
+    subgraph build_graph_CHANGELOG_md_f018e3fa["CHANGELOG.md"]
+        changelog_v430_mcpb_packaging_95614381("Claude Desktop MCPB Packaging<br/><small>CHANGELOG.md</small>")
+        changelog_v440_partial_read_eadcaa6a("Partial Read with partial:true<br/><small>CHANGELOG.md</small>")
+        changelog_v440_servicenow_request_error_07e89193("ServiceNowRequestError<br/><small>CHANGELOG.md</small>")
+        changelog_v440_error_code_vocabulary_b29d42c5("Seven-Code Error Vocabulary<br/><small>CHANGELOG.md</small>")
+    end
+    github_workflows_release_mcpb_bundle_7026b126("MCPB Bundle Artifact<br/><small>.github/workflows/release.yaml</small>")
+    scripts_build_mcpb_py_path_2b8338fd("Path")
+    scripts_build_mcpb_copy_root_files_596a6897 -->|calls| scripts_build_mcpb_fail_5da4d019
+    scripts_build_mcpb_copy_package_dirs_e82b4e2a -->|calls| scripts_build_mcpb_fail_5da4d019
+    scripts_build_mcpb_assert_no_leaks_b2fc7a9a -->|calls| scripts_build_mcpb_fail_5da4d019
+    scripts_build_mcpb_read_main_version_776c320b -->|calls| scripts_build_mcpb_fail_5da4d019
+    scripts_build_mcpb_assert_versions_aligned_290e645f -->|calls| scripts_build_mcpb_fail_5da4d019
+    scripts_build_mcpb_assert_versions_aligned_290e645f -->|calls| scripts_build_mcpb_read_main_version_776c320b
+    scripts_build_mcpb_assert_versions_aligned_290e645f -->|calls| scripts_build_mcpb_read_manifest_version_3ed9c482
+    scripts_build_mcpb_assert_versions_aligned_290e645f -->|calls| scripts_build_mcpb_read_pyproject_version_42eb3fc7
+    scripts_build_mcpb_resolve_mcpb_f94e463f -->|calls| scripts_build_mcpb_fail_5da4d019
+    scripts_build_mcpb_main_eb0487be -->|calls| scripts_build_mcpb_assert_no_leaks_b2fc7a9a
+    scripts_build_mcpb_main_eb0487be -->|calls| scripts_build_mcpb_assert_versions_aligned_290e645f
+    scripts_build_mcpb_main_eb0487be -->|calls| scripts_build_mcpb_clean_staging_fbf530c2
+    scripts_build_mcpb_main_eb0487be -->|calls| scripts_build_mcpb_copy_package_dirs_e82b4e2a
+    scripts_build_mcpb_main_eb0487be -->|calls| scripts_build_mcpb_copy_root_files_596a6897
+    scripts_build_mcpb_main_eb0487be -->|calls| scripts_build_mcpb_resolve_mcpb_f94e463f
+    scripts_build_mcpb_main_eb0487be -->|calls| scripts_build_mcpb_run_mcpb_6eb75376
+    %% Omitted for readability: 61 nodes, 0 edges
+    class scripts_build_mcpb_main_eb0487be function;
+    class scripts_build_mcpb_assert_versions_aligned_290e645f async;
+    class scripts_build_mcpb_assert_no_leaks_b2fc7a9a async;
+    class scripts_build_mcpb_copy_package_dirs_e82b4e2a function;
+    class scripts_build_mcpb_copy_root_files_596a6897 function;
+    class scripts_build_mcpb_read_main_version_776c320b function;
+    class scripts_build_mcpb_fail_5da4d019 function;
+    class scripts_build_mcpb_read_manifest_version_3ed9c482 function;
+    class scripts_build_mcpb_read_pyproject_version_42eb3fc7 function;
+    class scripts_build_mcpb_resolve_mcpb_f94e463f function;
+    class scripts_build_mcpb_clean_staging_fbf530c2 function;
+    class scripts_build_mcpb_run_mcpb_6eb75376 function;
+    class changelog_v430_mcpb_packaging_95614381 klass;
+    class changelog_v440_partial_read_eadcaa6a klass;
+    class changelog_v440_servicenow_request_error_07e89193 klass;
+    class changelog_v440_error_code_vocabulary_b29d42c5 klass;
+    class github_workflows_release_mcpb_bundle_7026b126 klass;
+    class scripts_build_mcpb_py_path_2b8338fd klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>build_mcpb.py</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Module file in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>fail()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>assert_no_leaks()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small><br><code>assert_versions_aligned()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small><br><code>copy_package_dirs()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small><br>+3 more</td>
+  <td>No direct outbound edge</td>
+  <td>fail() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>clean_staging()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>main()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>clean_staging() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>copy_root_files()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>main()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><code>fail()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td>copy_root_files() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>copy_package_dirs()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>main()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><code>fail()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td>copy_package_dirs() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>assert_no_leaks()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-async">Async</span></td>
+  <td><code>main()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><code>fail()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td>assert_no_leaks() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>read_manifest_version()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>assert_versions_aligned()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>read_manifest_version() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>read_pyproject_version()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>assert_versions_aligned()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>read_pyproject_version() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>read_main_version()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>assert_versions_aligned()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><code>fail()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td>read_main_version() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>assert_versions_aligned()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-async">Async</span></td>
+  <td><code>main()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><code>fail()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small><br><code>read_main_version()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small><br><code>read_manifest_version()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small><br>+1 more</td>
+  <td>assert_versions_aligned() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>resolve_mcpb()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>main()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><code>fail()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td>resolve_mcpb() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>run_mcpb()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>main()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>run_mcpb() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>Path</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Path node in project.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>main()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>assert_no_leaks()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small><br><code>assert_versions_aligned()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small><br><code>clean_staging()</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small><br>+4 more</td>
+  <td>main() node in scripts/build_mcpb.py.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>Build the Claude Desktop Extension (.mcpb) bundle. A .mcpb is a zip of…</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Build the Claude Desktop Extension (.mcpb) bundle. A .mcpb is a zip of….</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>Print an error and exit nonzero.</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Print an error and exit nonzero..</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>Remove any prior staging dir and recreate it empty.</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Remove any prior staging dir and recreate it empty..</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>Copy whitelisted root files into staging. Returns count copied.</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Copy whitelisted root files into staging. Returns count copied..</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>Copy .py files from each package dir (no __pycache__). Returns count.</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Copy .py files from each package dir (no __pycache__). Returns count..</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>Hard-fail if secrets or build junk landed in staging.</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Hard-fail if secrets or build junk landed in staging..</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>Ensure all three version sources agree. Returns the version.</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Ensure all three version sources agree. Returns the version..</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>Resolve the mcpb CLI (mcpb / mcpb.cmd on Windows) or fail.</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Resolve the mcpb CLI (mcpb / mcpb.cmd on Windows) or fail..</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>Validate the staged manifest then pack the bundle. Returns bundle path.</code><br><small style="color:var(--muted)">scripts/build_mcpb.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Validate the staged manifest then pack the bundle. Returns bundle path..</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>GitHub Actions MCPB Release Workflow</code><br><small style="color:var(--muted)">.github/workflows/release.yaml</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing GitHub Actions MCPB Release Workflow.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>MCPB Bundle Artifact</code><br><small style="color:var(--muted)">.github/workflows/release.yaml</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>MCPB Bundle Artifact node in .github/workflows/release.yaml.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>v4.4 Read-Failure Contract</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>v4.4 Read-Failure Contract node in CHANGELOG.md.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>ServiceNowRequestError</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>ServiceNowRequestError node in CHANGELOG.md.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>Seven-Code Error Vocabulary</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Seven-Code Error Vocabulary node in CHANGELOG.md.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>Partial Read with partial:true</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Partial Read with partial:true node in CHANGELOG.md.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>Claude Desktop MCPB Packaging</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Claude Desktop MCPB Packaging node in CHANGELOG.md.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>manifest.json</code></td><td>43 nodes</td></tr>
+<tr><td><code>scripts/build_mcpb.py</code></td><td>22 nodes</td></tr>
+<tr><td><code>CHANGELOG.md</code></td><td>5 nodes</td></tr>
+<tr><td><code>docs/MCPB_BUILD.md</code></td><td>4 nodes</td></tr>
+<tr><td><code>.github/workflows/release.yaml</code></td><td>2 nodes</td></tr>
+<tr><td><code>README.md</code></td><td>2 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x40, calls x16, extends x11, explains x9. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 4. Analysis & Clustering ====== -->
+<h2 id="analysis-clustering">4. Analysis &amp; Clustering</h2>
+<p>Analysis &amp; Clustering groups implementation around query, filter, test, validatorpy, mostly in filter/validator.py, tests/test_query_validation.py, Table_Tools/intelligent_query_tools.py. This section covers 118 nodes and 189 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Analysis &amp; Clustering (118 nodes, 189 edges)
+    subgraph analysis_clustering_filter_validator_py_5c2d6006["filter/validator.py"]
+        filter_validator_3c048c4b("validator.py")
+        filter_validator_validate_query_filters_7d792a10("validate_query_filters()<br/><small>filter/validator.py</small>")
+        filter_validator_validate_priority_filter_a491d16e("validate_priority_filter()<br/><small>filter/validator.py</small>")
+        filter_validator_has_comma_syntax_issue_5005a1f1("_has_comma_syntax_issue()<br/><small>filter/validator.py</small>")
+        filter_validator_has_or_format_issue_0c521966("_has_or_format_issue()<br/><small>filter/validator.py</small>")
+        filter_validator_should_suggest_numeric_format_efd8e935("suggest numeric format()<br/><small>filter/validator.py</small>")
+        filter_validator_validate_date_range_filter_5d5ba177("validate_date_range_filter()<br/><small>filter/validator.py</small>")
+        filter_validator_validate_incident_result_count_8bec5c40("incident result count()<br/><small>filter/validator.py</small>")
+    end
+    subgraph analysis_clustering_Table_Tools_intelligent_quer_6b251c9c["Table_Tools/intelligent_query_tools.py"]
+        table_tools_intelligent_query_tools_eb16ba2d("intelligent_query_tools.py")
+        table_tools_intelligent_query_tools_intelligent_7f829397("intelligent_search()<br/><small>Table_Tools/intelligent_query_tools.py</small>")
+        table_tools_intelligent_query_tools_build_smart_b7f9231c("smart servicenow filter()<br/><small>Table_Tools/intelligent_query_tools.py</small>")
+    end
+    subgraph analysis_clustering_Table_Tools_read_helpers_py_b0f8c0a6["Table_Tools/read_helpers.py"]
+        table_tools_read_helpers_carry_partial_0ad0f0c9("carry_partial()<br/><small>Table_Tools/read_helpers.py</small>")
+        table_tools_read_helpers_is_read_failure_ae9737c4("is_read_failure()<br/><small>Table_Tools/read_helpers.py</small>")
+        table_tools_read_helpers_carry_partial_after_fil_5e2da70a("carry_partial_after_filter()<br/><small>Table_Tools/read_helpers.py</small>")
+    end
+    subgraph analysis_clustering_tests_test_query_validation_e3f900ce["tests/test_query_validation.py"]
+        tests_test_query_validation_testdebugqueryconstr_c4c0ae98("TestDebugQueryConstruction<br/><small>tests/test_query_validation.py</small>")
+        tests_test_query_validation_bf2a9d67("test_query_validation.py")
+    end
+    table_tools_generic_table_tools_build_and_valida_e812057a("validate smart filter()<br/><small>Table_Tools/generic_table_tools.py</small>")
+    filter_init_9e70a4f6("__init__.py")
+    table_tools_generic_table_tools_build_and_valida_e812057a -->|calls| filter_validator_validate_query_filters_7d792a10
+    table_tools_intelligent_query_tools_intelligent_7f829397 -->|calls| table_tools_read_helpers_carry_partial_0ad0f0c9
+    table_tools_intelligent_query_tools_intelligent_7f829397 -->|calls| table_tools_read_helpers_is_read_failure_ae9737c4
+    table_tools_intelligent_query_tools_build_smart_b7f9231c -->|calls| table_tools_generic_table_tools_build_and_valida_e812057a
+    table_tools_read_helpers_carry_partial_after_fil_5e2da70a -->|calls| table_tools_read_helpers_carry_partial_0ad0f0c9
+    filter_validator_validate_priority_filter_a491d16e -->|calls| filter_validator_has_comma_syntax_issue_5005a1f1
+    filter_validator_validate_priority_filter_a491d16e -->|calls| filter_validator_has_or_format_issue_0c521966
+    filter_validator_validate_priority_filter_a491d16e -->|calls| filter_validator_should_suggest_numeric_format_efd8e935
+    filter_validator_validate_query_filters_7d792a10 -->|calls| filter_validator_validate_date_range_filter_5d5ba177
+    filter_validator_validate_query_filters_7d792a10 -->|calls| filter_validator_validate_priority_filter_a491d16e
+    table_tools_intelligent_query_tools_eb16ba2d -->|imports| table_tools_generic_table_tools_build_and_valida_e812057a
+    table_tools_intelligent_query_tools_eb16ba2d -->|imports| table_tools_read_helpers_carry_partial_0ad0f0c9
+    table_tools_intelligent_query_tools_eb16ba2d -->|imports| table_tools_read_helpers_is_read_failure_ae9737c4
+    filter_init_9e70a4f6 -->|imports| filter_validator_validate_date_range_filter_5d5ba177
+    filter_init_9e70a4f6 -->|imports| filter_validator_validate_priority_filter_a491d16e
+    filter_init_9e70a4f6 -->|imports| filter_validator_validate_query_filters_7d792a10
+    tests_test_query_validation_bf2a9d67 -->|imports| filter_validator_validate_date_range_filter_5d5ba177
+    tests_test_query_validation_bf2a9d67 -->|imports| filter_validator_validate_priority_filter_a491d16e
+    tests_test_query_validation_bf2a9d67 -->|imports| filter_validator_validate_query_filters_7d792a10
+    %% Omitted for readability: 100 nodes, 0 edges
+    class filter_validator_3c048c4b module;
+    class filter_validator_validate_query_filters_7d792a10 function;
+    class filter_validator_validate_priority_filter_a491d16e function;
+    class filter_validator_has_comma_syntax_issue_5005a1f1 function;
+    class filter_validator_has_or_format_issue_0c521966 function;
+    class filter_validator_should_suggest_numeric_format_efd8e935 function;
+    class filter_validator_validate_date_range_filter_5d5ba177 function;
+    class filter_validator_validate_incident_result_count_8bec5c40 function;
+    class table_tools_intelligent_query_tools_eb16ba2d module;
+    class table_tools_intelligent_query_tools_intelligent_7f829397 function;
+    class table_tools_intelligent_query_tools_build_smart_b7f9231c function;
+    class table_tools_read_helpers_carry_partial_0ad0f0c9 function;
+    class table_tools_read_helpers_is_read_failure_ae9737c4 function;
+    class table_tools_read_helpers_carry_partial_after_fil_5e2da70a function;
+    class tests_test_query_validation_testdebugqueryconstr_c4c0ae98 test;
+    class tests_test_query_validation_bf2a9d67 test;
+    class table_tools_generic_table_tools_build_and_valida_e812057a function;
+    class filter_init_9e70a4f6 module;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>filter/__init__.py</code><br><small style="color:var(--muted)">filter/__init__.py</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>build_pagination_params()</code><br><small style="color:var(--muted)">filter/validator.py</small><br><code>build_smart_filter()</code><br><small style="color:var(--muted)">filter/intelligence.py</small><br><code>debug_query_construction()</code><br><small style="color:var(--muted)">filter/validator.py</small><br>+14 more</td>
+  <td>Module file in filter/__init__.py.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>Filter pipeline — ServiceNow query construction, validation, NL parsing,…</code><br><small style="color:var(--muted)">filter/__init__.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Filter pipeline — ServiceNow query construction, validation, NL parsing,….</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>builder.py</code><br><small style="color:var(--muted)">filter/builder.py</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Module file in filter/builder.py.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>ServiceNowQueryBuilder</code><br><small style="color:var(--muted)">filter/builder.py</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td><code>__init__.py</code><br><small style="color:var(--muted)">filter/__init__.py</small><br><code>setUp()</code><br><small style="color:var(--muted)">tests/test_filtering.py</small><br><code>setUp()</code><br><small style="color:var(--muted)">tests/test_filtering.py</small><br>+3 more</td>
+  <td><code>build_complete_filter()</code><br><small style="color:var(--muted)">filter/builder.py</small><br><code>build_date_range_filter()</code><br><small style="color:var(--muted)">filter/builder.py</small><br><code>build_exclusion_filter()</code><br><small style="color:var(--muted)">filter/builder.py</small><br>+2 more</td>
+  <td>ServiceNowQueryBuilder node in filter/builder.py.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>ServiceNow query-string builder. Static helpers that emit syntactically-correct…</code><br><small style="color:var(--muted)">filter/builder.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for ServiceNow query-string builder. Static helpers that emit syntactically-correct….</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>Helper class for building ServiceNow queries with proper syntax.</code><br><small style="color:var(--muted)">filter/builder.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Helper class for building ServiceNow queries with proper syntax..</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>models.py</code><br><small style="color:var(--muted)">filter/models.py</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>intelligence.py</code><br><small style="color:var(--muted)">filter/intelligence.py</small><br><code>validator.py</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>Module file in filter/models.py.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>Pydantic models and result containers for the filter pipeline.</code><br><small style="color:var(--muted)">filter/models.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Pydantic models and result containers for the filter pipeline..</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>validator.py</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>intelligence.py</code><br><small style="color:var(--muted)">filter/intelligence.py</small></td>
+  <td><code>constants.py</code><br><small style="color:var(--muted)">constants.py</small><br><code>models.py</code><br><small style="color:var(--muted)">filter/models.py</small><br><code>QueryValidationResult</code><br><small style="color:var(--muted)">filter/models.py</small><br>+1 more</td>
+  <td>Module file in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>_has_comma_syntax_issue()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>validate_priority_filter()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_has_comma_syntax_issue() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>_has_or_format_issue()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>validate_priority_filter()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_has_or_format_issue() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>_should_suggest_numeric_format()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>validate_priority_filter()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_should_suggest_numeric_format() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>validate_priority_filter()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>__init__.py</code><br><small style="color:var(--muted)">filter/__init__.py</small><br><code>test_query_validation.py</code><br><small style="color:var(--muted)">tests/test_query_validation.py</small><br><code>test_validate_priority_filter_comma_syntax_warning()</code><br><small style="color:var(--muted)">tests/test_query_validation.py</small><br>+7 more</td>
+  <td><code>_has_comma_syntax_issue()</code><br><small style="color:var(--muted)">filter/validator.py</small><br><code>_has_or_format_issue()</code><br><small style="color:var(--muted)">filter/validator.py</small><br><code>suggest numeric format()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>validate_priority_filter() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>validate_date_range_filter()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>__init__.py</code><br><small style="color:var(--muted)">filter/__init__.py</small><br><code>test_query_validation.py</code><br><small style="color:var(--muted)">tests/test_query_validation.py</small><br><code>test_validate_date_range_filter_between_without_javascript()</code><br><small style="color:var(--muted)">tests/test_query_validation.py</small><br>+6 more</td>
+  <td>No direct outbound edge</td>
+  <td>validate_date_range_filter() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>validate_query_filters()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>__init__.py</code><br><small style="color:var(--muted)">filter/__init__.py</small><br><code>and correct filters()</code><br><small style="color:var(--muted)">filter/validator.py</small><br><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br>+11 more</td>
+  <td><code>validate_date_range_filter()</code><br><small style="color:var(--muted)">filter/validator.py</small><br><code>validate_priority_filter()</code><br><small style="color:var(--muted)">filter/validator.py</small><br><code>validate_reference_field()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>validate_query_filters() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>_is_high_priority_query()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>incident result count()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_is_high_priority_query() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>_validate_incident_result_count()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>validate_result_count()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><code>_is_high_priority_query()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>_validate_incident_result_count() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>validate_result_count()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>__init__.py</code><br><small style="color:var(--muted)">filter/__init__.py</small><br><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>query_table_with_filters()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br>+7 more</td>
+  <td><code>incident result count()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>validate_result_count() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>cross_verify_critical_incidents()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>__init__.py</code><br><small style="color:var(--muted)">filter/__init__.py</small><br><code>test_cross_verify_critical_incidents()</code><br><small style="color:var(--muted)">tests/test_query_validation.py</small><br><code>test_query_validation.py</code><br><small style="color:var(--muted)">tests/test_query_validation.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>cross_verify_critical_incidents() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>Any</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Any node in project.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>build_pagination_params()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>__init__.py</code><br><small style="color:var(--muted)">filter/__init__.py</small><br><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_build_pagination_params_custom()</code><br><small style="color:var(--muted)">tests/test_query_validation.py</small><br>+3 more</td>
+  <td>No direct outbound edge</td>
+  <td>build_pagination_params() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>suggest_query_improvements()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>__init__.py</code><br><small style="color:var(--muted)">filter/__init__.py</small><br><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_query_validation.py</code><br><small style="color:var(--muted)">tests/test_query_validation.py</small><br>+4 more</td>
+  <td>No direct outbound edge</td>
+  <td>suggest_query_improvements() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>_analyze_date_filtering()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>debug_query_construction()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>_analyze_priority_filtering()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>debug_query_construction()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>_analyze_caller_exclusion()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>debug_query_construction()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>_analyze_javascript_functions()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>debug_query_construction()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>_analyze_url_encoding()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>debug_query_construction()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>_analyze_original_filters()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>debug_query_construction()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>Orchestrates analysis and returns structured documentation data.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>debug_query_construction()</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>__init__.py</code><br><small style="color:var(--muted)">filter/__init__.py</small><br><code>test_debug_query_construction_basic()</code><br><small style="color:var(--muted)">tests/test_query_validation.py</small><br><code>test_debug_query_construction_caller_exclusion_detection()</code><br><small style="color:var(--muted)">tests/test_query_validation.py</small><br>+10 more</td>
+  <td><code>_analyze_caller_exclusion()</code><br><small style="color:var(--muted)">filter/validator.py</small><br><code>_analyze_date_filtering()</code><br><small style="color:var(--muted)">filter/validator.py</small><br><code>_analyze_original_filters()</code><br><small style="color:var(--muted)">filter/validator.py</small><br>+3 more</td>
+  <td>debug_query_construction() node in filter/validator.py.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>ServiceNow filter validation and debug helpers. Each validator returns a…</code><br><small style="color:var(--muted)">filter/validator.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for ServiceNow filter validation and debug helpers. Each validator returns a….</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>filter/validator.py</code></td><td>40 nodes</td></tr>
+<tr><td><code>tests/test_query_validation.py</code></td><td>24 nodes</td></tr>
+<tr><td><code>Table_Tools/intelligent_query_tools.py</code></td><td>18 nodes</td></tr>
+<tr><td><code>Table_Tools/read_helpers.py</code></td><td>8 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/05-ai-intelligence-flow.md</code></td><td>4 nodes</td></tr>
+<tr><td><code>SERVICENOW_QUERY_GUIDE.md</code></td><td>4 nodes</td></tr>
+<tr><td><code>filter/builder.py</code></td><td>4 nodes</td></tr>
+<tr><td><code>tests/test_generic_table_tools.py</code></td><td>4 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: explains x53, contains x32, calls x27, references x24. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 5. Outputs & Docs ====== -->
+<h2 id="outputs-docs">5. Outputs &amp; Docs</h2>
+<p>Outputs &amp; Docs groups implementation around documentation, diagrams, architecture, oauth, mostly in Diagrams &amp; Documentation/01-architecture-overview.md, Diagrams &amp; Documentation/02-oauth-authentication-flow.md, CHANGELOG.md. This section covers 77 nodes and 107 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Outputs &amp; Docs (77 nodes, 107 edges)
+    subgraph outputs_docs_Diagrams_Documentation_01_architect_d583a469["Diagrams &amp; Documentation/01-architecture-overview.md"]
+        diagrams_documentation_01_architecture_overview_05586c1b("Intelligent Query Tools<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_765ece2d("tools.py Tool Registration<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_281184d9("CMDB Tools Module<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_64653f44("consolidated_tools Module<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_b11dc94b("Generic Tool Wrappers<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_0bdd6fc1("AuditMiddleware Structured Logs<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_f2c225c5("AuthMiddleware SSE Bearer<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_e12472c3("generic_table_tools Query Engine<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_603ff3ee("make_nws_request Dispatcher<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_c7130b03("VTB Private Task CRUD Tools<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_8f4fb370("KB Article Write Tools<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_96961e70("filter/ Package Pipeline<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_bc91f905("http_layer/ Package<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_6688b719("oauth/ Package<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+    end
+    subgraph outputs_docs_Diagrams_Documentation_02_oauth_aut_2d8a9f13["Diagrams &amp; Documentation/02-oauth-authentication-flow.md"]
+        diagrams_documentation_02_oauth_request_executor_f0f3c2de("RequestExecutor 401 Retry<br/><small>Diagrams &amp; Documentation/02-oauth-authentication-flow.md</small>")
+        diagrams_documentation_02_oauth_token_store_598993fb("TokenStore Cache and Refresh<br/><small>Diagrams &amp; Documentation/02-oauth-authentication-flow.md</small>")
+    end
+    subgraph outputs_docs_Diagrams_Documentation_04_similarit_f82f8926["Diagrams &amp; Documentation/04-similarity-search-flow.md"]
+        diagrams_documentation_04_similarity_search_flow_e075cc8e("response_parser Display-Value Flatten<br/><small>Diagrams &amp; Documentation/04-similarity-search-flow.md</small>")
+        diagrams_documentation_04_similarity_search_flow_87b83824("url_builder encode + default params<br/><small>Diagrams &amp; Documentation/04-similarity-search-flow.md</small>")
+    end
+    diagrams_documentation_01_architecture_overview_765ece2d -->|calls| diagrams_documentation_01_architecture_overview_0bdd6fc1
+    diagrams_documentation_01_architecture_overview_765ece2d -->|calls| diagrams_documentation_01_architecture_overview_f2c225c5
+    diagrams_documentation_01_architecture_overview_b11dc94b -->|calls| diagrams_documentation_01_architecture_overview_e12472c3
+    diagrams_documentation_01_architecture_overview_e12472c3 -->|calls| diagrams_documentation_01_architecture_overview_603ff3ee
+    diagrams_documentation_01_architecture_overview_64653f44 -->|calls| diagrams_documentation_01_architecture_overview_e12472c3
+    diagrams_documentation_01_architecture_overview_c7130b03 -->|calls| diagrams_documentation_01_architecture_overview_603ff3ee
+    diagrams_documentation_01_architecture_overview_8f4fb370 -->|calls| diagrams_documentation_01_architecture_overview_603ff3ee
+    diagrams_documentation_01_architecture_overview_05586c1b -->|calls| diagrams_documentation_01_architecture_overview_96961e70
+    diagrams_documentation_01_architecture_overview_05586c1b -->|calls| diagrams_documentation_01_architecture_overview_e12472c3
+    diagrams_documentation_01_architecture_overview_bc91f905 -->|calls| diagrams_documentation_01_architecture_overview_6688b719
+    diagrams_documentation_01_architecture_overview_603ff3ee -->|calls| diagrams_documentation_02_oauth_request_executor_f0f3c2de
+    diagrams_documentation_01_architecture_overview_603ff3ee -->|calls| diagrams_documentation_04_similarity_search_flow_e075cc8e
+    diagrams_documentation_01_architecture_overview_603ff3ee -->|calls| diagrams_documentation_04_similarity_search_flow_87b83824
+    diagrams_documentation_02_oauth_request_executor_f0f3c2de -->|calls| diagrams_documentation_02_oauth_token_store_598993fb
+    diagrams_documentation_01_architecture_overview_281184d9 -->|calls| diagrams_documentation_01_architecture_overview_603ff3ee
+    %% Omitted for readability: 59 nodes, 0 edges
+    class diagrams_documentation_01_architecture_overview_05586c1b klass;
+    class diagrams_documentation_01_architecture_overview_765ece2d function;
+    class diagrams_documentation_01_architecture_overview_281184d9 klass;
+    class diagrams_documentation_01_architecture_overview_64653f44 function;
+    class diagrams_documentation_01_architecture_overview_b11dc94b klass;
+    class diagrams_documentation_01_architecture_overview_0bdd6fc1 klass;
+    class diagrams_documentation_01_architecture_overview_f2c225c5 async;
+    class diagrams_documentation_01_architecture_overview_e12472c3 function;
+    class diagrams_documentation_01_architecture_overview_603ff3ee function;
+    class diagrams_documentation_01_architecture_overview_c7130b03 klass;
+    class diagrams_documentation_01_architecture_overview_8f4fb370 klass;
+    class diagrams_documentation_01_architecture_overview_96961e70 function;
+    class diagrams_documentation_01_architecture_overview_bc91f905 function;
+    class diagrams_documentation_01_architecture_overview_6688b719 function;
+    class diagrams_documentation_02_oauth_request_executor_f0f3c2de klass;
+    class diagrams_documentation_02_oauth_token_store_598993fb ui;
+    class diagrams_documentation_04_similarity_search_flow_e075cc8e function;
+    class diagrams_documentation_04_similarity_search_flow_87b83824 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>PayPal Sponsor Funding</code><br><small style="color:var(--muted)">.github/FUNDING.yml</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing PayPal Sponsor Funding.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>FastMCP Server Core</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>FastMCP Server Core node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>tools.py Tool Registration</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>AuditMiddleware Structured Logs</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br><code>AuthMiddleware SSE Bearer</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>tools.py Tool Registration node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>AuthMiddleware SSE Bearer</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-async">Async</span></td>
+  <td><code>tools.py Tool Registration</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>No direct outbound edge</td>
+  <td>AuthMiddleware SSE Bearer node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>AuditMiddleware Structured Logs</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td><code>tools.py Tool Registration</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>No direct outbound edge</td>
+  <td>AuditMiddleware Structured Logs node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>stdio and SSE Transport</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-async">Async</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>stdio and SSE Transport node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>Stdout JSON-RPC Stderr Logs Invariant</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Stdout JSON-RPC Stderr Logs Invariant.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>SSE Auth Independent of ServiceNow OAuth</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/02-oauth-authentication-flow.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for SSE Auth Independent of ServiceNow OAuth.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Personal MCP ServiceNow README</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing Personal MCP ServiceNow README.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>Model Context Protocol Server</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Model Context Protocol Server node in README.md.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>ServiceNow REST Table API</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-endpoint">API</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>ServiceNow REST Table API node in README.md.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>Docker SSE Hosting</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-async">Async</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Docker SSE Hosting node in README.md.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>fastmcp Dependency</code><br><small style="color:var(--muted)">requirements.txt</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Builds dependency relationships and graph data.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>KB Publish Fail-Closed Duplicate Check</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>KB Publish Fail-Closed Duplicate Check node in CHANGELOG.md.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>Encoded-Query Value Encoding Limitation</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Encoded-Query Value Encoding Limitation node in CHANGELOG.md.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>39 MCP Tools Inventory</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>39 MCP Tools Inventory node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>CMDB Tools Module</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>CMDB Tools Module node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>VTB Private Task CRUD Tools</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>VTB Private Task CRUD Tools node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>KB Article Write Tools</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>KB Article Write Tools node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>Intelligent Query Tools</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>filter/ Package Pipeline</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br><code>generic_table_tools Query Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>Intelligent Query Tools node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>CMDB Tools Module</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br><code>generic_table_tools Query Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br><code>KB Article Write Tools</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br>+2 more</td>
+  <td><code>RequestExecutor 401 Retry</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/02-oauth-authentication-flow.md</small><br><code>response_parser Display-Value Flatten</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small><br><code>url_builder encode + default params</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td>make_nws_request Dispatcher node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>url_builder encode + default params</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>No direct outbound edge</td>
+  <td>url_builder encode + default params node in Diagrams &amp; Documentation/04-similarity-search-flow.md.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>response_parser Display-Value Flatten</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>No direct outbound edge</td>
+  <td>response_parser Display-Value Flatten node in Diagrams &amp; Documentation/04-similarity-search-flow.md.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>get_query_syntax_help Tool</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/05-ai-intelligence-flow.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>get_query_syntax_help Tool node in Diagrams &amp; Documentation/05-ai-intelligence-flow.md.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>E2E CMDB Prompts</code><br><small style="color:var(--muted)">docs/E2E_TEST_PROMPTS.md</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Builds structured prompts for model calls.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>SLA Tool Consolidation 10→5</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>SLA Tool Consolidation 10→5 node in CHANGELOG.md.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>get_sla_details sys_id Bug Fix</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>get_sla_details sys_id Bug Fix node in CHANGELOG.md.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>GET Token-Optimization Invariants</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>GET Token-Optimization Invariants node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>SLA Architecture Document</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/06-sla-architecture-flow.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing SLA Architecture Document.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>task_sla Table</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/06-sla-architecture-flow.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>task_sla Table node in Diagrams &amp; Documentation/06-sla-architecture-flow.md.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>Diagrams &amp; Documentation/01-architecture-overview.md</code></td><td>21 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/02-oauth-authentication-flow.md</code></td><td>9 nodes</td></tr>
+<tr><td><code>CHANGELOG.md</code></td><td>8 nodes</td></tr>
+<tr><td><code>README.md</code></td><td>6 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/06-sla-architecture-flow.md</code></td><td>5 nodes</td></tr>
+<tr><td><code>MIGRATION_v3_to_v4.md</code></td><td>5 nodes</td></tr>
+<tr><td><code>OAUTH_SETUP_GUIDE.md</code></td><td>5 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/03-tool-organization.md</code></td><td>4 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: relates x31, implements x21, references x19, calls x18. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 6. Ingestion & Updates ====== -->
+<h2 id="ingest-cache-update">6. Ingestion &amp; Updates</h2>
+<p>Ingestion &amp; Updates groups implementation around manifestjson, name, version, description, mostly in manifest.json. This section covers 12 nodes and 11 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Ingestion &amp; Updates (12 nodes, 11 edges)
+    manifest_c5beef2d("manifest.json")
+    manifest_repository_364dbad2("repository<br/><small>manifest.json</small>")
+    manifest_author_12ed0060("author<br/><small>manifest.json</small>")
+    manifest_description_c8c77721("description<br/><small>manifest.json</small>")
+    manifest_display_name_b5f6948a("display_name<br/><small>manifest.json</small>")
+    manifest_long_description_1615d869("long_description<br/><small>manifest.json</small>")
+    manifest_manifest_version_0b1426b9("manifest_version<br/><small>manifest.json</small>")
+    manifest_name_c950266d("name<br/><small>manifest.json</small>")
+    manifest_version_aece715b("version<br/><small>manifest.json</small>")
+    manifest_author_name_72fdc1e8("name<br/><small>manifest.json</small>")
+    manifest_repository_type_03b4a355("type<br/><small>manifest.json</small>")
+    manifest_repository_url_310b5e52("url<br/><small>manifest.json</small>")
+    manifest_c5beef2d -->|contains| manifest_author_12ed0060
+    manifest_c5beef2d -->|contains| manifest_description_c8c77721
+    manifest_c5beef2d -->|contains| manifest_display_name_b5f6948a
+    manifest_c5beef2d -->|contains| manifest_long_description_1615d869
+    manifest_c5beef2d -->|contains| manifest_manifest_version_0b1426b9
+    manifest_c5beef2d -->|contains| manifest_name_c950266d
+    manifest_c5beef2d -->|contains| manifest_repository_364dbad2
+    manifest_c5beef2d -->|contains| manifest_version_aece715b
+    manifest_author_12ed0060 -->|contains| manifest_author_name_72fdc1e8
+    manifest_repository_364dbad2 -->|contains| manifest_repository_type_03b4a355
+    manifest_repository_364dbad2 -->|contains| manifest_repository_url_310b5e52
+    class manifest_c5beef2d function;
+    class manifest_repository_364dbad2 function;
+    class manifest_author_12ed0060 function;
+    class manifest_description_c8c77721 function;
+    class manifest_display_name_b5f6948a function;
+    class manifest_long_description_1615d869 function;
+    class manifest_manifest_version_0b1426b9 function;
+    class manifest_name_c950266d function;
+    class manifest_version_aece715b function;
+    class manifest_author_name_72fdc1e8 function;
+    class manifest_repository_type_03b4a355 function;
+    class manifest_repository_url_310b5e52 function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>manifest.json</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>manifest.json node in manifest.json.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>manifest_version</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>manifest_version node in manifest.json.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>name</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>name node in manifest.json.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>display_name</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>display_name node in manifest.json.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>version</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>version node in manifest.json.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>description</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>description node in manifest.json.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>long_description</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>long_description node in manifest.json.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>author</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>author node in manifest.json.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>name</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>name node in manifest.json.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>repository</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>repository node in manifest.json.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>type</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>type node in manifest.json.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>url</code><br><small style="color:var(--muted)">manifest.json</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>url node in manifest.json.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>manifest.json</code></td><td>12 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: contains x11. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 7. Serving API ====== -->
+<h2 id="serve-api">7. Serving API</h2>
+<p>Serving API groups implementation around oauth, clientpy, request, test, mostly in oauth/client.py, oauth/singleton.py, oauth/request_executor.py. This section covers 60 nodes and 74 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Serving API (60 nodes, 74 edges)
+    subgraph serve_api_oauth_client_py_0170fea4["oauth/client.py"]
+        oauth_client_servicenowoauthclient_6a457c18("ServiceNowOAuthClient<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_init_4ddb644d("__init__()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_access_token_5cf4b9f9("_access_token()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_clear_token_c_5e92bc88("_clear_token_cache()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_get_auth_head_0fc0822d("get_auth_headers()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_get_basic_aut_da6cf762("_get_basic_auth_header()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_get_valid_tok_2dd81b63("_get_valid_token()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_make_authenti_f7ce2e16("make_authenticated_request()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_process_respo_5dd1fc64("_process_response()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_request_acces_dbf43514("_request_access_token()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_retry_with_fr_2a972834("_retry_with_fresh_token()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_test_connecti_b496d929("test_connection()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_token_expires_f40c0cfb("_token_expires_at()<br/><small>oauth/client.py</small>")
+        oauth_client_servicenowoauthclient_token_lock_610f3dfa("_token_lock()<br/><small>oauth/client.py</small>")
+    end
+    diagrams_documentation_03_tool_organization_sear_dd522d5f("search_records Tool<br/><small>Diagrams &amp; Documentation/03-tool-organization.md</small>")
+    diagrams_documentation_04_similarity_search_flow_b1af6e77("Similarity Search Path<br/><small>Diagrams &amp; Documentation/04-similarity-search-flow.md</small>")
+    diagrams_documentation_05_ai_intelligence_flow_n_f6e28861("NL Fallback to Text Search<br/><small>Diagrams &amp; Documentation/05-ai-intelligence-flow.md</small>")
+    oauth_request_executor_requestexecutor_make_auth_65903d9d("make_authenticated_request()<br/><small>oauth/request_executor.py</small>")
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_access_token_5cf4b9f9
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_clear_token_c_5e92bc88
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_get_auth_head_0fc0822d
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_get_basic_aut_da6cf762
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_get_valid_tok_2dd81b63
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_init_4ddb644d
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_make_authenti_f7ce2e16
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_process_respo_5dd1fc64
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_request_acces_dbf43514
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_retry_with_fr_2a972834
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_test_connecti_b496d929
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_token_expires_f40c0cfb
+    oauth_client_servicenowoauthclient_6a457c18 -->|method| oauth_client_servicenowoauthclient_token_lock_610f3dfa
+    oauth_client_servicenowoauthclient_init_4ddb644d -->|calls| oauth_client_servicenowoauthclient_get_auth_head_0fc0822d
+    oauth_client_servicenowoauthclient_init_4ddb644d -->|calls| oauth_client_servicenowoauthclient_request_acces_dbf43514
+    oauth_client_servicenowoauthclient_get_auth_head_0fc0822d -->|calls| oauth_client_servicenowoauthclient_get_valid_tok_2dd81b63
+    oauth_client_servicenowoauthclient_test_connecti_b496d929 -->|calls| oauth_client_servicenowoauthclient_make_authenti_f7ce2e16
+    %% Omitted for readability: 42 nodes, 0 edges
+    class oauth_client_servicenowoauthclient_6a457c18 entry;
+    class oauth_client_servicenowoauthclient_init_4ddb644d function;
+    class oauth_client_servicenowoauthclient_access_token_5cf4b9f9 function;
+    class oauth_client_servicenowoauthclient_clear_token_c_5e92bc88 function;
+    class oauth_client_servicenowoauthclient_get_auth_head_0fc0822d function;
+    class oauth_client_servicenowoauthclient_get_basic_aut_da6cf762 function;
+    class oauth_client_servicenowoauthclient_get_valid_tok_2dd81b63 function;
+    class oauth_client_servicenowoauthclient_make_authenti_f7ce2e16 function;
+    class oauth_client_servicenowoauthclient_process_respo_5dd1fc64 function;
+    class oauth_client_servicenowoauthclient_request_acces_dbf43514 function;
+    class oauth_client_servicenowoauthclient_retry_with_fr_2a972834 function;
+    class oauth_client_servicenowoauthclient_test_connecti_b496d929 function;
+    class oauth_client_servicenowoauthclient_token_expires_f40c0cfb function;
+    class oauth_client_servicenowoauthclient_token_lock_610f3dfa function;
+    class diagrams_documentation_03_tool_organization_sear_dd522d5f function;
+    class diagrams_documentation_04_similarity_search_flow_b1af6e77 klass;
+    class diagrams_documentation_05_ai_intelligence_flow_n_f6e28861 klass;
+    class oauth_request_executor_requestexecutor_make_auth_65903d9d function;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td><code>__init__.py</code><br><small style="color:var(--muted)">oauth/__init__.py</small><br><code>singleton.py</code><br><small style="color:var(--muted)">oauth/singleton.py</small><br><code>test_clear_token_cache()</code><br><small style="color:var(--muted)">tests/test_oauth_client_enhanced.py</small><br>+38 more</td>
+  <td><code>__init__()</code><br><small style="color:var(--muted)">oauth/client.py</small><br><code>_access_token()</code><br><small style="color:var(--muted)">oauth/client.py</small><br><code>_clear_token_cache()</code><br><small style="color:var(--muted)">oauth/client.py</small><br>+12 more</td>
+  <td>ServiceNowOAuthClient node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>.__init__()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><code>_request_access_token()</code><br><small style="color:var(--muted)">oauth/client.py</small><br><code>get_auth_headers()</code><br><small style="color:var(--muted)">oauth/client.py</small><br><code>RequestExecutor</code><br><small style="color:var(--muted)">oauth/request_executor.py</small><br>+1 more</td>
+  <td>.__init__() node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>._access_token()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>._access_token() node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>setter</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>setter node in project.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>._token_expires_at()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>._token_expires_at() node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>._token_lock()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>._token_lock() node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>._get_basic_auth_header()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>._get_basic_auth_header() node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>._request_access_token()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>__init__()</code><br><small style="color:var(--muted)">oauth/client.py</small><br><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>._request_access_token() node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>Any</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Any node in project.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>._get_valid_token()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>get_auth_headers()</code><br><small style="color:var(--muted)">oauth/client.py</small><br><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>._get_valid_token() node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>._clear_token_cache()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>Caches analysis results or computes cache keys.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>._process_response()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>._process_response() node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>Response</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Response node in project.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>._retry_with_fresh_token()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>._retry_with_fresh_token() node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>AsyncClient</code><br><small style="color:var(--muted)"></small></td>
+  <td><span class="tag tag-cmd">Entry</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>AsyncClient node in project.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>.get_auth_headers()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>__init__()</code><br><small style="color:var(--muted)">oauth/client.py</small><br><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><code>_get_valid_token()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>.get_auth_headers() node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>.make_authenticated_request()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small><br><code>test_connection()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>.make_authenticated_request() node in oauth/client.py.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>.test_connection()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><code>make_authenticated_request()</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>Verifies imports, entry points, or version behavior.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>OAuth 2.0 Client Credentials implementation for ServiceNow. Composes three…</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for OAuth 2.0 Client Credentials implementation for ServiceNow. Composes three….</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>Return Authorization + JSON headers for an API request. Inlined (rather than…</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Return Authorization + JSON headers for an API request. Inlined (rather than….</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>Make an authenticated request to ServiceNow API. Delegates to RequestExecutor;…</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Make an authenticated request to ServiceNow API. Delegates to RequestExecutor;….</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>Test the OAuth connection by making a simple API call.</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Test the OAuth connection by making a simple API call..</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>.test_oauth_client_creation_missing_env()</code><br><small style="color:var(--muted)">tests/test_oauth.py</small></td>
+  <td><span class="tag tag-func">Test</span></td>
+  <td><code>TestOAuthClientCreation</code><br><small style="color:var(--muted)">tests/test_oauth.py</small></td>
+  <td><code>ServiceNowOAuthClient</code><br><small style="color:var(--muted)">oauth/client.py</small></td>
+  <td>Verifies imports, entry points, or version behavior.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>Test OAuth client creation fails with missing environment variables.</code><br><small style="color:var(--muted)">tests/test_oauth.py</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Design note for Test OAuth client creation fails with missing environment variables..</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>OR-Combined LIKE Text Search</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>OR-Combined LIKE Text Search node in CHANGELOG.md.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>search_records Tool</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>query_table_by_text Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td>search_records Tool node in Diagrams &amp; Documentation/03-tool-organization.md.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>find_similar Tool</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>find_similar Tool node in Diagrams &amp; Documentation/03-tool-organization.md.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>query_table_by_text Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>NL Fallback to Text Search</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/05-ai-intelligence-flow.md</small><br><code>search_records Tool</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small><br><code>Similarity Search Path</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td><code>Paginated Request with ORDERBYDESC</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td>query_table_by_text Engine node in Diagrams &amp; Documentation/04-similarity-search-flow.md.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>Paginated Request with ORDERBYDESC</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td><code>query_table_by_text Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>Paginated Request with ORDERBYDESC node in Diagrams &amp; Documentation/04-similarity-search-flow.md.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>Similarity Search Path</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td><code>query_table_by_text Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td>Similarity Search Path node in Diagrams &amp; Documentation/04-similarity-search-flow.md.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>oauth/client.py</code></td><td>18 nodes</td></tr>
+<tr><td><code>oauth/singleton.py</code></td><td>8 nodes</td></tr>
+<tr><td><code>oauth/request_executor.py</code></td><td>6 nodes</td></tr>
+<tr><td><code>docs/E2E_TEST_PROMPTS.md</code></td><td>4 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/04-similarity-search-flow.md</code></td><td>3 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/05-ai-intelligence-flow.md</code></td><td>3 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/03-tool-organization.md</code></td><td>2 nodes</td></tr>
+<tr><td><code>Table_Tools/vtb_task_tools.py</code></td><td>2 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: references x21, calls x14, explains x13, method x13. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 8. Tests & Fixtures ====== -->
+<h2 id="tests-fixtures">8. Tests &amp; Fixtures</h2>
+<p>Tests &amp; Fixtures groups implementation around test, tests, toolspy, table, mostly in tests/test_generic_table_tools.py, tests/test_query_intelligence.py, tests/test_query_validation.py. This section covers 2542 nodes and 4736 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: Tests &amp; Fixtures (2542 nodes, 4736 edges)
+    subgraph tests_fixtures_Table_Tools_cmdb_tools_py_7f217875["Table_Tools/cmdb_tools.py"]
+        table_tools_cmdb_tools_find_cis_by_type_a13936fd("find_cis_by_type()<br/><small>Table_Tools/cmdb_tools.py</small>")
+        table_tools_cmdb_tools_ci_type_error_ec9630c8("_ci_type_error()<br/><small>Table_Tools/cmdb_tools.py</small>")
+        table_tools_cmdb_tools_search_cis_by_attributes_0a9f7a2d("search_cis_by_attributes()<br/><small>Table_Tools/cmdb_tools.py</small>")
+        table_tools_cmdb_tools_probe_ci_table_1d090a29("_probe_ci_table()<br/><small>Table_Tools/cmdb_tools.py</small>")
+        table_tools_cmdb_tools_get_ci_details_f8b5bd25("get_ci_details()<br/><small>Table_Tools/cmdb_tools.py</small>")
+        table_tools_cmdb_tools_similar_cis_for_ci_d0e6dd8c("similar_cis_for_ci()<br/><small>Table_Tools/cmdb_tools.py</small>")
+        table_tools_cmdb_tools_build_similar_ci_response_2fee25d5("_build_similar_ci_response()<br/><small>Table_Tools/cmdb_tools.py</small>")
+        table_tools_cmdb_tools_extract_ci_search_attribu_cc7c702a("ci search attributes()<br/><small>Table_Tools/cmdb_tools.py</small>")
+        table_tools_cmdb_tools_filter_and_limit_ci_resul_d5e937ff("limit ci results()<br/><small>Table_Tools/cmdb_tools.py</small>")
+        table_tools_cmdb_tools_get_all_ci_types_e6cf9497("get_all_ci_types()<br/><small>Table_Tools/cmdb_tools.py</small>")
+        table_tools_cmdb_tools_quick_ci_search_ecafdcc7("quick_ci_search()<br/><small>Table_Tools/cmdb_tools.py</small>")
+    end
+    subgraph tests_fixtures_tests_test_generic_table_tools_py_c8b40df4["tests/test_generic_table_tools.py"]
+        tests_test_generic_table_tools_52142ca4("test_generic_table_tools.py")
+        tests_test_generic_table_tools_testquerybuilding_d6a329a9("TestQueryBuilding<br/><small>tests/test_generic_table_tools.py</small>")
+    end
+    filter_intelligence_queryintelligence_aff788b9("QueryIntelligence<br/><small>filter/intelligence.py</small>")
+    http_layer_request_dispatcher_make_nws_request_487af705("make_nws_request()<br/><small>http_layer/request_dispatcher.py</small>")
+    tests_test_consolidated_tools_testslatools_ba06a579("TestSLATools<br/><small>tests/test_consolidated_tools.py</small>")
+    tests_test_kb_article_tools_f043a5d4("test_kb_article_tools.py")
+    tests_test_service_now_api_testservicenowapi_076065f4("TestServiceNowAPI<br/><small>tests/test_service_now_api.py</small>")
+    table_tools_cmdb_tools_find_cis_by_type_a13936fd -->|calls| http_layer_request_dispatcher_make_nws_request_487af705
+    table_tools_cmdb_tools_find_cis_by_type_a13936fd -->|calls| table_tools_cmdb_tools_ci_type_error_ec9630c8
+    table_tools_cmdb_tools_search_cis_by_attributes_0a9f7a2d -->|calls| http_layer_request_dispatcher_make_nws_request_487af705
+    table_tools_cmdb_tools_search_cis_by_attributes_0a9f7a2d -->|calls| table_tools_cmdb_tools_ci_type_error_ec9630c8
+    table_tools_cmdb_tools_probe_ci_table_1d090a29 -->|calls| http_layer_request_dispatcher_make_nws_request_487af705
+    table_tools_cmdb_tools_get_ci_details_f8b5bd25 -->|calls| table_tools_cmdb_tools_ci_type_error_ec9630c8
+    table_tools_cmdb_tools_similar_cis_for_ci_d0e6dd8c -->|calls| table_tools_cmdb_tools_build_similar_ci_response_2fee25d5
+    table_tools_cmdb_tools_similar_cis_for_ci_d0e6dd8c -->|calls| table_tools_cmdb_tools_extract_ci_search_attribu_cc7c702a
+    table_tools_cmdb_tools_similar_cis_for_ci_d0e6dd8c -->|calls| table_tools_cmdb_tools_filter_and_limit_ci_resul_d5e937ff
+    table_tools_cmdb_tools_similar_cis_for_ci_d0e6dd8c -->|calls| table_tools_cmdb_tools_get_ci_details_f8b5bd25
+    table_tools_cmdb_tools_similar_cis_for_ci_d0e6dd8c -->|calls| table_tools_cmdb_tools_search_cis_by_attributes_0a9f7a2d
+    table_tools_cmdb_tools_get_all_ci_types_e6cf9497 -->|calls| http_layer_request_dispatcher_make_nws_request_487af705
+    table_tools_cmdb_tools_quick_ci_search_ecafdcc7 -->|calls| http_layer_request_dispatcher_make_nws_request_487af705
+    %% Omitted for readability: 2524 nodes, 0 edges
+    class table_tools_cmdb_tools_find_cis_by_type_a13936fd function;
+    class table_tools_cmdb_tools_ci_type_error_ec9630c8 function;
+    class table_tools_cmdb_tools_search_cis_by_attributes_0a9f7a2d function;
+    class table_tools_cmdb_tools_probe_ci_table_1d090a29 function;
+    class table_tools_cmdb_tools_get_ci_details_f8b5bd25 function;
+    class table_tools_cmdb_tools_similar_cis_for_ci_d0e6dd8c function;
+    class table_tools_cmdb_tools_build_similar_ci_response_2fee25d5 function;
+    class table_tools_cmdb_tools_extract_ci_search_attribu_cc7c702a function;
+    class table_tools_cmdb_tools_filter_and_limit_ci_resul_d5e937ff function;
+    class table_tools_cmdb_tools_get_all_ci_types_e6cf9497 function;
+    class table_tools_cmdb_tools_quick_ci_search_ecafdcc7 function;
+    class tests_test_generic_table_tools_52142ca4 test;
+    class tests_test_generic_table_tools_testquerybuilding_d6a329a9 test;
+    class filter_intelligence_queryintelligence_aff788b9 klass;
+    class http_layer_request_dispatcher_make_nws_request_487af705 function;
+    class tests_test_consolidated_tools_testslatools_ba06a579 test;
+    class tests_test_kb_article_tools_f043a5d4 test;
+    class tests_test_service_now_api_testservicenowapi_076065f4 test;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td><code>consolidated_tools.py</code><br><small style="color:var(--muted)">Table_Tools/consolidated_tools.py</small><br><code>generic_tool_wrappers.py</code><br><small style="color:var(--muted)">Table_Tools/generic_tool_wrappers.py</small><br><code>intelligent_query_tools.py</code><br><small style="color:var(--muted)">Table_Tools/intelligent_query_tools.py</small><br>+3 more</td>
+  <td><code>_handle_operator_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>_handle_priority_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>build_pagination_params()</code><br><small style="color:var(--muted)">filter/validator.py</small><br>+23 more</td>
+  <td>Module file in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>_validate_regex_input()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>range from text()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_validate_regex_input_edge_cases()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+5 more</td>
+  <td>No direct outbound edge</td>
+  <td>_validate_regex_input() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>_normalize_operator()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_query_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_normalize_operator_contains_to_like()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_normalize_operator() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>_month_name_to_num()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>from month names()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_month_name_to_num() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>5</td>
+  <td><code>_iso_range_from_month_names()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_parse_between_format()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>_parse_cross_month_range()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>_parse_month_range_format()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br>+1 more</td>
+  <td><code>_month_name_to_num()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_iso_range_from_month_names() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>6</td>
+  <td><code>_parse_week_format()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>range from text()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_parse_week_format_invalid()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+2 more</td>
+  <td><code>datetime</code></td>
+  <td>_parse_week_format() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>7</td>
+  <td><code>_parse_month_range_format()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>range from text()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_parse_month_range_format_different_months()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+2 more</td>
+  <td><code>from month names()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_parse_month_range_format() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>8</td>
+  <td><code>_parse_iso_date_range()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>range from text()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_parse_iso_date_range_invalid()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+1 more</td>
+  <td>No direct outbound edge</td>
+  <td>_parse_iso_date_range() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>9</td>
+  <td><code>_parse_cross_month_range()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>range from text()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_parse_cross_month_range_invalid_month()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+2 more</td>
+  <td><code>from month names()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_parse_cross_month_range() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>10</td>
+  <td><code>_parse_between_format()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>range from text()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_parse_between_format_invalid()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+1 more</td>
+  <td><code>from month names()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_parse_between_format() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>11</td>
+  <td><code>_parse_year_at_end_format()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>range from text()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_parse_year_at_end_format_valid()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+1 more</td>
+  <td><code>from month names()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_parse_year_at_end_format() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>12</td>
+  <td><code>_parse_date_range_from_text()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_try_date_range_parsing()</code><br><small style="color:var(--muted)">filter/intelligence.py</small><br><code>date range condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>intelligence.py</code><br><small style="color:var(--muted)">filter/intelligence.py</small><br>+11 more</td>
+  <td><code>_parse_between_format()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>_parse_cross_month_range()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>_parse_iso_date_range()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br>+4 more</td>
+  <td>_parse_date_range_from_text() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>13</td>
+  <td><code>_normalize_priority_value()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_format_single_priority()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>comma separated priorities()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+2 more</td>
+  <td>No direct outbound edge</td>
+  <td>_normalize_priority_value() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>14</td>
+  <td><code>_clean_priority_input()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>comma separated priorities()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_clean_priority_input()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_clean_priority_input() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>15</td>
+  <td><code>_process_comma_separated_priorities()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_parse_priority_list()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_process_comma_separated_priorities()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+1 more</td>
+  <td><code>_clean_priority_input()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>_normalize_priority_value()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_process_comma_separated_priorities() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>16</td>
+  <td><code>_format_single_priority()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_parse_priority_list()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_format_single_priority()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small></td>
+  <td><code>_normalize_priority_value()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_format_single_priority() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>17</td>
+  <td><code>_parse_priority_list()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_handle_priority_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_edge_case_empty_filters()</code><br><small style="color:var(--muted)">tests/test_filtering.py</small><br><code>test_filtering.py</code><br><small style="color:var(--muted)">tests/test_filtering.py</small><br>+10 more</td>
+  <td><code>_format_single_priority()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>comma separated priorities()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_parse_priority_list() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>18</td>
+  <td><code>_parse_caller_exclusions()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>caller exclusion condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_caller_exclusion_by_name()</code><br><small style="color:var(--muted)">tests/test_filtering.py</small><br><code>test_caller_exclusion_multiple_sysids()</code><br><small style="color:var(--muted)">tests/test_filtering.py</small><br>+8 more</td>
+  <td>No direct outbound edge</td>
+  <td>_parse_caller_exclusions() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>19</td>
+  <td><code>_handle_complete_query_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_query_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_handle_complete_query_condition() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>20</td>
+  <td><code>_handle_date_range_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><code>range from text()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_handle_date_range_condition() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>21</td>
+  <td><code>_handle_priority_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><code>_parse_priority_list()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_handle_priority_condition() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>22</td>
+  <td><code>_handle_caller_exclusion_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><code>_parse_caller_exclusions()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_handle_caller_exclusion_condition() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>23</td>
+  <td><code>_handle_bare_or_value_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_generic_table_tools.py</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_handle_bare_or_value_fixes_missing_field()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+3 more</td>
+  <td>No direct outbound edge</td>
+  <td>_handle_bare_or_value_condition() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>24</td>
+  <td><code>_handle_suffix_operator_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>generic_table_tools.py</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_handle_suffix_operator_condition() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>25</td>
+  <td><code>_handle_exact_match_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_query_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_handle_exact_match_condition() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>26</td>
+  <td><code>_build_query_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_query_string()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_build_query_condition_complete_or_filter_passthrough()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br><code>test_build_query_condition_complete_query_disabled_by_default()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+12 more</td>
+  <td><code>_normalize_operator()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>complete query condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>exact match condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_build_query_condition() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>27</td>
+  <td><code>_build_query_string()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_debug_extras()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>query_table_with_filters()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_build_query_string_empty()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+4 more</td>
+  <td><code>_build_query_condition()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>_build_query_string() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>28</td>
+  <td><code>_encode_query_string()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_debug_extras()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>query_table_with_filters()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small><br><code>test_encode_query_string()</code><br><small style="color:var(--muted)">tests/test_generic_table_tools.py</small><br>+4 more</td>
+  <td>No direct outbound edge</td>
+  <td>_encode_query_string() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>29</td>
+  <td><code>_determine_filter_sources()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_debug_extras()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_determine_filter_sources() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+<tr>
+  <td>30</td>
+  <td><code>_build_debug_info()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>_build_debug_extras()</code><br><small style="color:var(--muted)">Table_Tools/generic_table_tools.py</small></td>
+  <td>No direct outbound edge</td>
+  <td>_build_debug_info() node in Table_Tools/generic_table_tools.py.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>tests/test_generic_table_tools.py</code></td><td>248 nodes</td></tr>
+<tr><td><code>tests/test_query_intelligence.py</code></td><td>208 nodes</td></tr>
+<tr><td><code>tests/test_query_validation.py</code></td><td>142 nodes</td></tr>
+<tr><td><code>Table_Tools/generic_table_tools.py</code></td><td>120 nodes</td></tr>
+<tr><td><code>tests/test_kb_article_tools.py</code></td><td>112 nodes</td></tr>
+<tr><td><code>tests/test_date_utils.py</code></td><td>103 nodes</td></tr>
+<tr><td><code>tests/test_oauth_client_enhanced.py</code></td><td>98 nodes</td></tr>
+<tr><td><code>tests/test_typed_read_kb_article_tools.py</code></td><td>76 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: calls x1099, explains x993, method x939, references x598. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 9. personal mcp servicenow ====== -->
+<h2 id="personal-mcp-servicenow">9. personal mcp servicenow</h2>
+<p>personal mcp servicenow groups implementation around personal, mcp, servicenow, pyprojecttoml, mostly in pyproject.toml. This section covers 1 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: personal mcp servicenow (1 nodes, 0 edges)
+    pkg_personal_mcp_servicenow_0cfaf595("personal-mcp-servicenow<br/><small>pyproject.toml</small>")
+    class pkg_personal_mcp_servicenow_0cfaf595 module;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>personal-mcp-servicenow</code><br><small style="color:var(--muted)">pyproject.toml</small></td>
+  <td><span class="tag tag-class">Module</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>personal-mcp-servicenow node in pyproject.toml.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>pyproject.toml</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: No high-confidence call edges detected. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<h2 id="hyperedges">Group Relationships (Hyperedges)</h2>
+<div class="grid">
+
+  <div class="card">
+    <h4>GET Read-Path Pipeline</h4>
+    <p><code>participate_in</code> — 6 participants</p>
+    <ul>
+      <li><code>diagrams_documentation_01_architecture_overview_generic_table_tools</code></li>
+      <li><code>diagrams_documentation_01_architecture_overview_make_nws_request</code></li>
+      <li><code>diagrams_documentation_04_similarity_search_flow_url_builder</code></li>
+      <li><code>diagrams_documentation_04_similarity_search_flow_response_parser</code></li>
+      <li><code>diagrams_documentation_02_oauth_request_executor</code></li>
+      <li>... and 1 more</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>NL Filter Intelligence Pipeline</h4>
+    <p><code>form</code> — 6 participants</p>
+    <ul>
+      <li><code>diagrams_documentation_05_ai_intelligence_flow_intelligent_search</code></li>
+      <li><code>diagrams_documentation_05_ai_intelligence_flow_query_intelligence</code></li>
+      <li><code>diagrams_documentation_05_ai_intelligence_flow_validator</code></li>
+      <li><code>diagrams_documentation_05_ai_intelligence_flow_builder</code></li>
+      <li><code>diagrams_documentation_05_ai_intelligence_flow_explainer</code></li>
+      <li>... and 1 more</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>OAuth Authentication Stack</h4>
+    <p><code>implement</code> — 6 participants</p>
+    <ul>
+      <li><code>diagrams_documentation_02_oauth_singleton</code></li>
+      <li><code>diagrams_documentation_02_oauth_client_facade</code></li>
+      <li><code>diagrams_documentation_02_oauth_token_store</code></li>
+      <li><code>diagrams_documentation_02_oauth_request_executor</code></li>
+      <li><code>diagrams_documentation_02_oauth_http_pool</code></li>
+      <li>... and 1 more</li>
+    </ul>
+  </div>
+</div>
+<hr>
+<h2 id="stats">Project Statistics</h2>
+
+<div class="grid">
+  <div class="card">
+    <h4>Graph</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><td>Nodes</td><td>2904</td></tr>
+      <tr><td>Edges</td><td>5518</td></tr>
+      <tr><td>Hyperedges</td><td>3</td></tr>
+      <tr><td>Communities</td><td>134</td></tr>
+      <tr><td>Documented Sections</td><td>8</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Edge Confidence</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><td>EXTRACTED</td><td>5130</td></tr>
+      <tr><td>INFERRED</td><td>388</td></tr>
+      <tr><td>AMBIGUOUS</td><td>0</td></tr>
+    </table>
+  </div>
+</div>
+
+<div style="text-align:center; padding:40px 0; color: var(--muted); font-size:0.9rem;">
+  <p>personal-mcp-servicenow — Architecture Documentation</p>
+  <p>Generated: 2026-08-10 09:20 UTC · graphify callflow-html</p>
+</div>
+
+</div><!-- .container -->
+
+<script>
+(function () {
+  const mermaidConfig = {
+    startOnLoad: false,
+    theme: 'dark',
+    securityLevel: 'loose',
+    flowchart: { htmlLabels: true, useMaxWidth: true },
+    themeVariables: {
+      primaryColor: '#1e293b',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#38bdf8',
+      secondaryColor: '#0f172a',
+      tertiaryColor: '#334155',
+      lineColor: '#64748b',
+      textColor: '#e2e8f0',
+    }
+  };
+
+  mermaid.initialize(mermaidConfig);
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function enhanceMermaidDiagrams() {
+    document.querySelectorAll('.mermaid').forEach((container) => {
+      if (container.dataset.zoomReady === 'true') return;
+      const svg = container.querySelector('svg');
+      if (!svg) return;
+
+      container.dataset.zoomReady = 'true';
+      container.classList.add('is-enhanced');
+
+      const viewport = document.createElement('div');
+      viewport.className = 'mermaid-viewport';
+      svg.parentNode.insertBefore(viewport, svg);
+      viewport.appendChild(svg);
+
+      const toolbar = document.createElement('div');
+      toolbar.className = 'mermaid-toolbar';
+      toolbar.innerHTML = [
+        '<button type="button" data-action="zoom-out" title="Zoom out">-</button>',
+        '<span class="zoom-level" data-role="level">100%</span>',
+        '<button type="button" data-action="zoom-in" title="Zoom in">+</button>',
+        '<button type="button" data-action="fit" title="Fit width">Fit</button>',
+        '<button type="button" data-action="reset" title="Reset view">Reset</button>'
+      ].join('');
+      container.insertBefore(toolbar, viewport);
+
+      const state = { scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 };
+      const level = toolbar.querySelector('[data-role="level"]');
+
+      function applyTransform() {
+        svg.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`;
+        level.textContent = `${Math.round(state.scale * 100)}%`;
+      }
+
+      function zoomBy(delta) {
+        state.scale = clamp(state.scale + delta, 0.25, 3);
+        applyTransform();
+      }
+
+      function reset() {
+        state.scale = 1;
+        state.x = 0;
+        state.y = 0;
+        applyTransform();
+      }
+
+      function fitWidth() {
+        const rawWidth = svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width
+          ? svg.viewBox.baseVal.width
+          : svg.getBoundingClientRect().width / state.scale;
+        if (!rawWidth) {
+          reset();
+          return;
+        }
+        state.scale = clamp((viewport.clientWidth - 48) / rawWidth, 0.25, 1.4);
+        state.x = 0;
+        state.y = 0;
+        applyTransform();
+      }
+
+      toolbar.addEventListener('click', (event) => {
+        const button = event.target.closest('button[data-action]');
+        if (!button) return;
+        const action = button.dataset.action;
+        if (action === 'zoom-in') zoomBy(0.15);
+        if (action === 'zoom-out') zoomBy(-0.15);
+        if (action === 'fit') fitWidth();
+        if (action === 'reset') reset();
+      });
+
+      viewport.addEventListener('wheel', (event) => {
+        if (!event.ctrlKey && !event.metaKey) return;
+        event.preventDefault();
+        zoomBy(event.deltaY < 0 ? 0.1 : -0.1);
+      }, { passive: false });
+
+      viewport.addEventListener('pointerdown', (event) => {
+        if (event.button !== 0) return;
+        state.dragging = true;
+        state.startX = event.clientX;
+        state.startY = event.clientY;
+        state.originX = state.x;
+        state.originY = state.y;
+        viewport.classList.add('is-dragging');
+        viewport.setPointerCapture(event.pointerId);
+      });
+
+      viewport.addEventListener('pointermove', (event) => {
+        if (!state.dragging) return;
+        state.x = state.originX + event.clientX - state.startX;
+        state.y = state.originY + event.clientY - state.startY;
+        applyTransform();
+      });
+
+      function endDrag(event) {
+        if (!state.dragging) return;
+        state.dragging = false;
+        viewport.classList.remove('is-dragging');
+        if (viewport.hasPointerCapture(event.pointerId)) {
+          viewport.releasePointerCapture(event.pointerId);
+        }
+      }
+
+      viewport.addEventListener('pointerup', endDrag);
+      viewport.addEventListener('pointercancel', endDrag);
+      applyTransform();
+    });
+  }
+
+  function renderMermaid() {
+    const result = mermaid.run
+      ? mermaid.run({ querySelector: '.mermaid' })
+      : Promise.resolve();
+    Promise.resolve(result)
+      .then(enhanceMermaidDiagrams)
+      .catch((error) => {
+        console.error('Mermaid render failed:', error);
+        enhanceMermaidDiagrams();
+      });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderMermaid);
+  } else {
+    renderMermaid();
+  }
+})();
+</script>
+
+</body>
+</html>

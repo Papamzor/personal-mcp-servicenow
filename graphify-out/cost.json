@@ -43,8 +43,14 @@
       "output_tokens": 0,
       "files": 80,
       "mode": "full-rebuild-update"
+    },
+    {
+      "date": "2026-08-10T09:20:54.608388+00:00",
+      "input_tokens": 90000,
+      "output_tokens": 31226,
+      "files": 97
     }
   ],
-  "total_input_tokens": 44932,
-  "total_output_tokens": 0
+  "total_input_tokens": 134932,
+  "total_output_tokens": 31226
 }

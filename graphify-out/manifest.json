@@ -1,334 +1,487 @@
 {
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\audit_middleware.py": {
+  "audit_middleware.py": {
     "mtime": 1783935101.0045266,
-    "hash": "4cb69151ca14e1f1d10a09682b2acfdf"
+    "ast_hash": "4cb69151ca14e1f1d10a09682b2acfdf",
+    "semantic_hash": "4cb69151ca14e1f1d10a09682b2acfdf"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\auth_middleware.py": {
+  "auth_middleware.py": {
     "mtime": 1783935101.0045266,
-    "hash": "4d3106485f7776b5be286efd585c9f7e"
+    "ast_hash": "4d3106485f7776b5be286efd585c9f7e",
+    "semantic_hash": "4d3106485f7776b5be286efd585c9f7e"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\config_loader.py": {
-    "mtime": 1785788300.6410356,
-    "hash": "cff9666de72c950458b3de782e239829"
+  "config_loader.py": {
+    "mtime": 1785788823.8301303,
+    "ast_hash": "cff9666de72c950458b3de782e239829",
+    "semantic_hash": "cff9666de72c950458b3de782e239829"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\constants.py": {
-    "mtime": 1785699045.478608,
-    "hash": "0dc262ebffd01266d73f49dc1b226879"
+  "constants.py": {
+    "mtime": 1785955985.7382288,
+    "ast_hash": "ae785ee6278e45df82dd881f95479eca",
+    "semantic_hash": "ae785ee6278e45df82dd881f95479eca"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\param_coercion.py": {
+  "param_coercion.py": {
     "mtime": 1784018921.0546563,
-    "hash": "fea3b2382d77374c9de80b45598cdaa5"
+    "ast_hash": "fea3b2382d77374c9de80b45598cdaa5",
+    "semantic_hash": "fea3b2382d77374c9de80b45598cdaa5"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\personal_mcp_servicenow_main.py": {
-    "mtime": 1785788300.668646,
-    "hash": "6e1027d5f8259ef9188aa36bd8a763c1"
+  "personal_mcp_servicenow_main.py": {
+    "mtime": 1785997505.4502702,
+    "ast_hash": "df2945551ec5dfb65bd84fbb5d059ba6",
+    "semantic_hash": "df2945551ec5dfb65bd84fbb5d059ba6"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tools.py": {
-    "mtime": 1784018921.0576491,
-    "hash": "3b153588bb2dffcda4875c1a29debb1b"
+  "tools.py": {
+    "mtime": 1785845787.6877823,
+    "ast_hash": "b992e9467da06bc2cf0a978a45d22ec0",
+    "semantic_hash": "b992e9467da06bc2cf0a978a45d22ec0"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\utility_tools.py": {
+  "utility_tools.py": {
     "mtime": 1781332520.3286667,
-    "hash": "93a796ebc6c4ecd46489707a325b76e5"
+    "ast_hash": "93a796ebc6c4ecd46489707a325b76e5",
+    "semantic_hash": "93a796ebc6c4ecd46489707a325b76e5"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\utils.py": {
+  "utils.py": {
     "mtime": 1782046807.9160337,
-    "hash": "8741cfede305a7de95226a203627ca84"
+    "ast_hash": "8741cfede305a7de95226a203627ca84",
+    "semantic_hash": "8741cfede305a7de95226a203627ca84"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\builder.py": {
+  "filter/builder.py": {
     "mtime": 1779295408.9253154,
-    "hash": "5d35d0b425a945603f099a53c34a896c"
+    "ast_hash": "5d35d0b425a945603f099a53c34a896c",
+    "semantic_hash": "5d35d0b425a945603f099a53c34a896c"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\explainer.py": {
+  "filter/explainer.py": {
     "mtime": 1779295408.9263206,
-    "hash": "8401b9f76eb4d72e7b66c3ac0da5f0d1"
+    "ast_hash": "8401b9f76eb4d72e7b66c3ac0da5f0d1",
+    "semantic_hash": "8401b9f76eb4d72e7b66c3ac0da5f0d1"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\intelligence.py": {
-    "mtime": 1783935101.0099125,
-    "hash": "8c63c08644d55a7a49c61239d03187d3"
+  "filter/intelligence.py": {
+    "mtime": 1785845787.6703248,
+    "ast_hash": "1f1e26085894bcae6349eddda0ef0610",
+    "semantic_hash": "1f1e26085894bcae6349eddda0ef0610"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\models.py": {
+  "filter/models.py": {
     "mtime": 1781332520.0644703,
-    "hash": "ecb2b50a375c41783cf1054a43fe5f77"
+    "ast_hash": "ecb2b50a375c41783cf1054a43fe5f77",
+    "semantic_hash": "ecb2b50a375c41783cf1054a43fe5f77"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\validator.py": {
+  "filter/validator.py": {
     "mtime": 1782048445.8714252,
-    "hash": "030d3ac8035e5439240f9a894f8982d9"
+    "ast_hash": "030d3ac8035e5439240f9a894f8982d9",
+    "semantic_hash": "030d3ac8035e5439240f9a894f8982d9"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\filter\\__init__.py": {
+  "filter/__init__.py": {
     "mtime": 1782046807.8764193,
-    "hash": "42a49609312c67ffa8979379b0f45229"
+    "ast_hash": "42a49609312c67ffa8979379b0f45229",
+    "semantic_hash": "42a49609312c67ffa8979379b0f45229"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\request_dispatcher.py": {
-    "mtime": 1783935101.0109122,
-    "hash": "01bc21eaec40d359fb3ed992a9d3bfbb"
+  "http_layer/request_dispatcher.py": {
+    "mtime": 1785960646.8923807,
+    "ast_hash": "c7ea42b3919252e0fa6504c863066fda",
+    "semantic_hash": "c7ea42b3919252e0fa6504c863066fda"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\response_parser.py": {
+  "http_layer/response_parser.py": {
     "mtime": 1779295408.93232,
-    "hash": "510b21d8cfa6401e4ce89a6175fd1589"
+    "ast_hash": "510b21d8cfa6401e4ce89a6175fd1589",
+    "semantic_hash": "510b21d8cfa6401e4ce89a6175fd1589"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\url_builder.py": {
+  "http_layer/url_builder.py": {
     "mtime": 1779295408.9328227,
-    "hash": "1c528941270084caffa798af3afdf57d"
+    "ast_hash": "1c528941270084caffa798af3afdf57d",
+    "semantic_hash": "1c528941270084caffa798af3afdf57d"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\http_layer\\__init__.py": {
-    "mtime": 1779295408.9303203,
-    "hash": "55c3b81a1b815a1e5d85b26b3b9fee85"
+  "http_layer/__init__.py": {
+    "mtime": 1785845787.6723304,
+    "ast_hash": "4dca25530f8785e3c4d6cddd6dc3116e",
+    "semantic_hash": "4dca25530f8785e3c4d6cddd6dc3116e"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\client.py": {
+  "oauth/client.py": {
     "mtime": 1779295408.9348261,
-    "hash": "d7ea4e9fbaaa15f44f8a9f40b119c687"
+    "ast_hash": "d7ea4e9fbaaa15f44f8a9f40b119c687",
+    "semantic_hash": "d7ea4e9fbaaa15f44f8a9f40b119c687"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\exceptions.py": {
+  "oauth/exceptions.py": {
     "mtime": 1779295408.9358273,
-    "hash": "2bd5b83dd14ce47419a6de4d2db4db46"
+    "ast_hash": "2bd5b83dd14ce47419a6de4d2db4db46",
+    "semantic_hash": "2bd5b83dd14ce47419a6de4d2db4db46"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\http_pool.py": {
+  "oauth/http_pool.py": {
     "mtime": 1783855924.1509557,
-    "hash": "6cc37adf1f771309b91733246d4a0799"
+    "ast_hash": "6cc37adf1f771309b91733246d4a0799",
+    "semantic_hash": "6cc37adf1f771309b91733246d4a0799"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\request_executor.py": {
-    "mtime": 1782048491.4855294,
-    "hash": "f0bcb2c9d61d3e8efad48292d2b9c2da"
+  "oauth/request_executor.py": {
+    "mtime": 1785845787.6753325,
+    "ast_hash": "639286040a61993e2f4c1e8a4583afbf",
+    "semantic_hash": "639286040a61993e2f4c1e8a4583afbf"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\singleton.py": {
-    "mtime": 1783935101.0119183,
-    "hash": "125484ce8a0ad925877645a1e2ab7ed9"
+  "oauth/singleton.py": {
+    "mtime": 1785845787.6763237,
+    "ast_hash": "acad0723d638ca5e5d08f08bef8c5338",
+    "semantic_hash": "acad0723d638ca5e5d08f08bef8c5338"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\oauth\\__init__.py": {
+  "oauth/__init__.py": {
     "mtime": 1782046807.9020326,
-    "hash": "46034953db575dfa02fe5559b207a41e"
+    "ast_hash": "46034953db575dfa02fe5559b207a41e",
+    "semantic_hash": "46034953db575dfa02fe5559b207a41e"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\scripts\\build_mcpb.py": {
+  "scripts/build_mcpb.py": {
     "mtime": 1784443267.1413312,
-    "hash": "e011ee330d4541b25b74233e0ba6cd96"
+    "ast_hash": "e011ee330d4541b25b74233e0ba6cd96",
+    "semantic_hash": "e011ee330d4541b25b74233e0ba6cd96"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\cmdb_tools.py": {
-    "mtime": 1783935100.9986217,
-    "hash": "c4e70f4c5c33eb9552e131be609f49a5"
+  "Table_Tools/cmdb_tools.py": {
+    "mtime": 1785960646.8873842,
+    "ast_hash": "4319307f1f855cc3966a02e37c564035",
+    "semantic_hash": "4319307f1f855cc3966a02e37c564035"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\consolidated_tools.py": {
-    "mtime": 1784018921.0494719,
-    "hash": "f0904b837a18b151310ce8aa10319792"
+  "Table_Tools/consolidated_tools.py": {
+    "mtime": 1785934906.3387017,
+    "ast_hash": "4ca40c038fe7d2e9ad359e81fda5d2dd",
+    "semantic_hash": "4ca40c038fe7d2e9ad359e81fda5d2dd"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\date_utils.py": {
+  "Table_Tools/date_utils.py": {
     "mtime": 1782046807.866948,
-    "hash": "9f6f0bd8a95941a3943cf56ee110fd92"
+    "ast_hash": "9f6f0bd8a95941a3943cf56ee110fd92",
+    "semantic_hash": "9f6f0bd8a95941a3943cf56ee110fd92"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\generic_table_tools.py": {
-    "mtime": 1783935100.9986217,
-    "hash": "f7313e0033fbac3a143949f190d9de58"
+  "Table_Tools/generic_table_tools.py": {
+    "mtime": 1785960646.888387,
+    "ast_hash": "dd18ec480f268f69522ee119005be000",
+    "semantic_hash": "dd18ec480f268f69522ee119005be000"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\generic_tool_wrappers.py": {
-    "mtime": 1784018921.0506399,
-    "hash": "65e0ad4c156d8a7c8a6a987cf2c1ad2c"
+  "Table_Tools/generic_tool_wrappers.py": {
+    "mtime": 1785845787.6683202,
+    "ast_hash": "0cd2dee4694b4496bdfb1fe2918adfbc",
+    "semantic_hash": "0cd2dee4694b4496bdfb1fe2918adfbc"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\intelligent_query_tools.py": {
-    "mtime": 1784018921.0516446,
-    "hash": "66fe6e122277f259dbcf62d97bb9b6f3"
+  "Table_Tools/intelligent_query_tools.py": {
+    "mtime": 1785934906.3396945,
+    "ast_hash": "5ed4bdda8c42d9364e024e7b96617de4",
+    "semantic_hash": "5ed4bdda8c42d9364e024e7b96617de4"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\kb_article_tools.py": {
-    "mtime": 1785699045.4776003,
-    "hash": "d5ab060f2b19c254be7cbf2998718d2e"
+  "Table_Tools/kb_article_tools.py": {
+    "mtime": 1785960646.889378,
+    "ast_hash": "aba655cf9b01403fe1b3c4a5d29d4322",
+    "semantic_hash": "aba655cf9b01403fe1b3c4a5d29d4322"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\table_tools.py": {
-    "mtime": 1783935101.0025203,
-    "hash": "3a7b89dc615f02b01e96cfcbc250f27f"
+  "Table_Tools/table_tools.py": {
+    "mtime": 1785960646.8903852,
+    "ast_hash": "fee1b62e95997b6f8407cbfe3dcce728",
+    "semantic_hash": "fee1b62e95997b6f8407cbfe3dcce728"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\vtb_task_tools.py": {
-    "mtime": 1783935101.0025203,
-    "hash": "2f270896a96f6a362212d77efb7fd286"
+  "Table_Tools/vtb_task_tools.py": {
+    "mtime": 1785960646.8913827,
+    "ast_hash": "6e59a0a4af68ab559b25e89de53fc315",
+    "semantic_hash": "6e59a0a4af68ab559b25e89de53fc315"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Table_Tools\\write_helpers.py": {
-    "mtime": 1783935101.0035203,
-    "hash": "bf5f59dc46ec79d74de9e97d472ced49"
+  "Table_Tools/write_helpers.py": {
+    "mtime": 1785955985.7372277,
+    "ast_hash": "0752c72b855ce6ff360638326d595727",
+    "semantic_hash": "0752c72b855ce6ff360638326d595727"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\conftest.py": {
+  "tests/conftest.py": {
     "mtime": 1782046807.9070306,
-    "hash": "71f691d68fff251a0623f4c26718e64a"
+    "ast_hash": "71f691d68fff251a0623f4c26718e64a",
+    "semantic_hash": "71f691d68fff251a0623f4c26718e64a"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\run_tests.py": {
+  "tests/run_tests.py": {
     "mtime": 1781332520.3195662,
-    "hash": "92492084d09ee39f206ff29ae8f53ea2"
+    "ast_hash": "92492084d09ee39f206ff29ae8f53ea2",
+    "semantic_hash": "92492084d09ee39f206ff29ae8f53ea2"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_cli.py": {
+  "tests/test_cli.py": {
     "mtime": 1769269803.6456914,
-    "hash": "456a16cef2d5a12a453768e39e582058"
+    "ast_hash": "456a16cef2d5a12a453768e39e582058",
+    "semantic_hash": "456a16cef2d5a12a453768e39e582058"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_cmdb_tools.py": {
+  "tests/test_cmdb_tools.py": {
     "mtime": 1763040093.4790072,
-    "hash": "5741636d30088492afabe1ed37da00f6"
+    "ast_hash": "5741636d30088492afabe1ed37da00f6",
+    "semantic_hash": "5741636d30088492afabe1ed37da00f6"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_config_loader.py": {
-    "mtime": 1785788300.6696422,
-    "hash": "f72daa1be0559517af5423c31c1c37fc"
+  "tests/test_config_loader.py": {
+    "mtime": 1785788823.8895428,
+    "ast_hash": "f72daa1be0559517af5423c31c1c37fc",
+    "semantic_hash": "f72daa1be0559517af5423c31c1c37fc"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_consolidated_tools.py": {
-    "mtime": 1782048545.4239314,
-    "hash": "d45a39b1ac3900bd870bd75574ef9ed7"
+  "tests/test_consolidated_tools.py": {
+    "mtime": 1785845787.6783297,
+    "ast_hash": "a223c7767df5979d5c2fcf2d39f38bc0",
+    "semantic_hash": "a223c7767df5979d5c2fcf2d39f38bc0"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_date_utils.py": {
+  "tests/test_date_utils.py": {
     "mtime": 1785699045.501928,
-    "hash": "26908199cd82f5907041c35f674a4cb8"
+    "ast_hash": "26908199cd82f5907041c35f674a4cb8",
+    "semantic_hash": "26908199cd82f5907041c35f674a4cb8"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_filtering.py": {
+  "tests/test_filtering.py": {
     "mtime": 1781332520.3205664,
-    "hash": "a905e8ac54b906ce4d1a392dc3e0cd76"
+    "ast_hash": "a905e8ac54b906ce4d1a392dc3e0cd76",
+    "semantic_hash": "a905e8ac54b906ce4d1a392dc3e0cd76"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_generic_table_tools.py": {
-    "mtime": 1783935101.014912,
-    "hash": "3b00f44b4511c5e73e637f9d17579747"
+  "tests/test_generic_table_tools.py": {
+    "mtime": 1785934906.3426948,
+    "ast_hash": "11263c97eeae221eeb92253a627f947e",
+    "semantic_hash": "11263c97eeae221eeb92253a627f947e"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_generic_tool_wrappers.py": {
+  "tests/test_generic_tool_wrappers.py": {
     "mtime": 1784018921.055649,
-    "hash": "262b8b2357c42c39f39fcdfb5c938ed1"
+    "ast_hash": "262b8b2357c42c39f39fcdfb5c938ed1",
+    "semantic_hash": "262b8b2357c42c39f39fcdfb5c938ed1"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_http_layer.py": {
+  "tests/test_http_layer.py": {
     "mtime": 1781332520.3205664,
-    "hash": "d95f065e6c70f2158aaa5c6968cde6f2"
+    "ast_hash": "d95f065e6c70f2158aaa5c6968cde6f2",
+    "semantic_hash": "d95f065e6c70f2158aaa5c6968cde6f2"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_integration.py": {
-    "mtime": 1782046807.9100296,
-    "hash": "608de2e64b6ba6db60cbfa8532a76bc5"
+  "tests/test_integration.py": {
+    "mtime": 1785845787.6816626,
+    "ast_hash": "be125441773328ccc671d53b143d6e97",
+    "semantic_hash": "be125441773328ccc671d53b143d6e97"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_kb_article_tools.py": {
-    "mtime": 1785699045.501928,
-    "hash": "61c6585f6faa59bbb7a4c1dc8d0dc837"
+  "tests/test_kb_article_tools.py": {
+    "mtime": 1785955985.7422266,
+    "ast_hash": "c87e89f996152dd4beed6f9267d20ea6",
+    "semantic_hash": "c87e89f996152dd4beed6f9267d20ea6"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_mcp_tools.py": {
+  "tests/test_mcp_tools.py": {
     "mtime": 1782048546.749374,
-    "hash": "0a7ae3538c0bc31d2ed48ed967348bba"
+    "ast_hash": "0a7ae3538c0bc31d2ed48ed967348bba",
+    "semantic_hash": "0a7ae3538c0bc31d2ed48ed967348bba"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_no_stdout_pollution.py": {
+  "tests/test_no_stdout_pollution.py": {
     "mtime": 1784706094.106139,
-    "hash": "69476c1164b630d9a5d716fb0137c9bb"
+    "ast_hash": "69476c1164b630d9a5d716fb0137c9bb",
+    "semantic_hash": "69476c1164b630d9a5d716fb0137c9bb"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_oauth.py": {
+  "tests/test_oauth.py": {
     "mtime": 1785699045.5029461,
-    "hash": "5ca09a6d2bdf3319100ec1b9db7228d3"
+    "ast_hash": "5ca09a6d2bdf3319100ec1b9db7228d3",
+    "semantic_hash": "5ca09a6d2bdf3319100ec1b9db7228d3"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_oauth_client.py": {
+  "tests/test_oauth_client.py": {
     "mtime": 1781332520.3236637,
-    "hash": "4a799439f0f853132c105793686002ed"
+    "ast_hash": "4a799439f0f853132c105793686002ed",
+    "semantic_hash": "4a799439f0f853132c105793686002ed"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_oauth_client_enhanced.py": {
-    "mtime": 1781332520.3246632,
-    "hash": "f4e844d8ef69f7e21880d36f7f5fcbbd"
+  "tests/test_oauth_client_enhanced.py": {
+    "mtime": 1785845787.683669,
+    "ast_hash": "01651d8c157e67138732aed3ac2c5c4d",
+    "semantic_hash": "01651d8c157e67138732aed3ac2c5c4d"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_param_coercion.py": {
+  "tests/test_param_coercion.py": {
     "mtime": 1785699045.5040731,
-    "hash": "d9a6d0cedc26c96cd17d968311ca0d00"
+    "ast_hash": "d9a6d0cedc26c96cd17d968311ca0d00",
+    "semantic_hash": "d9a6d0cedc26c96cd17d968311ca0d00"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_pyproject_sync.py": {
+  "tests/test_pyproject_sync.py": {
     "mtime": 1784443267.1433249,
-    "hash": "326bc61448be3fe428255d23ca1d14c0"
+    "ast_hash": "326bc61448be3fe428255d23ca1d14c0",
+    "semantic_hash": "326bc61448be3fe428255d23ca1d14c0"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_query_intelligence.py": {
-    "mtime": 1782046807.912033,
-    "hash": "a03c6427e982f0faf410536c3a7b8e0f"
+  "tests/test_query_intelligence.py": {
+    "mtime": 1785845787.6847887,
+    "ast_hash": "e46c48ce4b09516fc94faee401cd1d81",
+    "semantic_hash": "e46c48ce4b09516fc94faee401cd1d81"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_query_validation.py": {
-    "mtime": 1782046807.913027,
-    "hash": "029200efba031d64970c1654400a1991"
+  "tests/test_query_validation.py": {
+    "mtime": 1785845787.6857858,
+    "ast_hash": "1c0f7beb0356c716f64cc7694868882b",
+    "semantic_hash": "1c0f7beb0356c716f64cc7694868882b"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_security_sanitization.py": {
+  "tests/test_security_sanitization.py": {
     "mtime": 1785699045.5045855,
-    "hash": "ac6e74e4b19f6ff30fe7f50d994fd79e"
+    "ast_hash": "ac6e74e4b19f6ff30fe7f50d994fd79e",
+    "semantic_hash": "ac6e74e4b19f6ff30fe7f50d994fd79e"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_service_now_api.py": {
-    "mtime": 1782046807.914037,
-    "hash": "479bc5606b0471ec247c4922c536bc44"
+  "tests/test_service_now_api.py": {
+    "mtime": 1785960646.8933816,
+    "ast_hash": "23e48b6781d13ac8b02fb26be388efc2",
+    "semantic_hash": "23e48b6781d13ac8b02fb26be388efc2"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_tool_selection.py": {
-    "mtime": 1785785388.971681,
-    "hash": "540f7516047a079ca44c0342392340d2"
+  "tests/test_tool_selection.py": {
+    "mtime": 1785788823.8905418,
+    "ast_hash": "b2828c13153bb42e57b2b2b0186f750b",
+    "semantic_hash": "b2828c13153bb42e57b2b2b0186f750b"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_utility_tools.py": {
+  "tests/test_utility_tools.py": {
     "mtime": 1763040093.4857976,
-    "hash": "84b3b0a0a2bf566d65e4778eb29681f3"
+    "ast_hash": "84b3b0a0a2bf566d65e4778eb29681f3",
+    "semantic_hash": "84b3b0a0a2bf566d65e4778eb29681f3"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\test_vtb_task_tools.py": {
-    "mtime": 1785699045.5055988,
-    "hash": "36b5c4ddf27da7bf5c834555cdac9cd5"
+  "tests/test_vtb_task_tools.py": {
+    "mtime": 1785957555.853359,
+    "ast_hash": "8be7ae2cdee0a5d46e8c1cae3ab21b80",
+    "semantic_hash": "8be7ae2cdee0a5d46e8c1cae3ab21b80"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\tests\\__init__.py": {
+  "tests/__init__.py": {
     "mtime": 1763040093.476957,
-    "hash": "dd112a652b070a03f1624637e87f8eb6"
+    "ast_hash": "dd112a652b070a03f1624637e87f8eb6",
+    "semantic_hash": "dd112a652b070a03f1624637e87f8eb6"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\bitbucket-pipelines.yml": {
+  "bitbucket-pipelines.yml": {
     "mtime": 1775634646.5081306,
-    "hash": "e7aabbafd44336caafd482a9e83e7d25"
+    "ast_hash": "e7aabbafd44336caafd482a9e83e7d25",
+    "semantic_hash": "e7aabbafd44336caafd482a9e83e7d25"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\branching-strategy.md": {
-    "mtime": 1785662764.7463317,
-    "hash": "eb9ab444d3a614ec80b6f2926346d010"
+  "CHANGELOG.md": {
+    "mtime": 1785997505.4411478,
+    "ast_hash": "ed1ca8dac2970d3a3e40a581f83357f1",
+    "semantic_hash": "ed1ca8dac2970d3a3e40a581f83357f1"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\CHANGELOG.md": {
-    "mtime": 1784706094.0691879,
-    "hash": "9962452578fc02bd7bb954f4f9d08670"
+  "MIGRATION_v3_to_v4.md": {
+    "mtime": 1785845787.6603217,
+    "ast_hash": "f2f2e07d377d527996b5e834f448648c",
+    "semantic_hash": "f2f2e07d377d527996b5e834f448648c"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\CLAUDE.md": {
-    "mtime": 1784707777.2045515,
-    "hash": "3a84734b9fc4df3c90d5874ae83e397e"
+  "OAUTH_SETUP_GUIDE.md": {
+    "mtime": 1785845787.6613216,
+    "ast_hash": "1cc5793d659357b9c8793a0afb4ae9c0",
+    "semantic_hash": "1cc5793d659357b9c8793a0afb4ae9c0"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\MIGRATION_v3_to_v4.md": {
-    "mtime": 1784706094.080053,
-    "hash": "ecb6fd78f1743fe56e58833ab1ac353e"
+  "README.md": {
+    "mtime": 1785997505.4462316,
+    "ast_hash": "b878aee0e16b77add86b4836733638e0",
+    "semantic_hash": "b878aee0e16b77add86b4836733638e0"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\OAUTH_SETUP_GUIDE.md": {
-    "mtime": 1785788300.6410356,
-    "hash": "791c18646cc1dd2ecd5986e1ee96707d"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\README.md": {
-    "mtime": 1784706094.081052,
-    "hash": "38e50470e102b4b79aec022c1ebce376"
-  },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\requirements-dev.txt": {
+  "requirements-dev.txt": {
     "mtime": 1779295408.942829,
-    "hash": "95226a8f9d090f440855b3e5ab89cbc4"
+    "ast_hash": "95226a8f9d090f440855b3e5ab89cbc4",
+    "semantic_hash": "95226a8f9d090f440855b3e5ab89cbc4"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\requirements.txt": {
+  "requirements.txt": {
     "mtime": 1783935101.0129123,
-    "hash": "5e78d758f3cbfdc03770525e1405d316"
+    "ast_hash": "5e78d758f3cbfdc03770525e1405d316",
+    "semantic_hash": "5e78d758f3cbfdc03770525e1405d316"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\SERVICENOW_QUERY_GUIDE.md": {
-    "mtime": 1763040093.4599373,
-    "hash": "ac998300444c08f2787777e4f705bb55"
+  "SERVICENOW_QUERY_GUIDE.md": {
+    "mtime": 1785845787.663329,
+    "ast_hash": "658cd9aa38ec2e5a4085cc0862d6106a",
+    "semantic_hash": "658cd9aa38ec2e5a4085cc0862d6106a"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\01-architecture-overview.md": {
-    "mtime": 1784706094.0705342,
-    "hash": "33b0e8cdc6e08127914122b430adcbb6"
+  "Diagrams & Documentation/01-architecture-overview.md": {
+    "mtime": 1785845787.6571965,
+    "ast_hash": "40f29e25a9d31218489afc5c9ec4883d",
+    "semantic_hash": "40f29e25a9d31218489afc5c9ec4883d"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\02-oauth-authentication-flow.md": {
+  "Diagrams & Documentation/02-oauth-authentication-flow.md": {
     "mtime": 1784706094.0725331,
-    "hash": "c4b8119eb430e156771b4675f06ebf70"
+    "ast_hash": "c4b8119eb430e156771b4675f06ebf70",
+    "semantic_hash": "c4b8119eb430e156771b4675f06ebf70"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\03-tool-organization.md": {
-    "mtime": 1784706094.0735378,
-    "hash": "46f7733cb737091d6633d27e5ab9b8c0"
+  "Diagrams & Documentation/03-tool-organization.md": {
+    "mtime": 1785845787.6582036,
+    "ast_hash": "8f2f57816b1a5dc3ecf8623eecb446b5",
+    "semantic_hash": "8f2f57816b1a5dc3ecf8623eecb446b5"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\04-similarity-search-flow.md": {
-    "mtime": 1784706094.074543,
-    "hash": "9ba0076759ef19f30d035f85889e4bb4"
+  "Diagrams & Documentation/04-similarity-search-flow.md": {
+    "mtime": 1785845787.6582036,
+    "ast_hash": "b735214aed59eb67eaf7a58ea90ee7a8",
+    "semantic_hash": "b735214aed59eb67eaf7a58ea90ee7a8"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\05-ai-intelligence-flow.md": {
+  "Diagrams & Documentation/05-ai-intelligence-flow.md": {
     "mtime": 1784706094.0755427,
-    "hash": "df5c0cefad5f0450c63dcb18ab139d2b"
+    "ast_hash": "df5c0cefad5f0450c63dcb18ab139d2b",
+    "semantic_hash": "df5c0cefad5f0450c63dcb18ab139d2b"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\06-sla-architecture-flow.md": {
+  "Diagrams & Documentation/06-sla-architecture-flow.md": {
     "mtime": 1784706094.0770476,
-    "hash": "5a0d34f9085998d17fcc71f9b6bdae4d"
+    "ast_hash": "5a0d34f9085998d17fcc71f9b6bdae4d",
+    "semantic_hash": "5a0d34f9085998d17fcc71f9b6bdae4d"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\Diagrams & Documentation\\README.md": {
-    "mtime": 1784706094.078053,
-    "hash": "c3fdc01814b476b1e8650c5a84cb03ca"
+  "Diagrams & Documentation/README.md": {
+    "mtime": 1785997505.4441636,
+    "ast_hash": "983280fc20278a096b11c135b7b98f0e",
+    "semantic_hash": "983280fc20278a096b11c135b7b98f0e"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\docs\\E2E_TEST_PROMPTS.md": {
+  "docs/E2E_TEST_PROMPTS.md": {
     "mtime": 1782046807.8754191,
-    "hash": "4754a9e925414c77d167823998a41cdd"
+    "ast_hash": "4754a9e925414c77d167823998a41cdd",
+    "semantic_hash": "4754a9e925414c77d167823998a41cdd"
   },
-  "C:\\Users\\JonathanDemeulemeest\\VSCODE\\personal-mcp-servicenow\\docs\\MCPB_BUILD.md": {
+  "docs/MCPB_BUILD.md": {
     "mtime": 1784706094.0820518,
-    "hash": "9093ba51adc54d59cbee02b9f22a8afd"
+    "ast_hash": "9093ba51adc54d59cbee02b9f22a8afd",
+    "semantic_hash": "9093ba51adc54d59cbee02b9f22a8afd"
+  },
+  "Table_Tools/read_helpers.py": {
+    "mtime": 1785934906.3406956,
+    "ast_hash": "1faf70fa3354aeed018f2da9bc930960",
+    "semantic_hash": "1faf70fa3354aeed018f2da9bc930960"
+  },
+  "http_layer/errors.py": {
+    "mtime": 1785957555.849106,
+    "ast_hash": "5544bee90629e71f56cd8b7bba0cbef2",
+    "semantic_hash": "5544bee90629e71f56cd8b7bba0cbef2"
+  },
+  "manifest.json": {
+    "mtime": 1785997505.4481635,
+    "ast_hash": "44f4966362ee31c94a853ddfaf2aab17",
+    "semantic_hash": "44f4966362ee31c94a853ddfaf2aab17"
+  },
+  "oauth/token_store.py": {
+    "mtime": 1782046807.9060338,
+    "ast_hash": "e9ae385d89468d6a015f33ab2375b293",
+    "semantic_hash": "e9ae385d89468d6a015f33ab2375b293"
+  },
+  "pyproject.toml": {
+    "mtime": 1785997505.4512277,
+    "ast_hash": "bdd1be671f463a037d4f7ed3280a5341",
+    "semantic_hash": "bdd1be671f463a037d4f7ed3280a5341"
+  },
+  "tests/test_cmdb_citype_validation.py": {
+    "mtime": 1785845787.677325,
+    "ast_hash": "751c2c27276a1baae247aa3b0a755588",
+    "semantic_hash": "751c2c27276a1baae247aa3b0a755588"
+  },
+  "tests/test_http_layer_errors.py": {
+    "mtime": 1785960646.8933816,
+    "ast_hash": "04494ee32f3138e64bb856aa407be802",
+    "semantic_hash": "04494ee32f3138e64bb856aa407be802"
+  },
+  "tests/test_task_sla_guard.py": {
+    "mtime": 1785845787.6867886,
+    "ast_hash": "3c026a02e9d2556dcede4193784681a6",
+    "semantic_hash": "3c026a02e9d2556dcede4193784681a6"
+  },
+  "tests/test_token_footprint.py": {
+    "mtime": 1779295408.9514773,
+    "ast_hash": "f334cef96c7c948393fe65c424ccdfb9",
+    "semantic_hash": "f334cef96c7c948393fe65c424ccdfb9"
+  },
+  "tests/test_typed_read_cmdb_tools.py": {
+    "mtime": 1785960646.8943868,
+    "ast_hash": "8e604b05f7c924761f2f8c00c42f372e",
+    "semantic_hash": "8e604b05f7c924761f2f8c00c42f372e"
+  },
+  "tests/test_typed_read_generic_table_tools.py": {
+    "mtime": 1785960646.8956988,
+    "ast_hash": "34bafeb5f76d70577b53b3c5c60d5e04",
+    "semantic_hash": "34bafeb5f76d70577b53b3c5c60d5e04"
+  },
+  "tests/test_typed_read_kb_article_tools.py": {
+    "mtime": 1785960646.8967047,
+    "ast_hash": "919b6e8f843556e935ef57981a29eade",
+    "semantic_hash": "919b6e8f843556e935ef57981a29eade"
+  },
+  "tests/test_typed_read_table_tools.py": {
+    "mtime": 1785960646.8977034,
+    "ast_hash": "9994118410cc64c4d56d8cac6038ed9a",
+    "semantic_hash": "9994118410cc64c4d56d8cac6038ed9a"
+  },
+  "tests/test_typed_read_vtb_task_tools.py": {
+    "mtime": 1785960646.8977034,
+    "ast_hash": "ca379d250426dd323431ba5b62fd1200",
+    "semantic_hash": "ca379d250426dd323431ba5b62fd1200"
+  },
+  ".github/FUNDING.yml": {
+    "mtime": 1769269803.5967453,
+    "ast_hash": "25ed3db305e744828fabddce9f4bf6fa",
+    "semantic_hash": "25ed3db305e744828fabddce9f4bf6fa"
+  },
+  ".github/workflows/release.yaml": {
+    "mtime": 1784443267.3171768,
+    "ast_hash": "1b16e8c21a5633e3d7b26e6f5f893d1a",
+    "semantic_hash": "1b16e8c21a5633e3d7b26e6f5f893d1a"
   }
 }
