@@ -1,5 +1,10 @@
 import sys
-from http_layer import ServiceNowRequestError, make_nws_request, NWS_API_BASE
+from http_layer import (
+    NWS_API_BASE,
+    ServiceNowRequestError,
+    encode_query_string,
+    make_nws_request,
+)
 from utils import extract_keywords
 from typing import Any, Dict, Optional, List
 import re
@@ -19,15 +24,18 @@ from constants import (
     text_search_field_for,
     LOGICMONITOR_CALLER_SYS_ID,
     ENABLE_COMPLETE_QUERY,
+    QUERY_VALUE_NEW_QUERY_ERROR,
     TABLE_CONFIGS
 )
 from .read_helpers import carry_partial, carry_partial_after_filter, is_read_failure
 from filter import (
     QueryExplainer,
     QueryIntelligence,
+    QueryValueError,
     TableFilterParams,
     build_pagination_params,
     build_smart_filter,
+    encode_query_value,
     explain_existing_filter,
     suggest_query_improvements,
     validate_query_filters,
@@ -52,6 +60,21 @@ from filter import (
 #      `partial` key.
 #   4. `except ServiceNowRequestError` always precedes a bare `except Exception`
 #      so the typed failure is never flattened into a message string.
+# ---------------------------------------------------------------------------
+# Encoded-query value boundary (v4.4.1). Every caller-supplied value that ends up
+# as the operand of a condition is escaped here, by `encode_query_value`, and the
+# transport preserves that escaping instead of unquoting it away. Two rules:
+#
+#   * A condition handler is either STRUCTURAL — the value IS a query fragment
+#     (`priority=1^ORpriority=2`, a BETWEEN/javascript range, a `^`-joined
+#     exclusion list) — or TERMINAL, pasting the value after `field=` or after an
+#     operator. Only terminal handlers encode. Encoding a structural value would
+#     escape the operators it is made of.
+#   * `^` inside a terminal value is refused (`QueryValueError`), not escaped:
+#     ServiceNow's parser splits on the DECODED value, so no encoding can carry
+#     it. Every public entry point below maps that refusal to
+#     `{"error": {"code": "VALIDATION", ...}}`, because a filter that cannot be
+#     expressed must not become a filter that quietly matches more.
 # ---------------------------------------------------------------------------
 
 
@@ -138,6 +161,13 @@ async def query_table_by_text(
     ``task.short_description``. Resolving from the table rather than requiring
     each caller to pass the right field means a new call site cannot
     reintroduce the bug by forgetting.
+
+    This path is immune to the encoded-query value defect for a reason nobody
+    designed: ``utils.extract_keywords`` tokenizes on ``\\b[a-zA-Z]{4,}\\b``, so a
+    keyword cannot contain ``^``, ``&`` or ``%``. The keywords are escaped anyway
+    (a no-op today) and ``tests/test_query_value_encoding.py`` pins the
+    tokenizer's character class, because the protection is incidental and a
+    widened tokenizer would remove it silently.
     """
     search_field = search_field or text_search_field_for(table_name)
     fields = DETAIL_FIELDS[table_name] if detailed else ESSENTIAL_FIELDS[table_name]
@@ -146,7 +176,12 @@ async def query_table_by_text(
         return {"result": [], "message": NO_RECORDS_FOUND}
 
     # OR-group the keyword conditions so one request matches any keyword.
-    query = "^OR".join(f"{search_field}LIKE{keyword}" for keyword in keywords)
+    try:
+        query = "^OR".join(
+            f"{search_field}LIKE{encode_query_value(keyword)}" for keyword in keywords
+        )
+    except QueryValueError as refusal:
+        return refusal.to_error_dict()
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}"
     # Single paginated request; text searches capped at 50 results.
     try:
@@ -175,7 +210,10 @@ async def get_record_description(table_name: str, record_number: str) -> dict[st
     """Generic function to get short_description for any record."""
     if not _is_safe_record_number(record_number):
         return {"result": [], "message": RECORD_NOT_FOUND}
-    query = f"number={record_number}"
+    # `encode_query_value` cannot refuse here: `_is_safe_record_number` already
+    # rejected `^`. It is applied for the `%` case — an unescaped "INC%41" used to
+    # be decoded by the transport into "INCA", a lookup for a different record.
+    query = f"number={encode_query_value(record_number)}"
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields=short_description&sysparm_query={query}"
     try:
         data = await make_nws_request(url)
@@ -190,7 +228,8 @@ async def get_record_details(table_name: str, record_number: str) -> dict[str, A
     if not _is_safe_record_number(record_number):
         return {"result": [], "message": RECORD_NOT_FOUND}
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
-    query = f"number={record_number}"
+    # See `get_record_description`: guarded against `^` upstream, escaped for `%`.
+    query = f"number={encode_query_value(record_number)}"
     url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_query={query}&sysparm_display_value=true"
     try:
         data = await make_nws_request(url)
@@ -494,22 +533,27 @@ def _clean_priority_input(value: str) -> str:
 
 
 def _process_comma_separated_priorities(value: str) -> str:
-    """Process comma-separated priority list into OR syntax."""
+    """Process comma-separated priority list into OR syntax.
+
+    Structural overall — the `^OR` join is ours — but each element is a terminal
+    value and is escaped as one. `_normalize_priority_value` only strips a leading
+    "P", so anything else the caller sent arrives here intact.
+    """
     clean_value = _clean_priority_input(value)
     priorities = [p.strip().strip("\"'") for p in clean_value.split(",")]
-    
+
     # Convert P1/P2 notation to numbers
     priority_nums = [_normalize_priority_value(p) for p in priorities if p]
-    
+
     # Build OR syntax
-    priority_conditions = [f"priority={p}" for p in priority_nums]
+    priority_conditions = [f"priority={encode_query_value(p)}" for p in priority_nums]
     return "^OR".join(priority_conditions)
 
 
 def _format_single_priority(value: str) -> str:
-    """Format single priority value."""
+    """Format single priority value. Terminal."""
     priority_num = _normalize_priority_value(value)
-    return f"priority={priority_num}"
+    return f"priority={encode_query_value(priority_num)}"
 
 
 def _parse_priority_list(value: str) -> str:
@@ -562,17 +606,22 @@ def _parse_caller_exclusions(value: str) -> str:
     if value_lower in known_callers:
         return f"caller_id!={known_callers[value_lower]}"
     
-    # Handle comma-separated sys_ids
+    # Handle comma-separated sys_ids. Structural overall (the "^" join is ours),
+    # but each sys_id is a terminal value and is escaped as one.
     if "," in value:
         clean_value = value.strip("[]\"'")
         caller_ids = [c.strip().strip("\"'") for c in clean_value.split(",")]
-        exclusions = [f"caller_id!={caller_id}" for caller_id in caller_ids if caller_id]
+        exclusions = [
+            f"caller_id!={encode_query_value(caller_id)}"
+            for caller_id in caller_ids
+            if caller_id
+        ]
         return "^".join(exclusions)
-    
+
     # Single caller exclusion
     if value and not value.startswith("caller_id!="):
-        return f"caller_id!={value}"
-    
+        return f"caller_id!={encode_query_value(value)}"
+
     return value
 
 def _handle_complete_query_condition(value: str) -> str:
@@ -581,14 +630,21 @@ def _handle_complete_query_condition(value: str) -> str:
 
 
 def _handle_date_range_condition(field: str, value: str) -> Optional[str]:
-    """Handle date range parsing for sys_created_on field."""
+    """Handle date range parsing for sys_created_on field.
+
+    Structural on the BETWEEN and natural-language branches (both produce a
+    complete fragment, operators and `@` separator included). Terminal on the
+    `>=`/`<=` branch — the operand is escaped there. `>` `<` `=` `:` `(` `)` are
+    in the value safe-set, so a `>=javascript:gs.daysAgoStart(14)` operand is
+    still sent byte-for-byte as before.
+    """
     if field == "sys_created_on":
         # If already in BETWEEN format, return as-is
         if "BETWEEN" in value:
             return value
         # If already has operator, return as-is
         if value.startswith((">=", "<=")):
-            return f"{field}{value}"
+            return f"{field}{encode_query_value(value)}"
         # Try to parse natural language date range
         date_range = _parse_date_range_from_text(value)
         if date_range:
@@ -619,6 +675,13 @@ def _handle_bare_or_value_condition(field: str, value: str) -> Optional[str]:
     ServiceNow query: "priority=1^ORpriority=2".
 
     Works for any field (priority, task.priority, state, etc.).
+
+    STRUCTURAL, so the value is not escaped: it carries its own `^OR` and its own
+    `field=value` segments after the first. That makes `^OR` in a filter value
+    always read as structure, never as literal text — the one place the caret
+    refusal does not apply, because the handler exists precisely to honour an
+    LLM's intent to write an OR. A title genuinely containing "^OR" is
+    unqueryable here, the same as any other `^`.
     """
     if "^OR" not in value:
         return None
@@ -636,9 +699,15 @@ def _handle_servicenow_filter_condition(field: str, value: str) -> Optional[str]
 
 
 def _handle_operator_condition(field: str, value: str) -> Optional[str]:
-    """Handle direct operator syntax."""
+    """Handle direct operator syntax.
+
+    Terminal: the operator is a prefix ON the value (`LIKEserver down`,
+    `>=2024-01-01`), so the whole value is escaped. Every operator character is
+    either in the value safe-set or was already being escaped by the transport —
+    `NOT LIKE` has always reached ServiceNow as `NOT%20LIKE`.
+    """
     if _has_operator_in_value(value):
-        return f"{field}{value}"
+        return f"{field}{encode_query_value(value)}"
     return None
 
 
@@ -653,16 +722,17 @@ _SUFFIX_OPERATORS = (
 
 
 def _handle_suffix_operator_condition(field: str, value: str) -> Optional[str]:
-    """Handle suffix-based operators (foo_gte=5 -> foo>=5)."""
+    """Handle suffix-based operators (foo_gte=5 -> foo>=5). Terminal."""
     for suffix, operator in _SUFFIX_OPERATORS:
         if field.endswith(suffix):
-            return f"{field[:-len(suffix)]}{operator}{value}"
+            return f"{field[:-len(suffix)]}{operator}{encode_query_value(value)}"
     return None
 
 
 def _handle_exact_match_condition(field: str, value: str) -> str:
-    """Handle exact match condition."""
-    return f"{field}={value}"
+    """Handle exact match condition. Terminal, and the default — so this is the
+    handler that refuses a `^`-bearing value that no structural handler claimed."""
+    return f"{field}={encode_query_value(value)}"
 
 
 # Condition handler registry, ordered by specificity. Built once at import
@@ -699,10 +769,16 @@ def _build_query_condition(field: str, value: str) -> str:
     # Defend against a `^NQ` new-query-reset smuggled inside an otherwise
     # ordinary filter value: `^NQ` starts a brand-new query, discarding every
     # condition built before it — so one poisoned filter value turns a scoped
-    # query into an unbounded table read. Drop any condition that attempts it
-    # rather than passing it through.
+    # query into an unbounded table read.
+    #
+    # Checked HERE, before the handlers, and not left to `encode_query_value`:
+    # the structural handlers would claim `1^ORpriority=2^NQactive=true` as a
+    # caller-built fragment and never reach an encoder. v4.4.1 turned the
+    # response from a silent drop into a refusal — dropping the poisoned
+    # condition still ran the remaining ones, so the caller got real-looking rows
+    # from a query they did not ask for.
     if "^NQ" in value.upper():
-        return ""
+        raise QueryValueError.refused(value, QUERY_VALUE_NEW_QUERY_ERROR)
 
     # Try each condition handler until one matches
     for handler in _CONDITION_HANDLERS:
@@ -714,7 +790,14 @@ def _build_query_condition(field: str, value: str) -> str:
     return _handle_exact_match_condition(field, value)
 
 def _build_query_string(filters: Dict[str, str]) -> str:
-    """Build the complete query string from filters."""
+    """Build the complete query string from filters.
+
+    Raises:
+        QueryValueError: a filter value cannot be carried by encoded-query
+            syntax (`^`, or a `^NQ` reset). Every caller maps it to a VALIDATION
+            error dict; none of them may swallow it, because the alternative is
+            a query that runs broader than the one requested.
+    """
     if not filters:
         return ""
 
@@ -729,11 +812,16 @@ def _build_query_string(filters: Dict[str, str]) -> str:
     return "^".join(part for part in query_parts if part)
 
 def _encode_query_string(query_string: str) -> str:
-    """URL encode query string while preserving ServiceNow JavaScript functions and operators."""
-    from urllib.parse import quote
-    # Preserve ServiceNow-specific characters: =<>&^():@!
-    # Added '@' for JavaScript separators, '!' for NOT EQUALS, '^' for AND/OR operators
-    return quote(query_string, safe='=<>&^():@!')
+    """URL encode query string while preserving ServiceNow JavaScript functions and operators.
+
+    Thin alias for the transport's encoder since v4.4.1 — it used to be a second,
+    independent `quote(safe=...)` with different rules and no idempotency, so a
+    value could pass through two encoders that disagreed and be round-trip-stable
+    only by luck. One implementation now: escapes already applied by
+    `encode_query_value` survive both passes, and applying this before
+    `make_nws_request` is a no-op rather than a second opinion.
+    """
+    return encode_query_string(query_string)
 
 def _inject_sort_order(url: str, sort_directive: str) -> str:
     """Inject a sort directive into the URL's sysparm_query if no ORDERBY is present.
@@ -834,7 +922,13 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
             # Log warnings but continue with query
             print(f"[generic_table_tools] Query validation warnings: {validation_result.warnings}", file=sys.stderr)
 
-    query_string = _build_query_string(params.filters)
+    try:
+        query_string = _build_query_string(params.filters)
+    except QueryValueError as refusal:
+        # A filter that cannot be expressed is an error, never a dropped
+        # condition: dropping it would answer a broader question and label the
+        # rows as matches.
+        return refusal.to_error_dict()
     encoded_query = _encode_query_string(query_string)
 
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
@@ -1122,10 +1216,11 @@ def _build_priority_filter(priorities: List[str]) -> str:
     
     # Handle single priority
     if len(priorities) == 1:
-        return f"priority={priorities[0]}"
-    
-    # Build OR filter for multiple priorities
-    priority_filters = [f"priority={p}" for p in priorities]
+        return f"priority={encode_query_value(priorities[0])}"
+
+    # Build OR filter for multiple priorities. The "^OR" join is ours; each
+    # priority is a terminal value.
+    priority_filters = [f"priority={encode_query_value(p)}" for p in priorities]
     return "^OR".join(priority_filters)
 
 def _build_url_with_params(table_name: str, fields: List[str], query: str) -> str:
@@ -1137,7 +1232,12 @@ def _build_url_with_params(table_name: str, fields: List[str], query: str) -> st
     return f"{base_url}?{field_param}&{query_param}"
 
 def _build_additional_filters(additional_filters: Optional[Dict[str, str]]) -> List[str]:
-    """Convert additional_filters dict into a list of filter strings."""
+    """Convert additional_filters dict into a list of filter strings.
+
+    The second filter-assembly path (the first is `_build_query_string`), so it
+    escapes its values the same way. `_date_range` is the one structural key: a
+    pre-built fragment, complete with its operator.
+    """
     if not additional_filters:
         return []
     result = []
@@ -1146,7 +1246,7 @@ def _build_additional_filters(additional_filters: Optional[Dict[str, str]]) -> L
             # Pre-built date filter string (e.g., "sys_created_on>=2026-01-01 00:00:00")
             result.append(value)
         else:
-            result.append(f"{field}={value}")
+            result.append(f"{field}={encode_query_value(value)}")
     return result
 
 
@@ -1180,13 +1280,15 @@ async def get_records_by_priority(
     if not fields:
         return {"error": NO_FIELD_CONFIG_ERROR.format(table_name=table_name)}
 
-    # Build priority filter
-    priority_filter = _build_priority_filter(priorities)
-    if not priority_filter:
-        return {"error": NO_VALID_PRIORITIES_ERROR}
-
-    # Build complete filter list
-    filters = [priority_filter] + _build_additional_filters(additional_filters)
+    # Build priority filter + the additional-filter list. Both escape their
+    # values, so both can refuse one.
+    try:
+        priority_filter = _build_priority_filter(priorities)
+        if not priority_filter:
+            return {"error": NO_VALID_PRIORITIES_ERROR}
+        filters = [priority_filter] + _build_additional_filters(additional_filters)
+    except QueryValueError as refusal:
+        return refusal.to_error_dict()
 
     final_query = "^".join(filters)
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
@@ -1217,10 +1319,13 @@ async def query_table_with_generic_filters(
     if not fields:
         return {"error": NO_FIELD_CONFIG_ERROR.format(table_name=table_name)}
     
-    # Build query via _build_query_string so the ENABLE_COMPLETE_QUERY gate and
-    # the ^NQ defense (which can drop a condition to "") don't leave a dangling
-    # "^^" or leading/trailing "^" in the joined query.
-    query = _build_query_string(filters)
+    # Build query via _build_query_string so the ENABLE_COMPLETE_QUERY gate
+    # (which can drop a condition to "") doesn't leave a dangling "^^" or
+    # leading/trailing "^" in the joined query.
+    try:
+        query = _build_query_string(filters)
+    except QueryValueError as refusal:
+        return refusal.to_error_dict()
     base_url = f"{NWS_API_BASE}/api/now/table/{table_name}?sysparm_fields={','.join(fields)}&sysparm_display_value=true"
 
     if query:

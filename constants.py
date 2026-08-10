@@ -305,35 +305,25 @@ KB_DUPLICATE_IGNORED_STATES = {"retired", "outdated"}
 KB_DEDUP_QUERY_LIMIT = 200
 
 # Characters that break the STRUCTURE of an encoded query when they appear
-# inside a value. The read path percent-encodes sysparm_query but keeps the
-# ServiceNow operator characters in its safe-set
-# (http_layer/url_builder.ensure_query_encoded), and it unquotes before
-# re-quoting, so pre-encoding these at the call site does not survive:
+# inside a value, and so make a duplicate check untrustworthy for that title.
+#
+# v4.4.1 narrowed this from ("^", "&") to ("^",). "&" was only ever broken in
+# transport: the encoder unquoted before re-quoting, so a call site's "%26" was
+# undone and the raw "&" escaped sysparm_query= into a sibling URL parameter.
+# The encoder preserves existing escapes now and `encode_query_value` escapes the
+# title, so "Sales & Marketing" is carried faithfully and no longer blocks a
+# publish. The same change retired the percent-escape round-trip check.
+#
+# "^" stays refused because it is unrepresentable, not merely mis-transported:
+# even correct end-to-end encoding hands ServiceNow a decoded value containing
+# "^", and its condition parser splits there —
 #   "Cost^Center"  ->  short_descriptionLIKECost ^ Center   (two conditions)
-#   "A&B"          ->  short_descriptionLIKEA & B           (a second URL param)
-# Either way the query that runs is not the query that was asked for, and it
-# runs BROADER. A duplicate check cannot be trusted for such a value, so the
-# publish guard treats it as inconclusive rather than clean.
+# The query that runs is broader than the one asked for, so a "no duplicates"
+# answer from it would be meaningless. Inconclusive, not clean.
 #
-# Measured against the whole safe-set: only these two break anything. A value
-# containing = < > ( ) : @ ! survives the round trip intact.
-KB_QUERY_UNSAFE_CHARS = ("^", "&")
-
-# The other, quieter way a value fails to survive: `ensure_query_encoded`
-# unquotes before re-quoting, so any "%" followed by two hex digits in the value
-# is decoded as a percent-escape and ServiceNow searches for a DIFFERENT string.
-# "Deal 20%2C off" becomes "Deal 20, off"; "%41dmin" becomes "Admin"; "20%DB"
-# becomes an invalid byte and then U+FFFD. `unquote` never raises, so nothing
-# announces it.
-#
-# Detected by round trip (unquote(value) == value) rather than by blacklisting
-# "%", which would needlessly refuse an ordinary title like "50% off" — a bare
-# "%" not followed by hex digits survives fine. The round trip is also general:
-# it keeps holding if the encoder's safe-set ever changes.
-KB_DEDUP_REASON_PERCENT_ESCAPE = (
-    "the title contains a '%' sequence that the read path decodes as a "
-    "percent-escape, so ServiceNow would be searched for a different string"
-)
+# Measured against the whole encoder safe-set (2026-08-05): a value containing
+# = < > ( ) : @ ! survives the round trip intact.
+KB_QUERY_UNSAFE_CHARS = ("^",)
 
 # The duplicate check could not produce a trustworthy answer, so the publish did
 # not happen. Fail-closed: "could not check" is not "nothing found".
@@ -347,6 +337,32 @@ KB_DEDUP_REASON_UNSAFE_CHARS = (
 )
 KB_DEDUP_REASON_TRUNCATED = (
     "the search hit its {limit}-row cap, so a duplicate may have been left off the page"
+)
+
+# ---------------------------------------------------------------------------
+# Encoded-query value boundary (v4.4.1)
+# ---------------------------------------------------------------------------
+# Refusal message for the one character a value cannot carry. Not a warning and
+# not a dropped condition: a silently dropped or widened condition is how a
+# scoped query became a table read (see the silently_dropped_filters memory), so
+# the caller is told instead of being handed rows from a different query.
+QUERY_VALUE_CARET_ERROR = (
+    "Cannot search for a value containing '{char}': ServiceNow's encoded-query "
+    "syntax uses '{char}' to separate conditions and has no way to escape it "
+    "inside a value, so the search would silently match more records than "
+    "requested. Refused rather than answered. Value: '{value}'. Remove the "
+    "'{char}', or express the intent as separate filters."
+)
+
+# `^NQ` starts a brand-new query, discarding every condition built before it, so
+# one poisoned filter value turns a scoped query into an unbounded table read.
+# v4.4.1 turned the existing defense from a silent drop into this refusal: the
+# drop removed the poisoned condition but ran the remaining ones, answering a
+# question nobody asked with rows that look legitimate.
+QUERY_VALUE_NEW_QUERY_ERROR = (
+    "Refusing a filter value containing '{char}NQ': it restarts the query and "
+    "discards every condition before it, which would return records from an "
+    "unscoped table read. Nothing was queried. Value: '{value}'."
 )
 
 # The publish workflow fired but the confirming read failed. Distinct from a

@@ -27,9 +27,17 @@ from http_layer.request_dispatcher import (
     make_nws_request,
     test_oauth_connection,
 )
+from http_layer.url_builder import (
+    QUERY_OPERATOR_SAFE,
+    encode_query_string,
+    ensure_query_encoded,
+)
 
 __all__ = [
     "make_nws_request",
+    "encode_query_string",
+    "ensure_query_encoded",
+    "QUERY_OPERATOR_SAFE",
     "test_oauth_connection",
     "get_auth_info",
     "NWS_API_BASE",

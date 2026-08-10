@@ -10,6 +10,7 @@ Public API:
                    build_pagination_params
     NL parsing:    QueryIntelligence, build_smart_filter, get_filter_templates
     Explanation:   QueryExplainer, explain_existing_filter
+    Value escaping: encode_query_value, QueryValueError, QUERY_VALUE_SAFE
 """
 from filter.models import (
     QueryValidationResult,
@@ -36,6 +37,11 @@ from filter.explainer import (
     QueryExplainer,
     explain_existing_filter,
 )
+from filter.value_encoding import (
+    QUERY_VALUE_SAFE,
+    QueryValueError,
+    encode_query_value,
+)
 
 __all__ = [
     # Models
@@ -60,4 +66,8 @@ __all__ = [
     # Explanation
     "QueryExplainer",
     "explain_existing_filter",
+    # Value escaping
+    "QUERY_VALUE_SAFE",
+    "QueryValueError",
+    "encode_query_value",
 ]
