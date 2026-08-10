@@ -15,7 +15,15 @@ from http_layer import ServiceNowRequestError, make_nws_request, NWS_API_BASE
 from constants import TABLE_CONFIGS
 
 async def nowtestauth():
-    """Test function to verify authentication with ServiceNow standard API."""
+    """Verify authentication with a live ServiceNow standard-API call.
+
+    WHEN TO USE: confirm credentials actually work by hitting sys_user once.
+    WHEN NOT TO USE: reading configured auth values without a call
+        (now_auth_info); a plain process liveness check (nowtest).
+    PREFER OVER: now_auth_info when you need a real round-trip, not just config.
+    SIDE EFFECT: read-only — one sys_user probe.
+    EXAMPLE: test ServiceNow authentication.
+    """
     # Use standard sys_user table as a simple auth test
     url = f"{NWS_API_BASE}/api/now/table/sys_user?sysparm_limit=1&sysparm_fields=sys_id,name"
     try:
@@ -34,7 +42,15 @@ async def nowtestauth():
     }
 
 async def nowtest_auth_input(table_name: str):
-    """Get ServiceNow table schema information for a given table."""
+    """Inspect one supported table's schema — sample field names and counts.
+
+    WHEN TO USE: discover which fields a table exposes.
+    WHEN NOT TO USE: querying records (filter_records / search_records); auth
+        checks (nowtestauth).
+    PREFER OVER: nothing; this is the schema-peek helper.
+    SIDE EFFECT: read-only — fetches one sample row.
+    EXAMPLE: what fields does the incident table have.
+    """
     if table_name not in TABLE_CONFIGS:
         return f"Invalid table '{table_name}'. Not in the supported allowlist."
     # Use standard table API to get basic table info
