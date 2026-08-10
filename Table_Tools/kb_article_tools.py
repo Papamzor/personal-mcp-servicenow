@@ -361,6 +361,15 @@ async def _refresh_draft_sys_id(article_number: str, current_sys_id: str) -> str
 async def update_knowledge_article(article_number: str, update_data: Dict[str, Any]) -> Dict[str, Any] | str:
     """Update fields on a knowledge article by article number (e.g. KB0001234).
 
+    WHEN TO USE: change an article's content or metadata — "update the body
+        text of KB0001234".
+    WHEN NOT TO USE: changing publication state — publish
+        (publish_knowledge_article) or retire (retire_knowledge_article).
+    PREFER OVER: nothing; this is the kb_knowledge field-write path.
+    TABLES: kb_knowledge only.
+    SIDE EFFECT: WRITE — PATCHes one draft article.
+    EXAMPLE: update the body text of KB0001234.
+
     Args:
         article_number: The KB article number.
         update_data: Fields to update (e.g. short_description, text,
@@ -399,7 +408,16 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
 
 
 async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str:
-    """Publish a knowledge article via the ServiceNow workflow endpoint.
+    """Publish ONE knowledge article via the ServiceNow workflow endpoint.
+
+    WHEN TO USE: publish a single article — "publish knowledge article
+        KB0001234".
+    WHEN NOT TO USE: several articles at once (use publish_knowledge_articles);
+        only checking for duplicates without publishing (check_kb_duplicates).
+    PREFER OVER: publish_knowledge_articles when there is exactly one article.
+    TABLES: kb_knowledge only.
+    SIDE EFFECT: WRITE — runs the publish workflow. Fail-closed on the dup check.
+    EXAMPLE: publish knowledge article KB0001234.
 
     Runs a duplicate check across all workflow states before publishing.
     Returns early with a list of duplicates if any are found.
@@ -534,6 +552,15 @@ async def check_kb_duplicates(
 ) -> Dict[str, Any]:
     """Check for duplicate KB articles without publishing.
 
+    WHEN TO USE: confirm an article has no duplicates before publishing —
+        "check whether KB0001234 has duplicates before I publish it".
+    WHEN NOT TO USE: actually publishing (publish_knowledge_article /
+        publish_knowledge_articles run this check themselves first).
+    PREFER OVER: nothing; this is the standalone duplicate probe.
+    TABLES: kb_knowledge only.
+    SIDE EFFECT: read-only — never writes.
+    EXAMPLE: check whether KB0001234 has duplicates before I publish it.
+
     For each number: looks up short_description, then finds matching live KB
     articles (draft / review / published). Retired + outdated states are
     skipped. Lets the caller resolve all conflicts upfront before running a
@@ -623,7 +650,17 @@ async def publish_knowledge_articles(
     article_numbers: JsonList,
     concurrency: int = KB_PUBLISH_BATCH_CONCURRENCY,
 ) -> Dict[str, Any]:
-    """Publish multiple KB articles in one tool call.
+    """Publish MULTIPLE KB articles in one tool call (batch).
+
+    WHEN TO USE: two or more articles to publish together — "publish KB0001234,
+        KB0001235 and KB0001236 in one go".
+    WHEN NOT TO USE: exactly one article (use publish_knowledge_article);
+        checking duplicates without publishing (check_kb_duplicates).
+    PREFER OVER: calling publish_knowledge_article in a loop — this batches and
+        never lets one failure abort the rest.
+    TABLES: kb_knowledge only.
+    SIDE EFFECT: WRITE — runs the publish workflow per article.
+    EXAMPLE: publish KB0001234, KB0001235 and KB0001236 in one go.
 
     Runs full publish flow per article (meta lookup → duplicate check →
     ServiceNow workflow POST). Returns a flat status row per article so
@@ -668,6 +705,15 @@ async def publish_knowledge_articles(
 
 async def retire_knowledge_article(article_number: str) -> Dict[str, Any] | str:
     """Retire a knowledge article via the ServiceNow workflow endpoint.
+
+    WHEN TO USE: take a published article out of service — "retire knowledge
+        article KB0004321".
+    WHEN NOT TO USE: publishing (publish_knowledge_article); editing content
+        (update_knowledge_article).
+    PREFER OVER: nothing; this is the kb_knowledge retire path.
+    TABLES: kb_knowledge only.
+    SIDE EFFECT: WRITE — runs the retire workflow.
+    EXAMPLE: retire knowledge article KB0004321.
 
     Args:
         article_number: The KB article number (e.g. KB0001234).
