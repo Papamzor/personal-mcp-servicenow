@@ -10,9 +10,9 @@ Mermaid diagrams for the Personal MCP ServiceNow server. Packaging is Claude Des
 | [02-oauth-authentication-flow.md](./02-oauth-authentication-flow.md) | Client-credentials flow, token cache, 401 retry, pooled httpx | Sequence | v4.3 (oauth layer unchanged in v5.0) |
 | [03-tool-organization.md](./03-tool-organization.md) | 25 tools by source module; generic wrappers + domain tools | Graph | v5.0 |
 | [04-similarity-search-flow.md](./04-similarity-search-flow.md) | `search_records` / `filter_records` read path (OR-LIKE, pagination, GET params, §3.1) | Flowchart | v5.0 |
-| [06-sla-architecture-flow.md](./06-sla-architecture-flow.md) | 4 SLA tools, status presets, token-safe defaults | Architecture | v5.0 |
+| [05-sla-architecture-flow.md](./05-sla-architecture-flow.md) | 4 SLA tools, status presets, token-safe defaults | Architecture | v5.0 |
 
-> `05-ai-intelligence-flow.md` was deleted in v5.0 — the NL engine it documented is gone; natural language → filter is the host model's job.
+> The old `05-ai-intelligence-flow.md` was deleted in v5.0 — the NL engine it documented is gone; natural language → filter is the host model's job. The SLA diagram was renumbered 06→05 to close the gap it left.
 
 ## How to View Diagrams
 

@@ -129,7 +129,7 @@ graph TB
 
 - **Priority**: `get_priority_incidents` — date ranges + metadata; extra filters via `additional_filters` (no deprecated `**kwargs`)
 - **Knowledge state** (1): `get_kb_articles_by_state` — collapses KB versions to one row per `number` (published > draft > review > outdated > retired)
-- **SLA** (4): see [06-sla-architecture-flow.md](./06-sla-architecture-flow.md)
+- **SLA** (4): see [05-sla-architecture-flow.md](./05-sla-architecture-flow.md)
 
 Removed in v5.0: the three smart-KB reads (`similar_knowledge_for_text`, `get_knowledge_by_category`, `get_active_knowledge_articles`) — use `search_records` / `filter_records` / `get_kb_articles_by_state` instead.
 
