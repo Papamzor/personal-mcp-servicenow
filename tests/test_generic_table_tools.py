@@ -543,7 +543,8 @@ class TestAsyncTableOperations:
 
             assert result["result"] is not None
             assert len(result["result"]) > 0
-            assert "Found" in result["message"]
+            assert result["returned_count"] == 1
+            assert result["truncated"] is False
 
     @pytest.mark.asyncio
     async def test_query_table_by_text_uses_like_operator(self):
@@ -572,7 +573,7 @@ class TestAsyncTableOperations:
             result = await query_table_by_text("incident", "nonexistent keyword")
 
             assert result["result"] == []
-            assert "message" in result
+            assert result["returned_count"] == 0
 
     @pytest.mark.asyncio
     async def test_get_record_description_success(self):
@@ -616,7 +617,7 @@ class TestAsyncTableOperations:
             result = await get_record_details("incident", "INC001")
 
             assert result is not None
-            assert "result" in result
+            assert result["record"] == {"number": "INC001", "short_description": "Test"}
 
     @pytest.mark.asyncio
     async def test_find_similar_records_success(self):
@@ -647,7 +648,7 @@ class TestAsyncTableOperations:
             result = await find_similar_records("incident", "INC999")
 
             assert result["result"] == []
-            assert "message" in result
+            assert result["returned_count"] == 0
 
     @pytest.mark.asyncio
     async def test_query_table_with_filters_success(self):
@@ -676,8 +677,8 @@ class TestAsyncTableOperations:
             result = await query_table_with_filters("incident", params)
 
             assert result["result"] == []
-            assert "message" in result
             assert result["returned_count"] == 0
+            assert result["truncated"] is False
 
     @pytest.mark.asyncio
     async def test_query_table_with_filters_reference_field_hint_on_empty(self):
@@ -784,8 +785,8 @@ class TestEdgeCases:
 
             result = await find_similar_records("incident", "INC001")
 
-            assert result["result"] == []
-            assert "message" in result
+            # A bare-exception path is a failure now, not a soft empty result.
+            assert result["error"]["code"] == "INTERNAL"
 
     @pytest.mark.asyncio
     async def test_get_records_by_priority_with_additional_filters(self):

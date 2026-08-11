@@ -69,7 +69,7 @@ class TestPreWriteLookup:
             result = await update_private_task("VTB9999999", {"comments": "hi"})
 
         write.assert_not_called()
-        assert result == PRIVATE_TASK_NOT_FOUND_UPDATE
+        assert result == {"error": {"code": "NOT_FOUND", "message": PRIVATE_TASK_NOT_FOUND_UPDATE}}
 
     @pytest.mark.asyncio
     async def test_found_task_still_writes(self):
@@ -92,7 +92,7 @@ class TestPreWriteLookup:
         with patch("Table_Tools.vtb_task_tools._get_task_sys_id") as lookup:
             result = await update_private_task("VTB0001234", {"sys_id": "nope"})
         lookup.assert_not_called()
-        assert "Rejected non-updatable field(s)" in result
+        assert "Rejected non-updatable field(s)" in result["error"]["message"]
 
 
 class TestEndToEndThroughTheRealDispatcher:
@@ -150,7 +150,7 @@ class TestEndToEndThroughTheRealDispatcher:
         result = await update_private_task("VTB9999999", {"comments": "hi"})
 
         assert writes == []
-        assert result == PRIVATE_TASK_NOT_FOUND_UPDATE
+        assert result == {"error": {"code": "NOT_FOUND", "message": PRIVATE_TASK_NOT_FOUND_UPDATE}}
 
     @pytest.mark.asyncio
     async def test_successful_lookup_writes_once(self, transport):
@@ -160,7 +160,7 @@ class TestEndToEndThroughTheRealDispatcher:
         assert len(writes) == 1
         assert writes[0][0] == "PATCH"
         assert SYS_ID in writes[0][1]
-        assert result == {"number": "VTB0001234"}
+        assert result["record"] == {"number": "VTB0001234"}
 
 
 class TestReadFailureStillRaisesAtTheHelperBoundary:

@@ -11,11 +11,8 @@ import re
 from constants import (
     ESSENTIAL_FIELDS,
     DETAIL_FIELDS,
-    NO_RECORDS_FOUND,
     RECORD_NOT_FOUND,
-    NO_SIMILAR_RECORDS_FOUND,
     CONNECTION_ERROR,
-    NO_DESCRIPTION_FOUND,
     REQUEST_FAILED_ERROR,
     NO_FIELD_CONFIG_ERROR,
     NO_VALID_PRIORITIES_ERROR,
@@ -30,6 +27,7 @@ from constants import (
     TABLE_CONFIGS
 )
 from .read_helpers import carry_partial_after_filter, is_read_failure
+from .response import error_response, list_response, record_response
 from filter import (
     QueryValueError,
     TableFilterParams,
@@ -169,7 +167,7 @@ async def query_table_by_text(
     fields = DETAIL_FIELDS[table_name] if detailed else ESSENTIAL_FIELDS[table_name]
     keywords = extract_keywords(input_text)
     if not keywords:
-        return {"result": [], "message": NO_RECORDS_FOUND}
+        return list_response([])
 
     # OR-group the keyword conditions so one request matches any keyword.
     try:
@@ -183,23 +181,17 @@ async def query_table_by_text(
     try:
         all_results = await _make_paginated_request(base_url, max_results=50)
     except PartialPageReadError as partial:
-        return _partial_envelope(_text_search_envelope(partial.rows, input_text), partial)
+        return _partial_envelope(_text_search_envelope(partial.rows), partial)
     except ServiceNowRequestError as error:
         return error.to_error_dict()
 
-    return _text_search_envelope(all_results, input_text)
+    return _text_search_envelope(all_results)
 
 
-def _text_search_envelope(rows: List[Dict[str, Any]], input_text: str) -> dict[str, Any]:
-    """Response shape for a text search. No rows is not-found, never a failure."""
-    if not rows:
-        return {"result": [], "message": NO_RECORDS_FOUND}
-    result_count = len(rows)
-    limit_note = " (limited to 50)" if result_count == 50 else ""
-    return {
-        "result": rows,
-        "message": f"Found {result_count} records matching '{input_text}'{limit_note}",
-    }
+def _text_search_envelope(rows: List[Dict[str, Any]]) -> dict[str, Any]:
+    """List-contract response for a text search. No rows is success (empty list),
+    never a failure. Text searches cap at 50 rows, so `truncated` fires at 50."""
+    return list_response(rows, truncated=len(rows) >= 50)
 
 
 async def get_record_description(table_name: str, record_number: str) -> dict[str, Any]:
@@ -220,9 +212,14 @@ async def get_record_description(table_name: str, record_number: str) -> dict[st
     return _record_envelope(data)
 
 async def get_record_details(table_name: str, record_number: str) -> dict[str, Any]:
-    """Generic function to get detailed information for any record."""
+    """Get one record's DETAIL_FIELDS, in the single-record contract shape.
+
+    Returns `{"record": {...}}` on a hit and `{"record": None}` on a miss
+    (§3.1) — never a 1-row `result` list, which is the arity ambiguity the
+    contract removes. An unqueryable record number is a miss, not a failure.
+    """
     if not _is_safe_record_number(record_number):
-        return {"result": [], "message": RECORD_NOT_FOUND}
+        return record_response(None)
     fields = DETAIL_FIELDS.get(table_name, ["number", "short_description"])
     # See `get_record_description`: guarded against `^` upstream, escaped for `%`.
     query = f"number={encode_query_value(record_number)}"
@@ -231,7 +228,8 @@ async def get_record_details(table_name: str, record_number: str) -> dict[str, A
         data = await make_nws_request(url)
     except ServiceNowRequestError as error:
         return error.to_error_dict()
-    return _record_envelope(data)
+    rows = data.get("result") if data else None
+    return record_response(rows[0] if rows else None)
 
 
 def _record_envelope(data: Optional[dict[str, Any]]) -> dict[str, Any]:
@@ -266,13 +264,7 @@ def _exclude_original_record(similar_data: dict[str, Any], record_number: str) -
     if not rows:
         return similar_data  # nothing to filter — pass the inner response through
     filtered_results = [record for record in rows if record.get('number') != record_number]
-    if filtered_results:
-        response = {
-            "result": filtered_results,
-            "message": f"Found {len(filtered_results)} similar records (excluding original record)",
-        }
-    else:
-        response = {"result": [], "message": NO_SIMILAR_RECORDS_FOUND}
+    response = list_response(filtered_results, truncated=bool(similar_data.get("truncated")))
     return carry_partial_after_filter(response, similar_data)
 
 
@@ -290,7 +282,9 @@ async def find_similar_records(table_name: str, record_number: str) -> dict[str,
 
         desc_text = _first_short_description(desc_data)
         if not desc_text:
-            return {"result": [], "message": NO_DESCRIPTION_FOUND}
+            # No seed description → nothing to match on. Empty is success (§3.1),
+            # not an error.
+            return list_response([])
 
         similar_data = await query_table_by_text(table_name, desc_text)
         if is_read_failure(similar_data):
@@ -302,7 +296,7 @@ async def find_similar_records(table_name: str, record_number: str) -> dict[str,
         # rather than letting CONNECTION_ERROR become a fourth error dialect.
         return error.to_error_dict()
     except Exception:
-        return {"result": [], "message": CONNECTION_ERROR}
+        return error_response("INTERNAL", CONNECTION_ERROR)
 
 # TableFilterParams moved to filter/models.py in v4.0 Sprint 1.
 # Re-exported above via `from filter import ...` so existing imports of
@@ -1010,21 +1004,10 @@ async def query_table_with_filters(table_name: str, params: TableFilterParams) -
             "Result validation warnings",
         )
 
-        response = {
-            "result": all_results,
-            "returned_count": returned_count,
-            "truncated": truncated,
-            "max_results": max_results,
-        }
+        response = list_response(all_results, truncated=truncated, max_results=max_results)
         return _partial_envelope(response, partial_read) if partial_read else response
 
-    empty_response = {
-        "result": [],
-        "message": NO_RECORDS_FOUND,
-        "returned_count": 0,
-        "truncated": False,
-        "max_results": max_results,
-    }
+    empty_response = list_response([], truncated=False, max_results=max_results)
     # Surface validation suggestions (e.g. reference-field dot-walk hint) on an
     # empty result so the caller can tell a genuine no-match from a silent
     # query-syntax mistake. Warnings here previously only went to stderr.
@@ -1081,15 +1064,8 @@ def _build_additional_filters(additional_filters: Optional[Dict[str, str]]) -> L
 
 
 def _format_priority_results(all_results: list, max_results: int) -> Dict[str, Any]:
-    """Format paginated results into a standard response dict."""
-    if not all_results:
-        return {"result": [], "message": NO_RECORDS_FOUND}
-    result_count = len(all_results)
-    limit_note = f" (limited to {max_results})" if result_count == max_results else ""
-    return {
-        "result": all_results,
-        "message": f"Found {result_count} records{limit_note}"
-    }
+    """Format paginated results into the list-contract shape. Empty is success."""
+    return list_response(all_results, truncated=len(all_results) >= max_results)
 
 
 async def get_records_by_priority(
@@ -1104,18 +1080,18 @@ async def get_records_by_priority(
     # Validate table supports priority
     table_config = TABLE_CONFIGS.get(table_name)
     if not table_config or not table_config.get("priority_field"):
-        return {"error": TABLE_NO_PRIORITY_SUPPORT_ERROR.format(table_name=table_name)}
+        return error_response("VALIDATION", TABLE_NO_PRIORITY_SUPPORT_ERROR.format(table_name=table_name))
 
     fields = DETAIL_FIELDS.get(table_name, []) if detailed else ESSENTIAL_FIELDS.get(table_name, [])
     if not fields:
-        return {"error": NO_FIELD_CONFIG_ERROR.format(table_name=table_name)}
+        return error_response("INTERNAL", NO_FIELD_CONFIG_ERROR.format(table_name=table_name))
 
     # Build priority filter + the additional-filter list. Both escape their
     # values, so both can refuse one.
     try:
         priority_filter = _build_priority_filter(priorities)
         if not priority_filter:
-            return {"error": NO_VALID_PRIORITIES_ERROR}
+            return error_response("VALIDATION", NO_VALID_PRIORITIES_ERROR)
         filters = [priority_filter] + _build_additional_filters(additional_filters)
     except QueryValueError as refusal:
         return refusal.to_error_dict()
@@ -1142,5 +1118,5 @@ async def get_records_by_priority(
         # is flattened into the REQUEST_FAILED_ERROR string and the code is lost.
         return error.to_error_dict()
     except Exception as e:
-        return {"error": REQUEST_FAILED_ERROR.format(error=str(e))}
+        return error_response("INTERNAL", REQUEST_FAILED_ERROR.format(error=str(e)))
 

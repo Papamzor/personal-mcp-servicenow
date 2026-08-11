@@ -75,21 +75,20 @@ class TestSingleRecordReads:
         _assert_plain_failure(result, ErrorCode.FORBIDDEN)
 
     @pytest.mark.asyncio
-    async def test_empty_result_still_says_not_found(self):
+    async def test_empty_result_is_a_record_miss_not_a_failure(self):
         with patch("Table_Tools.generic_table_tools.make_nws_request") as mock_request:
             mock_request.return_value = {"result": []}
             result = await get_record_details("incident", "INC0099999")
-        assert result["result"] == []
-        assert "message" in result
+        assert result == {"record": None}
         assert "error" not in result
 
     @pytest.mark.asyncio
-    async def test_rows_pass_through_untouched(self):
-        payload = {"result": [{"number": "INC0012345", "short_description": "db down"}]}
+    async def test_row_returns_under_record_key(self):
+        row = {"number": "INC0012345", "short_description": "db down"}
         with patch("Table_Tools.generic_table_tools.make_nws_request") as mock_request:
-            mock_request.return_value = payload
+            mock_request.return_value = {"result": [row]}
             result = await get_record_details("incident", "INC0012345")
-        assert result == payload
+        assert result == {"record": row}
 
 
 class TestPaginationPartialReads:
@@ -208,8 +207,8 @@ class TestFilteredQueryEnvelopes:
             side_effect=RuntimeError("boom"),
         ):
             result = await get_records_by_priority("incident", ["1", "2"])
-        assert "error" in result
-        assert isinstance(result["error"], str)
+        assert result["error"]["code"] == "INTERNAL"
+        assert isinstance(result["error"]["message"], str)
 
 
 class TestFindSimilarRecords:
@@ -334,7 +333,7 @@ class TestConsumersThatReWrap:
             mock_request.return_value = {"result": []}
             result = await get_kb_articles_by_state(workflow_state="published")
         assert result["result"] == []
-        assert result["message"] == "No matching KB articles."
+        assert result["returned_count"] == 0
         assert "error" not in result
 
     @pytest.mark.asyncio
@@ -407,5 +406,5 @@ class TestEndToEndThroughTheRealDispatcher:
 
         monkeypatch.setattr(dispatcher, "make_oauth_request", empty)
         result = await get_record("incident", "INC0099999")
-        assert result["result"] == []
+        assert result == {"record": None}
         assert "error" not in result

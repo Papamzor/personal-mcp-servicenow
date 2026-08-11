@@ -124,8 +124,8 @@ class TestReadPipelineEndToEnd:
 
         result = await search_records("not_a_real_table", "anything")
 
-        assert "error" in result
-        assert "Invalid table" in result["error"]
+        assert result["error"]["code"] == "VALIDATION"
+        assert "Invalid table" in result["error"]["message"]
 
     @staticmethod
     def _sysparm_query(url: str) -> str:
@@ -216,7 +216,7 @@ class TestWritePipelineEndToEnd:
 
             result = await create_private_task({"short_description": "Integration test"})
 
-        assert result == {"number": "VTB0001234"}
+        assert result["record"] == {"number": "VTB0001234"}
         # Confirm the write was delegated to oauth_client with raise_for_status=True
         call = mock_client.make_authenticated_request.call_args
         assert call.args[0] == "POST"
@@ -243,7 +243,7 @@ class TestWritePipelineEndToEnd:
 
             result = await update_private_task("VTB0001234", {"state": "3"})
 
-        assert result == {"number": "VTB0001234", "state": "3"}
+        assert result["record"] == {"number": "VTB0001234", "state": "3"}
         call = mock_client.make_authenticated_request.call_args
         assert call.args[0] == "PATCH"
         assert "abc123" in call.args[1]  # sys_id reached the PATCH URL
@@ -254,7 +254,7 @@ class TestWritePipelineEndToEnd:
 # ---------------------------------------------------------------------------
 
 class TestErrorPropagationEndToEnd:
-    """HTTPStatusError raised at the OAuth boundary surfaces as a domain error string."""
+    """HTTPStatusError at the OAuth boundary surfaces as an {"error": {code, message}} dict."""
 
     @pytest.mark.parametrize("status_code,fragment", [
         (401, "Authentication failed"),
@@ -280,5 +280,5 @@ class TestErrorPropagationEndToEnd:
 
             result = await create_private_task({"short_description": "boom"})
 
-        assert isinstance(result, str)
-        assert fragment.lower() in result.lower()
+        assert result["error"]["code"] in {"AUTH", "FORBIDDEN", "VALIDATION", "NOT_FOUND", "HTTP"}
+        assert fragment.lower() in result["error"]["message"].lower()

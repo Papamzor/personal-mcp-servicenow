@@ -26,9 +26,10 @@ class TestValidateTable:
     def test_invalid_table(self):
         result = _validate_table("nonexistent_table")
         assert result is not None
-        assert "error" in result
-        assert "nonexistent_table" in result["error"]
-        assert "incident" in result["error"]  # lists supported tables
+        assert result["error"]["code"] == "VALIDATION"
+        message = result["error"]["message"]
+        assert "nonexistent_table" in message
+        assert "incident" in message  # lists supported tables
 
     def test_supported_tables_list(self):
         assert "incident" in SUPPORTED_TABLES

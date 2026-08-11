@@ -254,13 +254,13 @@ class TestGetKbArticlesByState:
             assert result["truncated"] is True
 
     @pytest.mark.asyncio
-    async def test_empty_result_returns_message(self):
+    async def test_empty_result_is_list_contract_shape(self):
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {"result": [], "truncated": False}
             result = await get_kb_articles_by_state()
             assert result["result"] == []
-            assert "message" in result
             assert result["returned_count"] == 0
+            assert result["truncated"] is False
 
 
 class TestSLATools:

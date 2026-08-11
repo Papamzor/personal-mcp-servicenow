@@ -25,6 +25,7 @@ import anyio
 import httpx
 import structlog
 from .read_helpers import is_read_failure
+from .response import error_response, list_response, record_response
 from .write_helpers import map_http_error, unwrap_write_response
 from param_coercion import JsonList
 from constants import (
@@ -77,7 +78,7 @@ class KbDuplicateCheckInconclusive(Exception):
         self.reason = reason
 
 
-def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> str:
+def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> Dict[str, Any]:
     error_map = {
         401: ERROR_KB_ARTICLE_AUTH_FAILED.format(operation=operation),
         403: ERROR_KB_ARTICLE_ACCESS_DENIED.format(operation=operation),
@@ -94,11 +95,12 @@ def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> str:
     )
 
 
-def _unwrap_kb_write_response(result: Any, operation: str) -> Dict[str, Any] | str:
+def _unwrap_kb_write_response(result: Any, operation: str) -> Dict[str, Any]:
     return unwrap_write_response(
         result,
         ERROR_KB_WRITE_UNCONFIRMED.format(operation=operation),
         fields=KB_WRITE_RESPONSE_FIELDS,
+        success_message=f"KB article {operation} succeeded.",
     )
 
 
@@ -107,7 +109,7 @@ async def _write_kb_article(
     url: str,
     payload: Dict[str, Any],
     operation: str,
-) -> Dict[str, Any] | str:
+) -> Dict[str, Any]:
     # Bound the write with an anyio cancel scope — the pooled client runs with
     # timeout=None, so without this a held/half-open connection hangs forever.
     # anyio.fail_after raises builtin TimeoutError on breach, caught below.
@@ -117,7 +119,7 @@ async def _write_kb_article(
     except httpx.HTTPStatusError as e:
         return _handle_kb_error(e, operation)
     except Exception:
-        return ERROR_KB_ARTICLE_REQUEST_FAILED.format(operation=operation)
+        return error_response("INTERNAL", ERROR_KB_ARTICLE_REQUEST_FAILED.format(operation=operation))
     return _unwrap_kb_write_response(result, operation)
 
 
@@ -238,12 +240,12 @@ async def _check_kb_duplicates(short_description: str, exclude_number: str) -> l
     return []
 
 
-async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any] | str:
+async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any]:
     # Custom Scripted REST API (qonv/publish) — invokes KnowledgeUIAction server-side.
     # Direct Table API writes to workflow_state are ignored by ServiceNow.
     url = f"{NWS_API_BASE}/api/qonv/mateco_knowledge/articles/{sys_id}/{action}"
     result = await _write_kb_article("POST", url, {}, action)
-    if isinstance(result, str):
+    if isinstance(result, dict) and result.get("error"):
         _log.error("kb_workflow_error", action=action, sys_id=sys_id, url=url, result=result)
     return result
 
@@ -280,11 +282,13 @@ async def _verify_kb_published(article_number: str) -> Dict[str, Any] | None:
     return data["result"][0]
 
 
-async def _fire_publish(sys_id: str) -> str | None:
-    """Fire the publish workflow. Returns None on success, error string on fire-time failure.
+async def _fire_publish(sys_id: str) -> Any:
+    """Fire the publish workflow. Returns None on success, or a fire-time failure.
 
     A fire-time timeout is recoverable: the publish may still commit server-side,
-    so we return a marker and let _publish_with_verify poll for the Published row.
+    so we return the "fire timeout" sentinel and let _publish_with_verify poll for
+    the Published row. An HTTPStatusError becomes a coded error_response dict
+    (`_handle_kb_error`), passed through by `_publish_failure` if retries exhaust.
     The deadline now comes from anyio.fail_after (builtin TimeoutError); the
     httpx.TimeoutException arm is kept for any transport-level timeout.
     """
@@ -297,15 +301,19 @@ async def _fire_publish(sys_id: str) -> str | None:
         return _handle_kb_error(e, "publish")
 
 
-async def _publish_with_verify(sys_id: str, article_number: str) -> Dict[str, Any] | str:
+async def _publish_with_verify(sys_id: str, article_number: str) -> Dict[str, Any]:
     """Fire the publish workflow then verify by polling for a Published row.
 
     Treats verify as the source of truth — a fire-time TimeoutException or
     HTTPStatusError is recoverable if the article ends up Published. Only
     retries when verify confirms still-draft. Caps at KB_PUBLISH_MAX_RETRIES.
+
+    Returns the §3.1 write shape: `record_response(published_row, message=...)`
+    on a confirmed publish, `error_response(...)` when it could not be confirmed,
+    or the `_publish_unconfirmed` shape when the confirming read itself failed.
     """
     current_sys_id = sys_id
-    last_fire_error: str | None = None
+    last_fire_error: Any = None
 
     for attempt in range(KB_PUBLISH_MAX_RETRIES + 1):
         last_fire_error = await _fire_publish(current_sys_id)
@@ -319,12 +327,28 @@ async def _publish_with_verify(sys_id: str, article_number: str) -> Dict[str, An
             # became two publish workflows and a second published version.
             return _publish_unconfirmed(article_number, error)
         if published:
-            return published
+            return record_response(
+                published, message=f"KB article {article_number} published."
+            )
 
         if attempt < KB_PUBLISH_MAX_RETRIES:
             current_sys_id = await _refresh_draft_sys_id(article_number, current_sys_id)
 
-    return last_fire_error or ERROR_KB_PUBLISH_NOT_CONFIRMED.format(number=article_number)
+    return _publish_failure(article_number, last_fire_error)
+
+
+def _publish_failure(article_number: str, last_fire_error: Any) -> Dict[str, Any]:
+    """Normalise the exhausted-retries outcome into a coded error_response.
+
+    `last_fire_error` is whatever the final `_fire_publish` returned: a coded
+    error_response dict (HTTPStatusError at fire time — passed through), the
+    "fire timeout" sentinel (→ TIMEOUT), or None (fired fine but no Published row
+    ever appeared → INTERNAL, i.e. the workflow never reflected the change).
+    """
+    if isinstance(last_fire_error, dict):
+        return last_fire_error
+    code = "TIMEOUT" if last_fire_error == "fire timeout" else "INTERNAL"
+    return error_response(code, ERROR_KB_PUBLISH_NOT_CONFIRMED.format(number=article_number))
 
 
 def _publish_unconfirmed(article_number: str, error: ServiceNowRequestError) -> Dict[str, Any]:
@@ -358,7 +382,7 @@ async def _refresh_draft_sys_id(article_number: str, current_sys_id: str) -> str
     return refreshed or current_sys_id
 
 
-async def update_knowledge_article(article_number: str, update_data: Dict[str, Any]) -> Dict[str, Any] | str:
+async def update_knowledge_article(article_number: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
     """Update fields on a knowledge article by article number (e.g. KB0001234).
 
     WHEN TO USE: change an article's content or metadata — "update the body
@@ -376,14 +400,17 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
             kb_category, meta, meta_description).
 
     Returns:
-        Updated article record dict, or error string on failure.
+        {"record": {...}, "message": ...} on success, or
+        {"error": {"code", "message"}} on failure.
     """
     if not update_data:
-        return ERROR_KB_NO_UPDATE_DATA
+        return error_response("VALIDATION", ERROR_KB_NO_UPDATE_DATA)
 
     bad = [k for k in update_data if k not in KB_UPDATABLE_FIELDS]
     if bad:
-        return f"Rejected non-updatable field(s): {', '.join(bad)}"
+        return error_response(
+            "VALIDATION", f"Rejected non-updatable field(s): {', '.join(bad)}"
+        )
 
     # Per-step stderr timing — localises a stall to the sys_id GET vs the PATCH
     # when an update hangs. stdout is reserved for the MCP JSON-RPC frame stream.
@@ -399,7 +426,7 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
     t1 = time.monotonic()
     print(f"[kb] {article_number} sys_id GET took {t1 - t0:.1f}s", file=sys.stderr)
     if not sys_id:
-        return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
+        return error_response("NOT_FOUND", ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number))
     fields = ",".join(KB_WRITE_RESPONSE_FIELDS)
     url = f"{NWS_API_BASE}/api/now/table/kb_knowledge/{sys_id}?sysparm_fields={fields}"
     result = await _write_kb_article("PATCH", url, update_data, "update")
@@ -407,7 +434,7 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
     return result
 
 
-async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str:
+async def publish_knowledge_article(article_number: str) -> Dict[str, Any]:
     """Publish ONE knowledge article via the ServiceNow workflow endpoint.
 
     WHEN TO USE: publish a single article — "publish knowledge article
@@ -426,7 +453,12 @@ async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str
         article_number: The KB article number (e.g. KB0001234).
 
     Returns:
-        Updated article record dict, duplicate warning dict, or error string on failure.
+        On a confirmed publish, {"record": {...}, "message": ...}. On failure,
+        {"error": {"code", "message"}}. When a guard refuses (duplicates found or
+        the duplicate check could not answer) or the publish could not be
+        confirmed, a status dict with success=False and structured detail
+        (duplicates / duplicate_check / publish_confirmed) — an intentional
+        exception to the plain record/error shapes (see test_tool_response_contract).
 
     Fail-closed: the publish only proceeds on a duplicate check that positively
     came back clear. A check that could not run blocks the publish and writes
@@ -437,7 +469,7 @@ async def publish_knowledge_article(article_number: str) -> Dict[str, Any] | str
     except (ServiceNowRequestError, QueryValueError) as error:
         return error.to_error_dict()
     if not meta:
-        return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
+        return error_response("NOT_FOUND", ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number))
 
     try:
         duplicates = await _check_kb_duplicates(meta['short_description'], article_number)
@@ -581,9 +613,11 @@ async def check_kb_duplicates(
         does: as a reason not to publish, not as a clean result.
     """
     if not article_numbers:
-        return {"result": []}
+        return list_response([])
     if len(article_numbers) > 50:
-        return {"error": "check_kb_duplicates accepts at most 50 article numbers per call."}
+        return error_response(
+            "VALIDATION", "check_kb_duplicates accepts at most 50 article numbers per call."
+        )
 
     semaphore = asyncio.Semaphore(min(max(1, concurrency), KB_MAX_BATCH_CONCURRENCY))
 
@@ -594,7 +628,7 @@ async def check_kb_duplicates(
     outcomes = await asyncio.gather(
         *(_bounded(n) for n in article_numbers), return_exceptions=True
     )
-    return {"result": _rows_from_outcomes(article_numbers, outcomes, _duplicate_row_inconclusive)}
+    return list_response(_rows_from_outcomes(article_numbers, outcomes, _duplicate_row_inconclusive))
 
 
 def _normalize_publish_result(article_number: str, result: Dict[str, Any] | str) -> Dict[str, Any]:
@@ -639,10 +673,12 @@ def _normalize_publish_result(article_number: str, result: Dict[str, Any] | str)
         if result.get("duplicate_check"):
             row["duplicate_check"] = result["duplicate_check"]
         return row
+    # Success is the §3.1 write shape now: {"record": {...}, "message": ...}, so
+    # the published row's workflow_state lives under "record", not at top level.
     return {
         "number": article_number,
         "status": "published",
-        "workflow_state": result.get("workflow_state"),
+        "workflow_state": (result.get("record") or {}).get("workflow_state"),
     }
 
 
@@ -680,9 +716,11 @@ async def publish_knowledge_articles(
         It may have committed; do not blind-retry.
     """
     if not article_numbers:
-        return {"result": []}
+        return list_response([])
     if len(article_numbers) > 20:
-        return {"error": "publish_knowledge_articles accepts at most 20 article numbers per call."}
+        return error_response(
+            "VALIDATION", "publish_knowledge_articles accepts at most 20 article numbers per call."
+        )
 
     semaphore = asyncio.Semaphore(min(max(1, concurrency), KB_MAX_BATCH_CONCURRENCY))
 
@@ -700,10 +738,10 @@ async def publish_knowledge_articles(
     outcomes = await asyncio.gather(
         *(_bounded(n) for n in article_numbers), return_exceptions=True
     )
-    return {"result": _rows_from_outcomes(article_numbers, outcomes, _error_row)}
+    return list_response(_rows_from_outcomes(article_numbers, outcomes, _error_row))
 
 
-async def retire_knowledge_article(article_number: str) -> Dict[str, Any] | str:
+async def retire_knowledge_article(article_number: str) -> Dict[str, Any]:
     """Retire a knowledge article via the ServiceNow workflow endpoint.
 
     WHEN TO USE: take a published article out of service — "retire knowledge
@@ -719,12 +757,13 @@ async def retire_knowledge_article(article_number: str) -> Dict[str, Any] | str:
         article_number: The KB article number (e.g. KB0001234).
 
     Returns:
-        Updated article record dict, or error string on failure.
+        {"record": {...}, "message": ...} on success, or
+        {"error": {"code", "message"}} on failure.
     """
     try:
         sys_id = await _get_kb_article_sys_id(article_number, workflow_state="published")
     except (ServiceNowRequestError, QueryValueError) as error:
         return error.to_error_dict()
     if not sys_id:
-        return ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number)
+        return error_response("NOT_FOUND", ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number=article_number))
     return await _call_kb_workflow(sys_id, "retire")

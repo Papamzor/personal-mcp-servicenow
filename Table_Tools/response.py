@@ -3,14 +3,22 @@
 The target shapes for every tool. The discriminator is the presence of `error`;
 there is no `success`/`ok` boolean and no bare-string return.
 
-**Migration status:** as of this change, only the **CMDB tools** (`cmdb_tools.py`)
-are on this contract. The rest of the surface still carries its v4 shapes and is
-migrated in later Tier 3.1 work: the generic reads still use
-`{"result": [...], "message": ...}` for single-record misses, the generic
-validation errors use `{"error": <str>}`, the write tools return bare dicts, and
-`health_check` returns a status bag that can coexist with `error`. The promised
-surface-wide test (`tests/test_tool_response_contract.py`) lands with that pass,
-enumerating any deliberate exceptions.
+**Migration status:** the WHOLE registered surface is on this contract as of the
+Tier 3.1-rest pass — generic reads (list_response / record_response), the
+validation errors (`error_response("VALIDATION", ...)`), consolidated
+priority/KB-state/SLA reads, and the write path (`write_helpers` →
+record_response / error_response, no more bare strings). `tests/
+test_tool_response_contract.py` drives every tool in `tools.tools` through the
+real dispatcher and enforces the shapes below; it derives the tool set from
+`tools.tools`, so a new tool with no case fails it by name.
+
+Deliberate exceptions, pinned by that test:
+  * `health_check` returns a diagnostic STATUS BAG — `error` may sit beside
+    `connection`/`server`/`auth`. Not a data tool.
+  * `publish_knowledge_article` fail-closed guard outcomes (duplicates found /
+    inconclusive / unconfirmed) carry `success: False` and, when the confirming
+    read fails, `error` beside status flags. The write itself may have landed.
+  * the partial-page shape carries rows AND `error` together (see below).
 
 | case                  | shape                                                        |
 |-----------------------|--------------------------------------------------------------|
