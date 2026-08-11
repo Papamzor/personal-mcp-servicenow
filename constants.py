@@ -4,6 +4,13 @@ Constants used throughout the ServiceNow MCP server.
 
 import os
 
+# Per-table configuration is now defined once, in table_spec.TABLE_SPECS (v5.0
+# "Boron" Tier 3.2). The collections below (TABLE_CONFIGS, ESSENTIAL_FIELDS,
+# DETAIL_FIELDS, TABLE_ERROR_MESSAGES, TABLES_WITHOUT_RECORD_IDENTITY, the
+# text-search map) are DERIVED from it so existing `from constants import ...`
+# consumers are unaffected. Change a table there, not here.
+from table_spec import TABLE_SPECS, TableSpec
+
 # HTTP Content Types
 APPLICATION_JSON = "application/json"
 
@@ -182,17 +189,8 @@ KB_UPDATABLE_FIELDS = [
     "short_description", "text", "kb_category", "meta", "meta_description",
 ]
 
-# Table-specific error messages
-TABLE_ERROR_MESSAGES = {
-    "incident": "Incident not found.",
-    "change_request": "Change not found.",
-    "sc_req_item": "Request Item not found.",
-    "sc_task": "Service Catalog Task not found.",
-    "kb_knowledge": "Knowledge article not found.",
-    "vtb_task": "Private task not found.",
-    "universal_request": "Universal Request not found.",
-    "task_sla": "SLA record not found."
-}
+# Table-specific error messages (derived from TABLE_SPECS — Tier 3.2).
+TABLE_ERROR_MESSAGES = {name: spec.error_message for name, spec in TABLE_SPECS.items()}
 
 # ---------------------------------------------------------------------------
 # Text search and record identity
@@ -207,25 +205,31 @@ TEXT_SEARCH_FIELD = "short_description"
 # failure mode as the 1.2M-token get_sla_details bug). Dot-walk instead.
 TASK_SLA_TEXT_SEARCH_FIELD = "task.short_description"
 
-# Per-table override of the text-search field. Absent means TEXT_SEARCH_FIELD.
-# Config, not a branch in the query code: every path that free-text searches
-# resolves through this map, so a new table with an unusual description column
-# is one entry here rather than a fix in each call site. Getting it wrong is
-# silent — a condition on a missing field is dropped, not rejected.
+# Per-table free-text search field, derived from TABLE_SPECS (Tier 3.2). Getting
+# it wrong is silent — a condition on a missing field is dropped, not rejected —
+# which is why the field lives on the spec rather than being chosen per call site.
 TEXT_SEARCH_FIELD_BY_TABLE = {
-    "task_sla": TASK_SLA_TEXT_SEARCH_FIELD,
+    name: spec.text_search_field
+    for name, spec in TABLE_SPECS.items()
+    if spec.text_search_field != TEXT_SEARCH_FIELD
 }
 
 
 def text_search_field_for(table_name: str) -> str:
     """The field a free-text search must target for *table_name*."""
-    return TEXT_SEARCH_FIELD_BY_TABLE.get(table_name, TEXT_SEARCH_FIELD)
+    spec = TABLE_SPECS.get(table_name)
+    return spec.text_search_field if spec else TEXT_SEARCH_FIELD
 
 # Tables the number- and text-addressed generic tools cannot query at all.
-# task_sla has neither `number` (number_prefix is None) nor its own
-# `short_description`, so get_record / find_similar / search_records can only
-# build queries against fields that do not exist.
-TABLES_WITHOUT_RECORD_IDENTITY = frozenset({"task_sla"})
+# DERIVED from TABLE_SPECS (Tier 3.2): a spec with number_field=None has no
+# record identity, so it lands here structurally — a table can no longer be
+# addressable-by-number in one place and forgotten in this guard. task_sla has
+# neither `number` nor its own `short_description`, so get_record /
+# find_similar / search_records could only build queries against fields that do
+# not exist.
+TABLES_WITHOUT_RECORD_IDENTITY = frozenset(
+    name for name, spec in TABLE_SPECS.items() if not spec.has_record_identity
+)
 
 TABLE_LACKS_RECORD_IDENTITY = (
     "Table '{table}' has no 'number' or 'short_description' field, so this tool "
@@ -235,28 +239,11 @@ TABLE_LACKS_RECORD_IDENTITY = (
     "or filter_records('{table}', filters)."
 )
 
-# Table Field Definitions
-ESSENTIAL_FIELDS = {
-    "incident": ["number", "short_description", "priority", "state", "category", "sys_created_on"],
-    "change_request": ["number", "short_description", "priority", "state", "sys_created_on"],
-    "universal_request": ["number", "short_description", "priority", "state", "sys_created_on"],
-    "kb_knowledge": ["number", "short_description", "kb_category", "workflow_state", "sys_created_on"],
-    "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on"],
-    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on"],
-    "sc_req_item": ["number", "short_description", "priority", "state", "sys_created_on", "cat_item"],
-    "sc_task": ["number", "short_description", "priority", "state", "sys_created_on", "request_item"]
-}
+# Table field definitions, derived from TABLE_SPECS (Tier 3.2). Lists (not the
+# specs' tuples) to preserve the historical public type of these dicts.
+ESSENTIAL_FIELDS = {name: list(spec.essential_fields) for name, spec in TABLE_SPECS.items()}
 
-DETAIL_FIELDS = {
-    "incident": ["number", "short_description", "description", "priority", "state", "category", "sys_created_on", "sys_updated_on", "opened_at", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "correlation_id", "major_incident_state"],
-    "change_request": ["number", "short_description", "description", "priority", "state", "sys_created_on", "sys_updated_on", "opened_at", "assigned_to", "assignment_group", "work_notes", "comments", "u_reference_1", "company", "cmdb_ci", "type", "urgency", "impact", "risk", "start_date", "end_date", "implementation_plan", "backout_plan", "test_plan", "u_communication"],
-    "universal_request": ["number", "short_description", "priority", "state", "sys_created_on", "sys_updated_on", "assigned_to", "assignment_group", "comments", "u_reference_1", "company", "cmdb_ci"],
-    "kb_knowledge": ["number", "short_description", "text", "kb_category", "workflow_state", "sys_created_on", "assigned_to", "meta", "meta_description"],
-    "vtb_task": ["number", "short_description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "work_notes", "comments"],
-    "task_sla": ["task", "sla", "stage", "business_percentage", "active", "sys_created_on", "breach_time", "business_time_left", "duration", "has_breached", "business_duration", "business_elapsed_time", "planned_end_time"],
-    "sc_req_item": ["number", "short_description", "description", "priority", "state", "sys_created_on", "assigned_to", "assignment_group", "comments", "cat_item", "request", "stage"],
-    "sc_task": ["number", "short_description", "description", "priority", "state", "sys_created_on", "sys_updated_on", "opened_at", "assigned_to", "assignment_group", "comments", "request_item", "request"]
-}
+DETAIL_FIELDS = {name: list(spec.detail_fields) for name, spec in TABLE_SPECS.items()}
 
 # VTB Task specific field definitions
 COMMON_VTB_TASK_FIELDS = [
@@ -457,80 +444,20 @@ ENABLE_COMPLETE_QUERY = os.getenv("ENABLE_COMPLETE_QUERY", "false").strip().lowe
 # LogicMonitor integration caller sys_id, used for exclusion filters.
 LOGICMONITOR_CALLER_SYS_ID = os.getenv("LOGICMONITOR_CALLER_SYS_ID", "1727339e47d99190c43d3171e36d43ad")
 
-# ServiceNow table configurations
+# ServiceNow table configurations, derived from TABLE_SPECS (Tier 3.2). Same
+# dict-of-dicts shape and keys as before; api_name has always equalled the table
+# key. Consumers reading TABLE_CONFIGS[t]["number_prefix"] etc. are unchanged.
 TABLE_CONFIGS = {
-    "incident": {
-        "display_name": "Incident",
-        "api_name": "incident",
-        "supports_work_notes": True,
-        "supports_comments": True,
-        "number_prefix": "INC",
-        "priority_field": "priority",
-        "state_field": "state"
-    },
-    "change_request": {
-        "display_name": "Change Request", 
-        "api_name": "change_request",
-        "supports_work_notes": True,
-        "supports_comments": True,
-        "number_prefix": "CHG",
-        "priority_field": "priority",
-        "state_field": "state"
-    },
-    "sc_req_item": {
-        "display_name": "Service Catalog Request Item",
-        "api_name": "sc_req_item",
-        "supports_work_notes": False,
-        "supports_comments": True,
-        "number_prefix": "RITM",
-        "priority_field": "priority",
-        "state_field": "state"
-    },
-    "sc_task": {
-        "display_name": "Service Catalog Task",
-        "api_name": "sc_task",
-        "supports_work_notes": True,
-        "supports_comments": True,
-        "number_prefix": "SCTASK",
-        "priority_field": "priority",
-        "state_field": "state"
-    },
-    "universal_request": {
-        "display_name": "Universal Request",
-        "api_name": "universal_request",
-        "supports_work_notes": False,
-        "supports_comments": True,
-        "number_prefix": "UR",
-        "priority_field": "priority",
-        "state_field": "state"
-    },
-    "kb_knowledge": {
-        "display_name": "Knowledge Base Article",
-        "api_name": "kb_knowledge",
-        "supports_work_notes": False,
-        "supports_comments": False,
-        "number_prefix": "KB",
-        "priority_field": None,
-        "state_field": "workflow_state"
-    },
-    "vtb_task": {
-        "display_name": "Private Task",
-        "api_name": "vtb_task",
-        "supports_work_notes": True,
-        "supports_comments": True,
-        "number_prefix": "VTB",
-        "priority_field": "priority",
-        "state_field": "state"
-    },
-    "task_sla": {
-        "display_name": "Task SLA",
-        "api_name": "task_sla",
-        "supports_work_notes": False,
-        "supports_comments": False,
-        "number_prefix": None,
-        "priority_field": None,
-        "state_field": "stage"
+    name: {
+        "display_name": spec.display_name,
+        "api_name": name,
+        "supports_work_notes": spec.supports_work_notes,
+        "supports_comments": spec.supports_comments,
+        "number_prefix": spec.number_prefix,
+        "priority_field": spec.priority_field,
+        "state_field": spec.state_field,
     }
+    for name, spec in TABLE_SPECS.items()
 }
 
 # API endpoint patterns
