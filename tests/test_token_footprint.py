@@ -291,7 +291,8 @@ class TestPerResponseEnvelopeFootprint:
         with patch("Table_Tools.generic_table_tools._make_paginated_request",
                    return_value=rows):
             resp = await filter_records("incident", {"priority": "1"})
-        assert resp["result"] and "message" not in resp
+        assert resp["result"]
+        assert "message" not in resp
         assert _list_envelope_overhead(resp) <= BUDGET_LIST_ENVELOPE_OVERHEAD
 
     @pytest.mark.asyncio
@@ -301,7 +302,8 @@ class TestPerResponseEnvelopeFootprint:
         with patch("Table_Tools.generic_table_tools._make_paginated_request",
                    return_value=rows):
             resp = await search_records("incident", "server crash backup")
-        assert resp["result"] and "message" not in resp
+        assert resp["result"]
+        assert "message" not in resp
         assert _list_envelope_overhead(resp) <= BUDGET_LIST_ENVELOPE_OVERHEAD
 
     @pytest.mark.asyncio
@@ -310,7 +312,8 @@ class TestPerResponseEnvelopeFootprint:
         with patch("Table_Tools.generic_table_tools.make_nws_request",
                    return_value={"result": [dict(_GENERIC_ROW)]}):
             resp = await get_record("incident", "INC0010001")
-        assert "record" in resp and "result" not in resp
+        assert "record" in resp
+        assert "result" not in resp
         overhead = _count_tokens(resp) - _count_tokens({"record": resp["record"]})
         assert overhead <= BUDGET_RECORD_ENVELOPE_OVERHEAD
 
@@ -321,7 +324,8 @@ class TestPerResponseEnvelopeFootprint:
         with patch("Table_Tools.cmdb_tools.make_nws_request",
                    return_value={"result": rows}):
             resp = await find_cis_by_type("cmdb_ci_server")
-        assert resp["result"] and "message" not in resp
+        assert resp["result"]
+        assert "message" not in resp
         # CMDB list carries a `ci_type` descriptor key; still well under budget.
         assert _list_envelope_overhead(resp) <= BUDGET_LIST_ENVELOPE_OVERHEAD
 

@@ -824,7 +824,8 @@ class TestPreBuiltFragmentChannels:
         ))
         assert urls, "the legitimate exclusion list was refused"
         conditions = servicenow_conditions(urls[0])
-        assert "caller_id!=a" in conditions and "caller_id!=b" in conditions
+        assert "caller_id!=a" in conditions
+        assert "caller_id!=b" in conditions
 
     def test_complete_query_is_guarded_when_the_flag_enables_it(self):
         """Gated off by default, so the guard behind the gate needs its own test."""
@@ -970,7 +971,9 @@ async def test_all_three_assembly_paths_build_the_same_query(filters):
         "incident", ["1"], additional_filters={"assigned_to": "x"}
     ))
 
-    assert typed_urls and generic_urls and priority_urls
+    assert typed_urls
+    assert generic_urls
+    assert priority_urls
     assert servicenow_params(typed_urls[0])["sysparm_query"] == \
         servicenow_params(generic_urls[0])["sysparm_query"]
     # The priority path takes its filters differently, so agreement is asserted on

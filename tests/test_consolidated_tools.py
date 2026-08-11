@@ -433,4 +433,5 @@ class TestSLATools:
                 filters, _ = _build_sla_status_filter(status, stage="x")
             else:
                 filters, _ = _build_sla_status_filter(status)
-            assert isinstance(filters, dict) and filters
+            assert isinstance(filters, dict)
+            assert filters

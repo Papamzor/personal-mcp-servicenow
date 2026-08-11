@@ -115,7 +115,8 @@ async def _get_typed(url: str, display_value: bool) -> dict[str, Any] | None:
         # outside would let a parser failure propagate uncaught to MCP clients
         # for every caller, migrated or not.
         return extract_display_values(result) if result and display_value else result
-    except Exception as e:  # noqa: BLE001 - every failure is classified, none swallowed
+    # Every failure is classified; none are swallowed.
+    except Exception as e:  # noqa: BLE001
         error = classify_read_failure(e)
         # stderr only — stdout is reserved for the MCP JSON-RPC frame stream.
         print(

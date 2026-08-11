@@ -187,7 +187,8 @@ def _assert_error_shape(err):
     assert isinstance(err, dict), f"error must be a dict, got {type(err)}"
     assert set(err) >= {"code", "message"}, f"error must carry code+message, got {err}"
     assert err["code"] in ERROR_CODES, f"code {err['code']!r} outside the vocabulary"
-    assert isinstance(err["message"], str) and err["message"]
+    assert isinstance(err["message"], str)
+    assert err["message"]
 
 
 def assert_contract(resp, *, tool_name):
@@ -199,7 +200,10 @@ def assert_contract(resp, *, tool_name):
         _assert_error_shape(resp["error"])
         is_partial = resp.get("partial") is True
         if not is_partial and tool_name not in _EXCEPTION_TOOLS:
-            assert "result" not in resp and "record" not in resp, (
+            assert "result" not in resp, (
+                f"{tool_name}: error must not sit beside result/record (got keys {sorted(resp)})"
+            )
+            assert "record" not in resp, (
                 f"{tool_name}: error must not sit beside result/record (got keys {sorted(resp)})"
             )
 
@@ -235,7 +239,8 @@ async def test_success_shape_conforms(name, factory, kind, transport):
     assert_contract(resp, tool_name=name)
 
     if kind == "list":
-        assert "result" in resp and isinstance(resp["result"], list)
+        assert "result" in resp
+        assert isinstance(resp["result"], list)
     elif kind == "record_read":
         # Read hit: {"record": {...}} with NO top-level message (reads never
         # carry the write-success message).
@@ -244,14 +249,19 @@ async def test_success_shape_conforms(name, factory, kind, transport):
     elif kind == "record_write":
         # Write success: {"record": {...}, "message": str}. The §3.1 write shape
         # REQUIRES the message, so dropping success_message= now fails here.
-        assert "record" in resp and resp["record"] is not None, f"{name}: write should return a record"
-        assert isinstance(resp.get("message"), str) and resp["message"], (
+        assert "record" in resp, f"{name}: write should return a record"
+        assert resp["record"] is not None, f"{name}: write should return a record"
+        assert isinstance(resp.get("message"), str), (
+            f"{name}: write success must carry a non-empty `message` (§3.1 write shape)"
+        )
+        assert resp["message"], (
             f"{name}: write success must carry a non-empty `message` (§3.1 write shape)"
         )
     elif kind == "diagnostic":
         assert "connection" in resp  # health_check status bag
     elif kind == "reference":
-        assert isinstance(resp, dict) and "error" not in resp
+        assert isinstance(resp, dict)
+        assert "error" not in resp
 
 
 @pytest.mark.asyncio
@@ -273,7 +283,8 @@ async def test_failure_shape_conforms(name, factory, kind, transport):
         _assert_error_shape(resp["error"])
     elif name in _BATCH_TOOLS:
         # A batch stays a valid list; the per-article failure lands inside its row.
-        assert isinstance(resp["result"], list) and resp["result"]
+        assert isinstance(resp["result"], list)
+        assert resp["result"]
     else:
         assert "error" in resp, f"{name} should surface a failure as {{'error': ...}}, got {sorted(resp)}"
         _assert_error_shape(resp["error"])
@@ -337,4 +348,5 @@ class TestDocumentedExceptions:
         resp = _partial_envelope(list_response([dict(_ROW)], truncated=False), partial)
         assert_contract(resp, tool_name="filter_records")
         assert resp["partial"] is True
-        assert resp["result"] and "error" in resp
+        assert resp["result"]
+        assert "error" in resp
