@@ -7,6 +7,8 @@ and declared user config. A drift here silently ships a broken extension.
 """
 from __future__ import annotations
 
+import ast
+import importlib.util
 import json
 import re
 import tomllib
@@ -15,6 +17,35 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _load_build_mcpb():
+    spec = importlib.util.spec_from_file_location(
+        "build_mcpb", REPO_ROOT / "scripts" / "build_mcpb.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _local_top_level_names() -> set[str]:
+    """Repo-local importable top-level names: root .py modules + packages."""
+    names = {p.stem for p in REPO_ROOT.glob("*.py")}
+    for d in REPO_ROOT.iterdir():
+        if d.is_dir() and (d / "__init__.py").is_file():
+            names.add(d.name)
+    return names
+
+
+def _top_level_imports(py_path: Path) -> set[str]:
+    tree = ast.parse(py_path.read_text(encoding="utf-8"))
+    out: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            out.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            out.add(node.module.split(".")[0])
+    return out
 
 
 def _load_pyproject() -> dict:
@@ -62,6 +93,35 @@ def test_versions_aligned():
     assert manifest_v == pyproject_v == main_v, (
         f"version mismatch: manifest={manifest_v}, "
         f"pyproject={pyproject_v}, __version__={main_v}"
+    )
+
+
+@pytest.mark.unit
+def test_every_root_import_of_a_local_module_is_staged():
+    """Every repo-local module a staged root file imports must itself be staged.
+
+    The .mcpb bundle copies only ROOT_FILES + PACKAGE_DIRS. A root file that
+    imports a repo-local module which is NOT staged ships a bundle that fails at
+    import (ModuleNotFoundError) — e.g. constants.py importing table_spec without
+    table_spec.py in ROOT_FILES. This scan is the guard that class of bug lacked.
+    """
+    build = _load_build_mcpb()
+    staged = {f[:-3] for f in build.ROOT_FILES if f.endswith(".py")} | set(build.PACKAGE_DIRS)
+    local = _local_top_level_names()
+
+    missing: dict[str, set[str]] = {}
+    for name in build.ROOT_FILES:
+        if not name.endswith(".py"):
+            continue
+        for imported in _top_level_imports(REPO_ROOT / name):
+            if imported in local and imported not in staged:
+                missing.setdefault(name, set()).add(imported)
+
+    assert not missing, (
+        "staged root file(s) import a repo-local module that is NOT staged into "
+        "the .mcpb bundle — add it to ROOT_FILES (or PACKAGE_DIRS) in "
+        f"scripts/build_mcpb.py: {{k: sorted(v) for k, v in missing.items()}}"
+        f"\n  {dict((k, sorted(v)) for k, v in missing.items())}"
     )
 
 

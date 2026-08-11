@@ -9,7 +9,11 @@ import os
 # DETAIL_FIELDS, TABLE_ERROR_MESSAGES, TABLES_WITHOUT_RECORD_IDENTITY, the
 # text-search map) are DERIVED from it so existing `from constants import ...`
 # consumers are unaffected. Change a table there, not here.
-from table_spec import TABLE_SPECS, TableSpec
+from table_spec import (
+    TABLE_SPECS,
+    DEFAULT_TEXT_SEARCH_FIELD,
+    TASK_SLA_TEXT_SEARCH_FIELD,
+)
 
 # HTTP Content Types
 APPLICATION_JSON = "application/json"
@@ -195,15 +199,14 @@ TABLE_ERROR_MESSAGES = {name: spec.error_message for name, spec in TABLE_SPECS.i
 # ---------------------------------------------------------------------------
 # Text search and record identity
 # ---------------------------------------------------------------------------
-# Default field the free-text search path matches against.
-TEXT_SEARCH_FIELD = "short_description"
-
-# task_sla carries no short_description of its own — the description lives on
-# the referenced task. A filter against a field a table does not have is
-# SILENTLY DROPPED by ServiceNow, so searching short_description on task_sla
-# produced an unfiltered page of arbitrary SLAs labelled as matches (the same
-# failure mode as the 1.2M-token get_sla_details bug). Dot-walk instead.
-TASK_SLA_TEXT_SEARCH_FIELD = "task.short_description"
+# Free-text search fields come from table_spec's SSOT literals (Tier 3.2) so the
+# public constants and the specs cannot drift. TASK_SLA_TEXT_SEARCH_FIELD is
+# already bound in this namespace by the table_spec import above; TEXT_SEARCH_FIELD
+# aliases the shared default. task_sla carries no short_description of its own — the
+# description lives on the referenced task; a filter against a field a table lacks
+# is SILENTLY DROPPED by ServiceNow (the 1.2M-token get_sla_details failure mode),
+# so it dot-walks instead.
+TEXT_SEARCH_FIELD = DEFAULT_TEXT_SEARCH_FIELD
 
 # Per-table free-text search field, derived from TABLE_SPECS (Tier 3.2). Getting
 # it wrong is silent — a condition on a missing field is dropped, not rejected —
