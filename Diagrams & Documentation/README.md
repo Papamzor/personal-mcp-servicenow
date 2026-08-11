@@ -2,25 +2,17 @@
 
 Mermaid diagrams for the Personal MCP ServiceNow server. Packaging is Claude Desktop Extension (`.mcpb`); distribution is no longer Nuitka binaries.
 
-> **⚠️ Pending v5.0 refresh.** The diagram bodies below still describe the pre-v5.0
-> surface (39 tools, the NL/`filter` intelligence engine, the v4 module layout).
-> **v5.0 "Boron"** culled the surface to **25 tools**, removed the NL engine, and
-> added the §3.1 response contract (`Table_Tools/response.py`), `table_spec.py`,
-> and `tool_registry.py`. Until these are redrawn, treat [CHANGELOG.md](../CHANGELOG.md),
-> [MIGRATION_v4_to_v5.md](../MIGRATION_v4_to_v5.md), and the root
-> [CLAUDE.md]/README as the source of truth for the current surface.
-> (`05-ai-intelligence-flow.md` was deleted in v5.0 — the NL engine it documented
-> is gone; natural language → filter is the host model's job.)
-
 ## Diagram Index
 
 | File | Description | Diagram Type | Status |
 |------|-------------|--------------|--------|
-| [01-architecture-overview.md](./01-architecture-overview.md) | Layered architecture: tools → filter → http_layer → oauth → ServiceNow | Component | v4.3 · stale |
+| [01-architecture-overview.md](./01-architecture-overview.md) | Layered architecture: tools → filter → http_layer → oauth → ServiceNow | Component | v5.0 |
 | [02-oauth-authentication-flow.md](./02-oauth-authentication-flow.md) | Client-credentials flow, token cache, 401 retry, pooled httpx | Sequence | v4.3 (oauth layer unchanged in v5.0) |
-| [03-tool-organization.md](./03-tool-organization.md) | tools by source module; generic wrappers + domain tools | Graph | v4.3 · stale (was 39 tools; v5.0 = 25) |
-| [04-similarity-search-flow.md](./04-similarity-search-flow.md) | `search_records` read path (OR-LIKE, pagination, GET params) | Flowchart | v4.3 · stale |
-| [06-sla-architecture-flow.md](./06-sla-architecture-flow.md) | 5 SLA tools, status presets, token-safe defaults | Architecture | v4.3 · stale |
+| [03-tool-organization.md](./03-tool-organization.md) | 25 tools by source module; generic wrappers + domain tools | Graph | v5.0 |
+| [04-similarity-search-flow.md](./04-similarity-search-flow.md) | `search_records` / `filter_records` read path (OR-LIKE, pagination, GET params, §3.1) | Flowchart | v5.0 |
+| [06-sla-architecture-flow.md](./06-sla-architecture-flow.md) | 4 SLA tools, status presets, token-safe defaults | Architecture | v5.0 |
+
+> `05-ai-intelligence-flow.md` was deleted in v5.0 — the NL engine it documented is gone; natural language → filter is the host model's job.
 
 ## How to View Diagrams
 
@@ -36,15 +28,17 @@ Mermaid diagrams for the Personal MCP ServiceNow server. Packaging is Claude Des
 1. Copy a mermaid code block
 2. Paste into [Mermaid Live Editor](https://mermaid.live/)
 
-## System Overview (v4.3)
+## System Overview (v5.0)
 
-- **39 MCP tools** over stdio (Claude Desktop) or SSE (Docker / network agents)
-- **8 tables** in `TABLE_CONFIGS`: `incident`, `change_request`, `sc_req_item`, `sc_task`, `universal_request`, `kb_knowledge`, `vtb_task`, `task_sla`
-- **5 generic tools** for any configured table (`search_records`, `get_record`, …)
-- **Filter pipeline** in `filter/` (no v3 shims — deleted in v4.1)
+- **25 MCP tools** over stdio (Claude Desktop) or SSE (Docker / network agents)
+- **8 tables** via `table_spec.TABLE_SPECS` → derived `TABLE_CONFIGS`: `incident`, `change_request`, `sc_req_item`, `sc_task`, `universal_request`, `kb_knowledge`, `vtb_task`, `task_sla`
+- **4 generic tools** for any configured table (`search_records`, `get_record`, `find_similar`, `filter_records`)
+- **§3.1 response contract** — list / record / write / error envelopes from `Table_Tools/response.py`
+- **Filter pipeline** in `filter/` (builder, validator, value_encoding, models — no NL intelligence)
 - **HTTP layer** in `http_layer/` — GET token-optimization invariants; writes bypass them
 - **OAuth** in `oauth/` — façade + TokenStore + RequestExecutor + process-wide httpx pool (v4.2)
 - **Writes**: `vtb_task` CRUD + KB article lifecycle tools
+- **Registration**: `tool_registry.register_tools` injects WHEN / WHEN-NOT / PREFER guidance
 - **Distribution**: `.mcpb` bundle (`scripts/build_mcpb.py`) or Docker SSE
 
 ## Architecture Summary
@@ -52,18 +46,20 @@ Mermaid diagrams for the Personal MCP ServiceNow server. Packaging is Claude Des
 ```
 MCP Client (Claude / agent)
   ↓ stdio | SSE
-tools.py (FastMCP + AuthMiddleware + AuditMiddleware — 39 tools)
-  ↓
-generic_tool_wrappers.py   (5 generic tools — TABLE_CONFIGS validate)
-consolidated_tools.py      (priority incidents, knowledge read, 5 SLA tools)
+tools.py (FastMCP + AuthMiddleware + AuditMiddleware)
+  ↓ tool_registry.register_tools — 25 tools + guidance injection
+utility_tools.py           (health_check — 1)
+generic_tool_wrappers.py   (4 generic tools — TABLE_CONFIGS validate)
+consolidated_tools.py      (priority, KB state rollup, 4 SLA tools)
 vtb_task_tools.py          (private task create/update)
 kb_article_tools.py        (KB update / publish / batch / retire / dup-check)
 cmdb_tools.py              (6 CMDB tools)
-intelligent_query_tools.py (6 NLP / filter-help tools)
-  ↓
+intelligent_query_tools.py (get_query_syntax_help only)
+  ↓ Table_Tools/response.py  (§3.1 contract constructors)
 generic_table_tools.py     (query engine, pagination)
   ↓
-filter/                    (builder, validator, intelligence, explainer, models)
+table_spec.py → constants.py   (SSOT → derived field/config maps)
+filter/                    (builder, validator, value_encoding, models)
   ↓
 http_layer/                (make_nws_request: GET url_builder + response_parser)
   ↓
@@ -85,4 +81,4 @@ httpx → ServiceNow Table API
 
 ---
 
-*Last updated: 2026-08-11 · Project version: 5.0.0 · diagram bodies pending v5.0 refresh (see banner above)*
+*Last updated: 2026-08-11 · Project version: 5.0.0*
