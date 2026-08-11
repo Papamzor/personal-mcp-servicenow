@@ -32,9 +32,10 @@ NO_VALID_PRIORITIES_ERROR = "No valid priorities provided"
 TABLE_NO_PRIORITY_SUPPORT_ERROR = "Table {table_name} does not support priority filtering"
 
 # CMDB-specific error messages
-NO_CIS_FOUND_FOR_TYPE = "No CIs found for type: {ci_type}"
-NO_CIS_FOUND_MATCHING_CRITERIA = "No CIs found matching search criteria"
-CI_NOT_FOUND = "CI {ci_number} not found in any CMDB table"
+# v5.0 "Boron" Tier 3.1 removed the CMDB bare not-found strings: empty is now a
+# success shape (list_response([]) / record_response(None)), so
+# NO_CIS_FOUND_FOR_TYPE, NO_CIS_FOUND_MATCHING_CRITERIA, CI_NOT_FOUND,
+# NO_SIMILAR_CIS_FOUND, NO_CI_TYPES_FOUND and NO_CIS_FOUND_FOR_SEARCH are gone.
 CI_TYPE_REQUIRED = "CI type is required"
 CI_NUMBER_REQUIRED = "CI number is required"
 # A rejected ci_type must never be silently downgraded to the base cmdb_ci
@@ -116,9 +117,6 @@ QUERY_SYNTAX_NOTES = (
     "assigned_to, caller_id, cmdb_ci, ...) store sys_ids; filter by sys_id or "
     "dot-walk (assignment_group.nameLIKEFleet)."
 )
-NO_SIMILAR_CIS_FOUND = "No similar CIs found for {ci_number}"
-NO_CI_TYPES_FOUND = "No CI types found"
-NO_CIS_FOUND_FOR_SEARCH = "No CIs found for search term: {search_term}"
 ERROR_SEARCHING_CIS = "Error searching CIs: Request failed"
 ERROR_SEARCHING_CIS_BY_TYPE = "Error searching CIS by type: Request failed"
 ERROR_FINDING_SIMILAR_CIS = "Error finding similar CIs: Request failed"
@@ -225,8 +223,8 @@ def text_search_field_for(table_name: str) -> str:
 
 # Tables the number- and text-addressed generic tools cannot query at all.
 # task_sla has neither `number` (number_prefix is None) nor its own
-# `short_description`, so get_record / get_record_summary / find_similar /
-# search_records can only build queries against fields that do not exist.
+# `short_description`, so get_record / find_similar / search_records can only
+# build queries against fields that do not exist.
 TABLES_WITHOUT_RECORD_IDENTITY = frozenset({"task_sla"})
 
 TABLE_LACKS_RECORD_IDENTITY = (
@@ -234,7 +232,7 @@ TABLE_LACKS_RECORD_IDENTITY = (
     "cannot address its records — ServiceNow silently drops a filter on a "
     "missing field and would return unrelated rows. Use query_slas_by_task("
     "task_number), query_slas_by_status(status), get_sla_details(sla_sys_id), "
-    "similar_slas_for_text(text), or filter_records('{table}', filters)."
+    "or filter_records('{table}', filters)."
 )
 
 # Table Field Definitions

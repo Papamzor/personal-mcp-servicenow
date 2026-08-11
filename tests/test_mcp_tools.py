@@ -15,155 +15,65 @@ from unittest.mock import patch, AsyncMock, MagicMock
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-class TestServerAndAuthTools(unittest.IsolatedAsyncioTestCase):
-    """Test server connectivity and authentication tools."""
+class TestHealthCheckTool(unittest.IsolatedAsyncioTestCase):
+    """Test the consolidated diagnostic tool (v5.0: 5 auth tools -> health_check)."""
 
-    async def asyncSetUp(self):
-        """Set up test fixtures."""
-        try:
-            from utility_tools import nowtest, nowtestoauth, nowauthinfo, nowtestauth, nowtest_auth_input
-            self.auth_tools_available = True
-            self.nowtest = nowtest
-            self.nowtestoauth = nowtestoauth
-            self.nowauthinfo = nowauthinfo
-            self.nowtestauth = nowtestauth
-            self.nowtest_auth_input = nowtest_auth_input
-        except ImportError as e:
-            self.auth_tools_available = False
-            self.import_error = str(e)
+    _FAKE_AUTH = {"instance": "https://example.service-now.com", "auth_type": "oauth"}
 
-    async def test_nowtest_connectivity(self):
-        """Test basic server connectivity."""
-        if not self.auth_tools_available:
-            self.skipTest(f"Auth tools not available: {self.import_error}")
-        
-        with patch.object(self, 'nowtest', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = {"status": "connected", "message": "Server is reachable"}
-            
-            result = await self.nowtest()
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('status', result)
+    @patch("utility_tools.make_nws_request", new_callable=AsyncMock)
+    @patch("utility_tools.get_auth_info")
+    async def test_health_check_connectivity(self, mock_auth, mock_request):
+        """A reachable instance reports connection ok."""
+        from utility_tools import health_check
 
-    async def test_nowtestoauth_success(self):
-        """Test OAuth authentication test."""
-        if not self.auth_tools_available:
-            self.skipTest(f"Auth tools not available: {self.import_error}")
-        
-        with patch.object(self, 'nowtestoauth', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = {"oauth_enabled": True, "token_valid": True}
-            
-            result = await self.nowtestoauth()
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('oauth_enabled', result)
+        mock_auth.return_value = self._FAKE_AUTH
+        mock_request.return_value = {"result": [{"sys_id": "a" * 32, "name": "Someone"}]}
 
-    async def test_nowauthinfo_oauth(self):
-        """Test authentication info retrieval."""
-        if not self.auth_tools_available:
-            self.skipTest(f"Auth tools not available: {self.import_error}")
-        
-        with patch.object(self, 'nowauthinfo', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = {"auth_method": "OAuth 2.0", "oauth_enabled": True}
-            
-            result = await self.nowauthinfo()
-            
-            self.assertIsInstance(result, dict)
-            self.assertEqual(result['auth_method'], 'OAuth 2.0')
+        result = await health_check()
 
-    async def test_nowtestauth_api_test(self):
-        """Test ServiceNow API authentication test."""
-        if not self.auth_tools_available:
-            self.skipTest(f"Auth tools not available: {self.import_error}")
-        
-        with patch.object(self, 'nowtestauth', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = {"api_accessible": True, "auth_valid": True}
-            
-            result = await self.nowtestauth()
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('api_accessible', result)
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result["connection"], "ok")
+        self.assertEqual(result["server"], "running")
 
-    async def test_nowtest_auth_input_table_description(self):
-        """Test table description retrieval."""
-        if not self.auth_tools_available:
-            self.skipTest(f"Auth tools not available: {self.import_error}")
-        
-        with patch.object(self, 'nowtest_auth_input', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = {"table": "incident", "description": "Incident Management"}
-            
-            result = await self.nowtest_auth_input("incident")
-            
-            self.assertIsInstance(result, dict)
-            self.assertEqual(result['table'], 'incident')
+    @patch("utility_tools.make_nws_request", new_callable=AsyncMock)
+    @patch("utility_tools.get_auth_info")
+    async def test_health_check_schema_probe(self, mock_auth, mock_request):
+        """probe_table returns sample field names."""
+        from utility_tools import health_check
+
+        mock_auth.return_value = self._FAKE_AUTH
+        mock_request.return_value = {"result": [{"number": "INC1", "state": "1"}]}
+
+        result = await health_check(probe_table="incident")
+
+        self.assertEqual(result["table"], "incident")
+        self.assertEqual(set(result["sample_fields"]), {"number", "state"})
 
 
 class TestKnowledgeBaseTools(unittest.IsolatedAsyncioTestCase):
-    """Test knowledge base tools."""
+    """Test the surviving knowledge read tool (v5.0: smart-KB reads culled)."""
 
-    async def asyncSetUp(self):
-        """Set up test fixtures."""
-        try:
-            from Table_Tools.consolidated_tools import (
-                similar_knowledge_for_text,
-                get_knowledge_by_category, get_active_knowledge_articles
-            )
-            self.kb_tools_available = True
-            self.similar_knowledge_for_text = similar_knowledge_for_text
-            self.get_knowledge_by_category = get_knowledge_by_category
-            self.get_active_knowledge_articles = get_active_knowledge_articles
-        except ImportError as e:
-            self.kb_tools_available = False
-            self.import_error = str(e)
+    async def test_get_kb_articles_by_state(self):
+        """Test the version-collapsing KB state rollup."""
+        from Table_Tools.consolidated_tools import get_kb_articles_by_state
 
-    async def test_similar_knowledge_for_text(self):
-        """Test finding knowledge articles by text."""
-        if not self.kb_tools_available:
-            self.skipTest(f"Knowledge base tools not available: {self.import_error}")
-        
         mock_response = {
-            "similar_articles": [
-                {"number": "KB0007001", "similarity_score": 0.88}
-            ]
+            "result": [
+                {"number": "KB0007001", "sys_id": "s1", "workflow_state": "published"},
+            ],
+            "truncated": False,
         }
-        
-        with patch.object(self, 'similar_knowledge_for_text', new_callable=AsyncMock) as mock_func:
+        with patch(
+            "Table_Tools.consolidated_tools.query_table_with_filters",
+            new_callable=AsyncMock,
+        ) as mock_func:
             mock_func.return_value = mock_response
-            
-            result = await self.similar_knowledge_for_text("password reset")
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('similar_articles', result)
 
-    async def test_get_knowledge_by_category(self):
-        """Test getting knowledge articles by category."""
-        if not self.kb_tools_available:
-            self.skipTest(f"Knowledge base tools not available: {self.import_error}")
-        
-        mock_response = {"articles": [], "count": 5}
-        
-        with patch.object(self, 'get_knowledge_by_category', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.get_knowledge_by_category("IT Support")
-            
-            self.assertIsInstance(result, dict)
-            self.assertIn('articles', result)
+            result = await get_kb_articles_by_state("published")
 
-    async def test_get_active_knowledge_articles(self):
-        """Test getting active knowledge articles."""
-        if not self.kb_tools_available:
-            self.skipTest(f"Knowledge base tools not available: {self.import_error}")
-        
-        mock_response = {"articles": [], "count": 25}
-        
-        with patch.object(self, 'get_active_knowledge_articles', new_callable=AsyncMock) as mock_func:
-            mock_func.return_value = mock_response
-            
-            result = await self.get_active_knowledge_articles()
-            
             self.assertIsInstance(result, dict)
-            self.assertIn('articles', result)
+            self.assertIn("result", result)
+            self.assertEqual(result["result"][0]["current_state"], "published")
 
 
 class TestPrivateTaskTools(unittest.IsolatedAsyncioTestCase):

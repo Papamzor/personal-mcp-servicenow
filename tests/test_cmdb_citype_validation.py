@@ -111,8 +111,8 @@ class TestSearchCisByAttributes:
         with patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
             result = await search_cis_by_attributes(name="prod", ci_type="not_a_cmdb_table")
 
-        assert isinstance(result, str)
-        assert "Invalid CI type" in result
+        assert result["error"]["code"] == "VALIDATION"
+        assert "Invalid CI type" in result["error"]["message"]
         assert capture.urls == [], "a rejected ci_type must not reach ServiceNow at all"
 
     @pytest.mark.asyncio
@@ -138,7 +138,7 @@ class TestSearchCisByAttributes:
         with patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
             result = await search_cis_by_attributes(ci_type="cmdb_ci_server")
 
-        assert "At least one search attribute" in result
+        assert "At least one search attribute" in result["error"]["message"]
         assert capture.urls == []
 
 
@@ -149,7 +149,8 @@ class TestFindCisByType:
         with patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
             result = await find_cis_by_type("")
 
-        assert result == "CI type is required"
+        assert result["error"]["code"] == "VALIDATION"
+        assert "CI type is required" in result["error"]["message"]
         assert capture.urls == []
 
     @pytest.mark.asyncio
@@ -158,7 +159,7 @@ class TestFindCisByType:
         with patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
             result = await find_cis_by_type("cmdb_ci_server?sysparm_limit=9999")
 
-        assert "Invalid CI type" in result
+        assert "Invalid CI type" in result["error"]["message"]
         assert capture.urls == []
 
     @pytest.mark.asyncio
@@ -169,7 +170,8 @@ class TestFindCisByType:
 
         assert capture.tables == ["cmdb_ci_server"]
         assert result["ci_type"] == "cmdb_ci_server"
-        assert result["count"] == 1
+        assert result["returned_count"] == 1
+        assert result["truncated"] is False
 
 
 class TestGetCiDetails:
@@ -179,7 +181,7 @@ class TestGetCiDetails:
         with patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
             result = await get_ci_details("SRV0001", ci_type="not_a_cmdb_table")
 
-        assert "Invalid CI type" in result
+        assert "Invalid CI type" in result["error"]["message"]
         assert capture.urls == [], "a rejected ci_type must not fan out across tables"
 
     @pytest.mark.asyncio
@@ -208,7 +210,8 @@ class TestGetCiDetails:
         with patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
             result = await get_ci_details("")
 
-        assert result == "CI number is required"
+        assert result["error"]["code"] == "VALIDATION"
+        assert "CI number is required" in result["error"]["message"]
         assert capture.urls == []
 
     @pytest.mark.asyncio
@@ -228,7 +231,7 @@ class TestGetCiDetails:
 
         assert result["ci_table"] == "cmdb_ci_database"
         assert result["ci_number"] == "DB0001"
-        assert result["result"]["name"] == "prod-db"
+        assert result["record"]["name"] == "prod-db"
 
     @pytest.mark.asyncio
     async def test_most_specific_table_wins_when_several_match(self):
@@ -242,7 +245,7 @@ class TestGetCiDetails:
             result = await get_ci_details("SRV0001")
 
         assert result["ci_table"] == "cmdb_ci_server"
-        assert result["result"]["name"] == "from-server"
+        assert result["record"]["name"] == "from-server"
 
     @pytest.mark.asyncio
     async def test_no_table_matching_reports_not_found(self):
@@ -250,8 +253,8 @@ class TestGetCiDetails:
         with patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
             result = await get_ci_details("NOPE0001")
 
-        assert "NOPE0001" in result
-        assert "not found" in result.lower()
+        assert result["record"] is None
+        assert result["ci_number"] == "NOPE0001"
 
 
 class TestGetAllCiTypesLabelling:
@@ -264,7 +267,7 @@ class TestGetAllCiTypesLabelling:
         with patch("Table_Tools.cmdb_tools.make_nws_request", new=_Capture(payload=payload)):
             result = await get_all_ci_types()
 
-        entry = result["ci_types"][0]
+        entry = result["result"][0]
         assert "record_count" not in entry
         assert entry["number_prefix_ref"] == "abc123"
         assert entry["table_name"] == "cmdb_ci_server"

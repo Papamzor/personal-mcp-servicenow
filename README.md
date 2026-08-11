@@ -16,7 +16,7 @@ MCP server for ServiceNow integration. Uses FastMCP over stdio transport, OAuth 
 
 ## Release highlights
 
-Current version: **4.5.0** — 39 registered tools. Full history in [CHANGELOG.md](CHANGELOG.md).
+Current release: **4.5.0** (39 tools). `main` is on the **5.0.0 "Boron"** line — the Tier 2 cull brings the surface to **25 registered tools**. Full history in [CHANGELOG.md](CHANGELOG.md).
 
 | Release | What changed |
 |---|---|
@@ -168,37 +168,33 @@ Credentials are read from the `.env` file. If you prefer to inject them via the 
 
 ---
 
-## Available tools (39)
+## Available tools (25)
 
-### Generic table tools (5)
+> **v5.0 "Boron" (Tier 2 cull, 39 → 25), deletes-only.** Removed the redundant
+> `get_record_summary`; the three smart-KB read tools; `similar_slas_for_text`;
+> the five NL/filter tools (the host model builds and explains filters
+> natively); and folded the five diagnostics into one `health_check`.
+
+### Generic table tools (4)
 
 Work across all supported tables: `incident`, `change_request`, `sc_req_item`, `sc_task`, `universal_request`, `kb_knowledge`, `vtb_task`, `task_sla`.
 
 - `search_records(table, query)` — text similarity search
-- `get_record_summary(table, number)` — short description for a single record
 - `get_record(table, number)` — full detail fields for a single record
 - `find_similar(table, number)` — records similar to an existing record
 - `filter_records(table, filters, fields=None, max_results=100)` — field-value filters with operators and date ranges; response carries `returned_count` / `truncated`
 
-### Intelligent query tools (6)
+### Query-syntax help (1)
 
-- `intelligent_search(query, table, context)` — natural language: "high priority incidents from last week"
-- `build_smart_servicenow_filter(query, table, context)` — NL → ServiceNow query syntax
-- `explain_servicenow_filters(filters, table)` — human-readable filter explanation
-- `get_servicenow_filter_templates()` — pre-built filters for common scenarios
-- `get_query_examples()` — natural language examples
 - `get_query_syntax_help()` — encoded-query operator reference (LIKE vs CONTAINS, reference-field dot-walking)
 
 ### Priority incidents (1)
 
 - `get_priority_incidents(priorities, start_date, end_date, additional_filters, include_metadata)`
 
-### Knowledge base — read (4)
+### Knowledge base — read (1)
 
-- `similar_knowledge_for_text(input_text, kb_base, category)`
-- `get_knowledge_by_category(category, kb_base)`
-- `get_active_knowledge_articles()` — takes no arguments; returns `workflow_state=published`
-- `get_kb_articles_by_state(workflow_state, category, kb_base, max_results)` — collapses ServiceNow KB versioning to one row per `number`, with `current_state` and `version_count`
+- `get_kb_articles_by_state(workflow_state, category, kb_base, max_results)` — collapses ServiceNow KB versioning to one row per `number`, with `current_state` and `version_count`. For topic search use `search_records("kb_knowledge", ...)`; for a category use `filter_records("kb_knowledge", {"kb_category": ...})`.
 
 ### Knowledge base — write (5)
 
@@ -213,9 +209,8 @@ Work across all supported tables: `incident`, `change_request`, `sc_req_item`, `
 - `create_private_task(task_data)` — creates vtb_task record
 - `update_private_task(task_number, update_data)` — PATCH update
 
-### SLA management (5)
+### SLA management (4)
 
-- `similar_slas_for_text(input_text)`
 - `get_sla_details(sla_sys_id)`
 - `query_slas_by_task(task_number)`
 - `query_slas_by_status(status, days?, threshold_minutes?, stage?, extra_filters?)` — status enum: `"active"`, `"breached"`, `"breaching"`, `"critical"`, `"by_stage"`, `"performance"`
@@ -230,9 +225,9 @@ Work across all supported tables: `incident`, `change_request`, `sc_req_item`, `
 - `get_all_ci_types()` — live `sys_db_object` query, not a static list
 - `quick_ci_search(search_term)`
 
-### Server & auth (5)
+### Diagnostic (1)
 
-- `nowtest()`, `now_test_oauth()`, `now_auth_info()`, `nowtestauth()`, `nowtest_auth_input(table_name)`
+- `health_check(probe_table=None)` — server liveness + auth config + live ServiceNow probe; `probe_table` also returns that table's sample field names. Replaces the former `nowtest` / `now_test_oauth` / `now_auth_info` / `nowtestauth` / `nowtest_auth_input`.
 
 ---
 
@@ -241,10 +236,10 @@ Work across all supported tables: `incident`, `change_request`, `sc_req_item`, `
 ```
 MCP Client (Claude)
   ↓ stdio / sse
-tools.py (FastMCP — 39 tools)
+tools.py (FastMCP — 25 tools)
   ↓
 generic_tool_wrappers.py   consolidated_tools.py   vtb_task_tools.py
-cmdb_tools.py              intelligent_query_tools.py
+cmdb_tools.py   utility_tools.py   intelligent_query_tools.py
   ↓
 generic_table_tools.py (core query engine, pagination, deterministic sort)
   ↓

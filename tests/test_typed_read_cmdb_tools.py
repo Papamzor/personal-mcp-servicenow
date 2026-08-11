@@ -1,36 +1,31 @@
-"""Typed read failures in the CMDB tools (v4.4 Tier 0.3, PR B).
+"""Typed read failures + response contract in the CMDB tools.
 
-A failed GET raises instead of returning None. Two things are locked here:
+v4.4 Tier 0.3 gave the read path typed failures; v5.0 "Boron" Tier 3.1 removed
+the 16 bare strings this module used to return. Locked here:
 
-1. Every public function returns `{"error": {"code", "message"}}` on a failure
-   instead of one of its not-found strings (NO_CIS_FOUND_FOR_TYPE, CI_NOT_FOUND,
-   ...) or its ERROR_* string, which dropped the code. Empty result sets keep
-   their existing strings — empty is success. The module's return type is
-   `dict | str` for the duration; Tier 3.1 removes the strings.
-
-2. `_probe_ci_table` no longer reports a failed probe as "this table has no such
-   CI". That conflation was worse than a wrong message: under the concurrent
-   gather in `get_ci_details`, a timeout on cmdb_ci_server made a server CI
-   appear to live in the base cmdb_ci table.
+1. A failure returns `{"error": {"code", "message"}}` — a classified read
+   failure carries its transport code; a genuine bug (bare `except Exception`)
+   carries INTERNAL with the module's ERROR_* base text. Never a not-found
+   string, never a bare error string.
+2. An empty result set is SUCCESS: an empty `list_response` for the list tools,
+   `record_response(None)` for the single-record get_ci_details. Deciding empty
+   means "not found" is the caller's call.
+3. `_probe_ci_table` still never reports a failed probe as "this table has no
+   such CI" — a timeout on cmdb_ci_server must not attribute a server CI to the
+   base cmdb_ci table.
 
 `TestEndToEndThroughTheRealDispatcher` drives failures through the real
-dispatcher rather than the module seam, so the handling is verified end to end
-rather than against a mock.
+dispatcher rather than the module seam.
 """
 import pytest
 from unittest.mock import AsyncMock, patch
 
 from constants import (
-    CI_NOT_FOUND,
     ERROR_FINDING_SIMILAR_CIS,
     ERROR_GETTING_CI_TYPES,
     ERROR_QUICK_CI_SEARCH,
     ERROR_SEARCHING_CIS,
     ERROR_SEARCHING_CIS_BY_TYPE,
-    NO_CI_TYPES_FOUND,
-    NO_CIS_FOUND_FOR_TYPE,
-    NO_CIS_FOUND_MATCHING_CRITERIA,
-    NO_SIMILAR_CIS_FOUND,
 )
 from http_layer.errors import ErrorCode, ServiceNowRequestError
 from Table_Tools.cmdb_tools import (
@@ -60,13 +55,20 @@ def _assert_plain_failure(response, code):
     assert response["error"]["code"] == code
 
 
-def _by_table(mapping, default=None):
-    """Fake make_nws_request that answers per table name in the URL.
+def _assert_internal(response, message):
+    """A bare-except catch-all: INTERNAL carrying the module's base text."""
+    assert response["error"]["code"] == ErrorCode.INTERNAL
+    assert response["error"]["message"] == message
 
-    Values are either a payload dict or an exception to raise, so a test can say
-    "cmdb_ci_server times out, cmdb_ci has the row" without ordering assumptions
-    about how the concurrent probes interleave.
-    """
+
+def _assert_empty_list(response):
+    assert response["result"] == []
+    assert response["returned_count"] == 0
+    assert "error" not in response
+
+
+def _by_table(mapping, default=None):
+    """Fake make_nws_request that answers per table name in the URL."""
     async def fake(url, *args, **kwargs):
         table = url.split("/api/now/table/")[1].split("?")[0]
         outcome = mapping.get(table, default)
@@ -83,23 +85,23 @@ class TestSingleRequestReads:
         with patch("Table_Tools.cmdb_tools.make_nws_request", side_effect=TIMEOUT):
             result = await find_cis_by_type("cmdb_ci_server")
         _assert_plain_failure(result, ErrorCode.TIMEOUT)
-        assert result != NO_CIS_FOUND_FOR_TYPE.format(ci_type="cmdb_ci_server")
 
     @pytest.mark.asyncio
-    async def test_find_by_type_empty_keeps_its_not_found_string(self):
+    async def test_find_by_type_empty_is_an_empty_list(self):
         with patch("Table_Tools.cmdb_tools.make_nws_request") as mock_request:
             mock_request.return_value = {"result": []}
             result = await find_cis_by_type("cmdb_ci_server")
-        assert result == NO_CIS_FOUND_FOR_TYPE.format(ci_type="cmdb_ci_server")
+        _assert_empty_list(result)
+        assert result["ci_type"] == "cmdb_ci_server"
 
     @pytest.mark.asyncio
-    async def test_find_by_type_unexpected_error_still_returns_its_string(self):
+    async def test_find_by_type_unexpected_error_is_internal(self):
         """Narrowing the except must not remove the catch-all for real bugs."""
         with patch(
             "Table_Tools.cmdb_tools.make_nws_request", side_effect=RuntimeError("boom")
         ):
             result = await find_cis_by_type("cmdb_ci_server")
-        assert result == ERROR_SEARCHING_CIS_BY_TYPE
+        _assert_internal(result, ERROR_SEARCHING_CIS_BY_TYPE)
 
     @pytest.mark.asyncio
     async def test_search_by_attributes_failure_is_not_no_cis_matching(self):
@@ -108,19 +110,19 @@ class TestSingleRequestReads:
         _assert_plain_failure(result, ErrorCode.FORBIDDEN)
 
     @pytest.mark.asyncio
-    async def test_search_by_attributes_empty_keeps_its_not_found_string(self):
+    async def test_search_by_attributes_empty_is_an_empty_list(self):
         with patch("Table_Tools.cmdb_tools.make_nws_request") as mock_request:
             mock_request.return_value = {"result": []}
             result = await search_cis_by_attributes(name="srv-app")
-        assert result == NO_CIS_FOUND_MATCHING_CRITERIA
+        _assert_empty_list(result)
 
     @pytest.mark.asyncio
-    async def test_search_by_attributes_unexpected_error_still_returns_its_string(self):
+    async def test_search_by_attributes_unexpected_error_is_internal(self):
         with patch(
             "Table_Tools.cmdb_tools.make_nws_request", side_effect=RuntimeError("boom")
         ):
             result = await search_cis_by_attributes(name="srv-app")
-        assert result == ERROR_SEARCHING_CIS
+        _assert_internal(result, ERROR_SEARCHING_CIS)
 
     @pytest.mark.asyncio
     async def test_quick_search_failure_is_not_no_cis_found(self):
@@ -129,12 +131,12 @@ class TestSingleRequestReads:
         _assert_plain_failure(result, ErrorCode.TIMEOUT)
 
     @pytest.mark.asyncio
-    async def test_quick_search_unexpected_error_still_returns_its_string(self):
+    async def test_quick_search_unexpected_error_is_internal(self):
         with patch(
             "Table_Tools.cmdb_tools.make_nws_request", side_effect=RuntimeError("boom")
         ):
             result = await quick_ci_search("srv-app-01")
-        assert result == ERROR_QUICK_CI_SEARCH
+        _assert_internal(result, ERROR_QUICK_CI_SEARCH)
 
     @pytest.mark.asyncio
     async def test_get_all_ci_types_failure_is_not_no_types_found(self):
@@ -143,19 +145,19 @@ class TestSingleRequestReads:
         _assert_plain_failure(result, ErrorCode.TIMEOUT)
 
     @pytest.mark.asyncio
-    async def test_get_all_ci_types_empty_keeps_its_not_found_string(self):
+    async def test_get_all_ci_types_empty_is_an_empty_list(self):
         with patch("Table_Tools.cmdb_tools.make_nws_request") as mock_request:
             mock_request.return_value = {"result": []}
             result = await get_all_ci_types()
-        assert result == NO_CI_TYPES_FOUND
+        _assert_empty_list(result)
 
     @pytest.mark.asyncio
-    async def test_get_all_ci_types_unexpected_error_still_returns_its_string(self):
+    async def test_get_all_ci_types_unexpected_error_is_internal(self):
         with patch(
             "Table_Tools.cmdb_tools.make_nws_request", side_effect=RuntimeError("boom")
         ):
             result = await get_all_ci_types()
-        assert result == ERROR_GETTING_CI_TYPES
+        _assert_internal(result, ERROR_GETTING_CI_TYPES)
 
 
 class TestProbeFailuresAreNotAbsence:
@@ -163,12 +165,7 @@ class TestProbeFailuresAreNotAbsence:
 
     @pytest.mark.asyncio
     async def test_failed_probe_does_not_attribute_the_ci_to_a_broader_table(self):
-        """cmdb_ci_server times out; the base cmdb_ci row must NOT be the answer.
-
-        cmdb_ci holds every CI, so the base table almost always has a row. If a
-        failed probe counted as absence, `get_ci_details` would confidently
-        report ci_table="cmdb_ci" for a machine that is a server.
-        """
+        """cmdb_ci_server times out; the base cmdb_ci row must NOT be the answer."""
         fake = _by_table({
             "cmdb_ci_server": TIMEOUT,
             "cmdb_ci": {"result": [CI_ROW]},
@@ -189,7 +186,7 @@ class TestProbeFailuresAreNotAbsence:
         with patch("Table_Tools.cmdb_tools.make_nws_request", new=fake):
             result = await get_ci_details("CI0001000")
         assert result["ci_table"] == "cmdb_ci_server"
-        assert result["result"] == CI_ROW
+        assert result["record"] == CI_ROW
 
     @pytest.mark.asyncio
     async def test_priority_order_is_still_most_specific_first(self):
@@ -202,10 +199,11 @@ class TestProbeFailuresAreNotAbsence:
         assert result["ci_table"] == "cmdb_ci_computer"
 
     @pytest.mark.asyncio
-    async def test_all_probes_empty_still_says_ci_not_found(self):
+    async def test_all_probes_empty_is_a_null_record(self):
         with patch("Table_Tools.cmdb_tools.make_nws_request", new=_by_table({})):
             result = await get_ci_details("CI0009999")
-        assert result == CI_NOT_FOUND.format(ci_number="CI0009999")
+        assert result["record"] is None
+        assert result["ci_number"] == "CI0009999"
 
     @pytest.mark.asyncio
     async def test_explicit_ci_type_failure_returns_the_error(self):
@@ -215,7 +213,7 @@ class TestProbeFailuresAreNotAbsence:
 
     @pytest.mark.asyncio
     async def test_unexpected_probe_exception_still_propagates(self):
-        """A real bug must not be laundered into a not-found string."""
+        """A real bug must not be laundered into a not-found record."""
         fake = _by_table({"cmdb_ci_server": RuntimeError("boom")})
         with patch("Table_Tools.cmdb_tools.make_nws_request", new=fake):
             with pytest.raises(RuntimeError):
@@ -225,7 +223,7 @@ class TestProbeFailuresAreNotAbsence:
 class TestSimilarCis:
     @pytest.mark.asyncio
     async def test_lookup_failure_is_passed_through_not_indexed_into(self):
-        """get_ci_details can answer with a failure dict, which has no 'result'."""
+        """get_ci_details can answer with a failure dict, which has no 'record'."""
         with patch(
             "Table_Tools.cmdb_tools.get_ci_details",
             new=AsyncMock(return_value=TIMEOUT.to_error_dict()),
@@ -234,8 +232,49 @@ class TestSimilarCis:
         _assert_plain_failure(result, ErrorCode.TIMEOUT)
 
     @pytest.mark.asyncio
+    async def test_seed_ci_not_found_is_an_empty_list(self):
+        """A record=None seed has no attributes to match — empty, not an error."""
+        with patch(
+            "Table_Tools.cmdb_tools.get_ci_details",
+            new=AsyncMock(return_value={"record": None, "ci_number": "CI0001000"}),
+        ):
+            result = await similar_cis_for_ci("CI0001000")
+        _assert_empty_list(result)
+        assert result["original_ci"] == "CI0001000"
+
+    @pytest.mark.asyncio
+    async def test_seed_with_only_a_class_is_empty_not_validation(self):
+        """Regression: a seed with sys_class_name but no location/status.
+
+        _extract_ci_search_attributes then yields only ci_type, which
+        search_cis_by_attributes rejects as VALIDATION. Pre-contract that bare
+        string fell through to a soft "no similar CIs"; the typed error would
+        make it a hard failure. The sparse-attrs guard must short-circuit to an
+        empty list BEFORE any request — so the real search is never reached.
+        """
+        details = {
+            "ci_table": "cmdb_ci_server",
+            "ci_number": "CI0001000",
+            "record": {"sys_class_name": "Server", "operational_status": ""},
+        }
+        capture_urls = []
+
+        async def capture(url, *a, **k):
+            capture_urls.append(url)
+            return {"result": []}
+
+        with patch(
+            "Table_Tools.cmdb_tools.get_ci_details", new=AsyncMock(return_value=details)
+        ), patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
+            result = await similar_cis_for_ci("CI0001000")
+
+        _assert_empty_list(result)
+        assert result["original_ci"] == "CI0001000"
+        assert capture_urls == [], "sparse attrs must not reach search_cis_by_attributes"
+
+    @pytest.mark.asyncio
     async def test_search_failure_is_not_no_similar_cis(self):
-        details = {"ci_table": "cmdb_ci_server", "ci_number": "CI0001000", "result": {
+        details = {"ci_table": "cmdb_ci_server", "ci_number": "CI0001000", "record": {
             "sys_class_name": "Server", "location": "Brussels", "operational_status": "1",
         }}
         with patch(
@@ -246,37 +285,36 @@ class TestSimilarCis:
         ):
             result = await similar_cis_for_ci("CI0001000")
         _assert_plain_failure(result, ErrorCode.FORBIDDEN)
-        assert result != NO_SIMILAR_CIS_FOUND.format(ci_number="CI0001000")
 
     @pytest.mark.asyncio
-    async def test_genuine_no_similar_cis_keeps_its_string(self):
-        details = {"ci_table": "cmdb_ci_server", "ci_number": "CI0001000", "result": {
+    async def test_genuine_no_similar_cis_is_an_empty_list(self):
+        details = {"ci_table": "cmdb_ci_server", "ci_number": "CI0001000", "record": {
             "sys_class_name": "Server", "location": "Brussels", "operational_status": "1",
         }}
         with patch(
             "Table_Tools.cmdb_tools.get_ci_details", new=AsyncMock(return_value=details)
         ), patch(
             "Table_Tools.cmdb_tools.search_cis_by_attributes",
-            new=AsyncMock(return_value=NO_CIS_FOUND_MATCHING_CRITERIA),
+            new=AsyncMock(return_value={"result": [], "returned_count": 0, "truncated": False}),
         ):
             result = await similar_cis_for_ci("CI0001000")
-        assert result == NO_SIMILAR_CIS_FOUND.format(ci_number="CI0001000")
+        _assert_empty_list(result)
 
     @pytest.mark.asyncio
-    async def test_unexpected_error_in_the_lookup_half_returns_its_string(self):
-        """get_ci_details re-raises real bugs; this function still answers with
-        its own ERROR_* string, the same as for a bug in the search half."""
+    async def test_unexpected_error_in_the_lookup_half_is_internal(self):
+        """get_ci_details re-raises real bugs; this function answers INTERNAL."""
         with patch(
             "Table_Tools.cmdb_tools.get_ci_details",
             new=AsyncMock(side_effect=RuntimeError("boom")),
         ):
             result = await similar_cis_for_ci("CI0001000")
-        assert result == ERROR_FINDING_SIMILAR_CIS
+        _assert_internal(result, ERROR_FINDING_SIMILAR_CIS)
 
     @pytest.mark.asyncio
-    async def test_unexpected_error_still_returns_its_string(self):
-        details = {"ci_table": "cmdb_ci_server", "ci_number": "CI0001000", "result": {
-            "sys_class_name": "Server",
+    async def test_unexpected_error_in_the_search_half_is_internal(self):
+        # location present so the sparse-attrs guard passes and search is reached.
+        details = {"ci_table": "cmdb_ci_server", "ci_number": "CI0001000", "record": {
+            "sys_class_name": "Server", "location": "Brussels",
         }}
         with patch(
             "Table_Tools.cmdb_tools.get_ci_details", new=AsyncMock(return_value=details)
@@ -285,25 +323,11 @@ class TestSimilarCis:
             new=AsyncMock(side_effect=RuntimeError("boom")),
         ):
             result = await similar_cis_for_ci("CI0001000")
-        assert result == ERROR_FINDING_SIMILAR_CIS
+        _assert_internal(result, ERROR_FINDING_SIMILAR_CIS)
 
 
 class TestEndToEndThroughTheRealDispatcher:
-    """Failures reach this module through the real dispatcher, gather included.
-
-    These exercise the real `make_nws_request` rather than the module seam. That
-    was originally the only way to catch a typo in the `_TYPED_CALLERS` opt-in
-    list; with the shim gone the list is gone too, and what these now prove is
-    the property that outlived it — a real classified failure, produced by the
-    real dispatcher, is handled by this module rather than escaping it.
-
-    Still not replaceable by the source scan in `test_http_layer_errors.py`: that
-    checks a handler EXISTS, these check it does the right thing.
-
-    The gathered case is kept deliberately: `get_ci_details` probes concurrently,
-    and a failure crossing a Task boundary is the case most likely to be handled
-    differently from a plain awaited one.
-    """
+    """Failures reach this module through the real dispatcher, gather included."""
 
     @pytest.mark.asyncio
     async def test_timeout_reaches_find_cis_by_type(self, monkeypatch):
@@ -328,7 +352,7 @@ class TestEndToEndThroughTheRealDispatcher:
         _assert_plain_failure(result, ErrorCode.TIMEOUT)
 
     @pytest.mark.asyncio
-    async def test_empty_probes_through_the_real_dispatcher_say_not_found(self, monkeypatch):
+    async def test_empty_probes_through_the_real_dispatcher_are_a_null_record(self, monkeypatch):
         import http_layer.request_dispatcher as dispatcher
 
         async def empty(url):
@@ -336,4 +360,5 @@ class TestEndToEndThroughTheRealDispatcher:
 
         monkeypatch.setattr(dispatcher, "make_oauth_request", empty)
         result = await get_ci_details("CI0009999")
-        assert result == CI_NOT_FOUND.format(ci_number="CI0009999")
+        assert result["record"] is None
+        assert result["ci_number"] == "CI0009999"

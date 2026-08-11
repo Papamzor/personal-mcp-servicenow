@@ -1,5 +1,5 @@
 """
-Tests for generic_tool_wrappers.py — the 5 generic MCP tools.
+Tests for generic_tool_wrappers.py — the generic MCP table tools.
 """
 
 import pytest
@@ -8,7 +8,6 @@ from unittest.mock import patch, AsyncMock
 from Table_Tools.generic_tool_wrappers import (
     _validate_table,
     search_records,
-    get_record_summary,
     get_record,
     find_similar,
     filter_records,
@@ -59,23 +58,6 @@ class TestSearchRecords:
             mock.return_value = {"result": []}
             await search_records("change_request", "upgrade")
             mock.assert_called_once_with("change_request", "upgrade")
-
-
-class TestGetRecordSummary:
-    """Test get_record_summary generic tool."""
-
-    @pytest.mark.asyncio
-    async def test_valid_table(self):
-        with patch("Table_Tools.generic_tool_wrappers.get_record_description") as mock:
-            mock.return_value = {"result": [{"short_description": "Test"}]}
-            result = await get_record_summary("incident", "INC001")
-            mock.assert_called_once_with("incident", "INC001")
-            assert result["result"][0]["short_description"] == "Test"
-
-    @pytest.mark.asyncio
-    async def test_invalid_table(self):
-        result = await get_record_summary("bad_table", "INC001")
-        assert "error" in result
 
 
 class TestGetRecord:

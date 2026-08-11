@@ -46,18 +46,21 @@ def _count_tokens(payload) -> int:
 # this measures the whole listing payload — name + signature + docstring per
 # tool — the payload the earlier per-response budgets never covered.
 #
-# Recorded trade (cl100k_base tokens, measured in a worktree at each commit):
+# Recorded trade (cl100k_base tokens, measured at each release):
 #   c951471 (v4.4.1, pre-Tier-1):   4693
-#   this branch (v4.5.0, Tier 1):   8946   (+4253, +91%)
-# The gain it buys: static tool-selection preferred 21/30 -> 29/30, plausible
-# paths 66 -> 50 (see tests/test_tool_selection.py). Tier 2's 39->25 cull is the
-# lever that brings the listing size back down.
+#   v4.5.0 (Tier 1 docstrings):     8946   (+4253, +91%)
+#   v5.0.0 (Tier 2, 39 -> 25 cull): 6716   (-2230, -25% from Tier 1)
+# Tier 1's docstring protocol lengthened all tools; Tier 2's cull removed 15 of
+# them, bringing the listing back down while keeping the protocol on every
+# survivor. Static tool-selection held at preferred 28/30 (see
+# tests/test_tool_selection.py for why 28, not 29).
 # ---------------------------------------------------------------------------
 
 # Ceiling with headroom for ordinary doc edits; a runaway (e.g. a re-introduced
-# unconditional envelope, or protocol duplication) trips it. Lower it if Tier 2
-# shrinks the surface — floors ratchet down, never silently up.
-BUDGET_TOOL_LISTING = 9_500
+# unconditional envelope, or protocol duplication) trips it. Ratcheted down from
+# 9_500 (Tier 1) after the Tier 2 cull shrank the surface — floors ratchet down,
+# never silently up.
+BUDGET_TOOL_LISTING = 7_200
 
 
 def _tool_listing_tokens() -> int:

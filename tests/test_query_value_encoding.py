@@ -215,6 +215,23 @@ async def _send(call):
     return urls, result
 
 
+async def _query_via_generic(table, filters):
+    """Route a filters dict through the live main assembly path.
+
+    v5.0 "Boron" (Tier 2.5) deleted `query_table_with_generic_filters` (only the
+    culled KB thin-wrappers reached it). Its `_build_query_string` value handlers
+    are the same ones `query_table_with_filters` uses, so the seams below keep
+    exercising them through the surviving function — the encoder contract is
+    unchanged.
+    """
+    from Table_Tools.generic_table_tools import query_table_with_filters
+    from filter import TableFilterParams
+
+    return await query_table_with_filters(
+        table, TableFilterParams(filters=filters, fields=["number"])
+    )
+
+
 async def _seam_filter_records(value):
     from Table_Tools.generic_table_tools import query_table_with_filters
     from filter import TableFilterParams
@@ -226,9 +243,8 @@ async def _seam_filter_records(value):
 
 
 async def _seam_generic_filters(value):
-    from Table_Tools.generic_table_tools import query_table_with_generic_filters
 
-    return await _send(lambda: query_table_with_generic_filters(
+    return await _send(lambda: _query_via_generic(
         "incident", {"short_description": f"LIKE{value}"}
     ))
 
@@ -241,18 +257,16 @@ async def _seam_exact_match(value):
     explicit `LIKE`, which diverts to the operator handler instead. A mutation
     that dropped the escaping from exact match passed the whole suite.
     """
-    from Table_Tools.generic_table_tools import query_table_with_generic_filters
 
-    return await _send(lambda: query_table_with_generic_filters(
+    return await _send(lambda: _query_via_generic(
         "incident", {"assigned_to": value}
     ))
 
 
 async def _seam_suffix_operator(value):
     """`assigned_to_gte` -> `assigned_to>=`, a third terminal handler."""
-    from Table_Tools.generic_table_tools import query_table_with_generic_filters
 
-    return await _send(lambda: query_table_with_generic_filters(
+    return await _send(lambda: _query_via_generic(
         "incident", {"assigned_to_gte": value}
     ))
 
@@ -263,9 +277,8 @@ async def _seam_priority_single(value):
     A distinct code path from the comma list, and it had only the source-scan
     guard behind it until this seam existed.
     """
-    from Table_Tools.generic_table_tools import query_table_with_generic_filters
 
-    return await _send(lambda: query_table_with_generic_filters(
+    return await _send(lambda: _query_via_generic(
         "incident", {"priority": f"P{value}"}
     ))
 
@@ -278,9 +291,8 @@ async def _seam_date_range_operator(value):
     line with the operator handler — which is how a mutation aimed at one of them
     silently hit the other.
     """
-    from Table_Tools.generic_table_tools import query_table_with_generic_filters
 
-    return await _send(lambda: query_table_with_generic_filters(
+    return await _send(lambda: _query_via_generic(
         "incident", {"sys_created_on": f">={value}"}
     ))
 
@@ -329,9 +341,8 @@ async def _seam_priority_comma_list(value):
     Reached only by a comma in the value, which is why it is its own seam: the
     priority handler claims the filter before any generic handler sees it.
     """
-    from Table_Tools.generic_table_tools import query_table_with_generic_filters
 
-    return await _send(lambda: query_table_with_generic_filters(
+    return await _send(lambda: _query_via_generic(
         "incident", {"priority": f"1,{value}"}
     ))
 
@@ -475,9 +486,8 @@ async def test_a_caller_exclusion_list_escapes_each_sys_id():
     string would destroy the join, escaping nothing lets an element's '&' truncate
     the query. Not in the seam matrix because its condition shape is its own.
     """
-    from Table_Tools.generic_table_tools import query_table_with_generic_filters
 
-    urls, _ = await _send(lambda: query_table_with_generic_filters(
+    urls, _ = await _send(lambda: _query_via_generic(
         "incident", {"exclude_caller": "a&b,c&d"}
     ))
     sent = urls[0]
@@ -495,9 +505,8 @@ async def test_a_javascript_date_operand_is_sent_byte_for_byte():
     inside a value, so escaping them would be a gratuitous change to a working
     feature. Pinned because `safe=''` is the obvious thing to reach for.
     """
-    from Table_Tools.generic_table_tools import query_table_with_generic_filters
 
-    urls, _ = await _send(lambda: query_table_with_generic_filters(
+    urls, _ = await _send(lambda: _query_via_generic(
         "incident", {"sys_created_on": ">=javascript:gs.daysAgoStart(14)"}
     ))
     sent = urls[0]
@@ -847,11 +856,14 @@ class TestStructuralPastesRefuseAnAmpersand:
         {"priority": "1^ORpriority=2&x"}
           -> ServiceNow got  priority=1^ORpriority=2   plus a stray `x` parameter
 
-    Reachable from registered tools #7 and #8 (`similar_knowledge_for_text`,
-    `get_knowledge_by_category`), whose `category`/`kb_base` land in exactly that
-    path. Both assembly paths now also encode before interpolating, so a future
-    structural paste that forgets truncates nothing — but the refusal is the fix,
-    because turning a `&` inside caller-built *structure* into a literal is a guess.
+    The `query_table_with_generic_filters` second path was reached by the v4 KB
+    thin-wrappers (`similar_knowledge_for_text`, `get_knowledge_by_category`),
+    culled in v5.0 and removed with that path in the Tier 2.5 sweep. The
+    registered-surface guard is now demonstrated through `filter_records`, whose
+    caller values run the main assembly path's guards. Both assembly paths encode
+    before interpolating, so a future structural paste that forgets truncates
+    nothing — but the refusal is the fix, because turning a `&` inside
+    caller-built *structure* into a literal is a guess.
     """
 
     STRUCTURAL_WITH_AMPERSAND = [
@@ -867,19 +879,23 @@ class TestStructuralPastesRefuseAnAmpersand:
     )
     @pytest.mark.asyncio
     async def test_a_structural_paste_refuses_an_ampersand(self, filters):
-        from Table_Tools.generic_table_tools import query_table_with_generic_filters
 
-        urls, result = await _send(lambda: query_table_with_generic_filters("incident", filters))
+        urls, result = await _send(lambda: _query_via_generic("incident", filters))
         assert not urls, f"a truncated query reached ServiceNow: {urls!r}"
         assert result["error"]["code"] == "VALIDATION"
 
     @pytest.mark.asyncio
     async def test_the_registered_kb_tool_refuses_it_too(self):
-        """The reachable surface, not just the internal function."""
-        from Table_Tools.consolidated_tools import get_knowledge_by_category
+        """The reachable surface, not just the internal function.
+
+        v5.0: filter_records is the registered entry point after the KB
+        thin-wrappers were culled; a caller value carrying `^OR` is a structural
+        paste on the main path and must be refused, not escaped.
+        """
+        from Table_Tools.generic_tool_wrappers import filter_records
 
         urls, result = await _send(
-            lambda: get_knowledge_by_category("1^ORkb_category=2&evil")
+            lambda: filter_records("kb_knowledge", {"kb_category": "1^ORkb_category=2&evil"})
         )
         assert not urls
         assert result["error"]["code"] == "VALIDATION"
@@ -896,9 +912,8 @@ class TestStructuralPastesRefuseAnAmpersand:
     @pytest.mark.asyncio
     async def test_legitimate_structural_values_are_untouched(self, filters, expected):
         """The guard refuses `&` only. Everything these fragments are made of stays."""
-        from Table_Tools.generic_table_tools import query_table_with_generic_filters
 
-        urls, _ = await _send(lambda: query_table_with_generic_filters("incident", filters))
+        urls, _ = await _send(lambda: _query_via_generic("incident", filters))
         assert urls, "a legitimate structural fragment was refused"
         assert_no_smuggled_parameter(urls[0])
         conditions = servicenow_conditions(urls[0])
@@ -912,9 +927,11 @@ class TestStructuralPastesRefuseAnAmpersand:
         "Payroll & Benefits" is a terminal value, so it is escaped, not refused —
         refusing it would make the guard worse than the bug.
         """
-        from Table_Tools.consolidated_tools import get_knowledge_by_category
+        from Table_Tools.generic_tool_wrappers import filter_records
 
-        urls, _ = await _send(lambda: get_knowledge_by_category("Payroll & Benefits"))
+        urls, _ = await _send(
+            lambda: filter_records("kb_knowledge", {"kb_category": "Payroll & Benefits"})
+        )
         assert urls, "an ordinary category containing '&' was refused"
         assert_no_smuggled_parameter(urls[0])
         assert servicenow_value_after(urls[0], "kb_category=") == "Payroll & Benefits"
@@ -930,21 +947,17 @@ class TestStructuralPastesRefuseAnAmpersand:
 async def test_all_three_assembly_paths_build_the_same_query(filters):
     """The same filters must produce the same query however they are assembled.
 
-    Three paths reach ServiceNow — `query_table_with_filters`,
-    `query_table_with_generic_filters` and `get_records_by_priority` — and only the
-    first encoded its assembled query before interpolating it into the URL. That
-    asymmetry is what hid the structural `&` truncation: every test that went through
-    `filter_records` got the encode pass and passed, while the other two paths
-    silently lost the tail of the query.
-
-    Asserting they agree pins the reason the other two now encode as well. Mutation
-    testing shows removing either encode breaks nothing else today, so this is what
-    holds them in place — not a claim that they are load-bearing on their own.
+    Historically three paths reached ServiceNow — `query_table_with_filters`,
+    `query_table_with_generic_filters` and `get_records_by_priority` — and only
+    the first encoded its assembled query, which is what hid the structural `&`
+    truncation. v5.0 "Boron" (Tier 2.5) deleted `query_table_with_generic_filters`
+    (the `_query_via_generic` shim now routes through `query_table_with_filters`),
+    so two live paths remain; asserting they agree pins that both still encode
+    before interpolating.
     """
     from Table_Tools.generic_table_tools import (
         get_records_by_priority,
         query_table_with_filters,
-        query_table_with_generic_filters,
     )
     from filter import TableFilterParams
 
@@ -952,7 +965,7 @@ async def test_all_three_assembly_paths_build_the_same_query(filters):
     typed_urls, _ = await _send(lambda: query_table_with_filters(
         "incident", TableFilterParams(filters=filters, fields=fields)
     ))
-    generic_urls, _ = await _send(lambda: query_table_with_generic_filters("incident", filters))
+    generic_urls, _ = await _send(lambda: _query_via_generic("incident", filters))
     priority_urls, _ = await _send(lambda: get_records_by_priority(
         "incident", ["1"], additional_filters={"assigned_to": "x"}
     ))
@@ -1124,9 +1137,8 @@ class TestNewQueryResetRefusal:
 
     @pytest.mark.asyncio
     async def test_the_tool_reports_it_instead_of_querying(self):
-        from Table_Tools.generic_table_tools import query_table_with_generic_filters
 
-        urls, result = await _send(lambda: query_table_with_generic_filters(
+        urls, result = await _send(lambda: _query_via_generic(
             "incident", {"short_description": "fooLIKEbar^NQactive=true"}
         ))
         assert not urls, "a query ran despite an unqueryable filter value"

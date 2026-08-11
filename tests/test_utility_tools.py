@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """
 unittest version of Utility Tools tests.
+
+v5.0 "Boron" (Tier 2): the five diagnostics (nowtest / now_test_oauth /
+now_auth_info / nowtestauth / nowtest_auth_input) collapsed into one
+`health_check(probe_table=None)`. Typed-failure behavior lives in
+test_typed_read_utility_tools.py; this file covers the happy-path shape.
 """
 
 import unittest
@@ -10,60 +15,52 @@ from unittest.mock import patch, AsyncMock
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+_FAKE_AUTH = {"instance": "https://example.service-now.com", "auth_type": "oauth"}
 
-class TestUtilityTools(unittest.IsolatedAsyncioTestCase):
-    """Test suite for utility tools functionality."""
+
+class TestHealthCheck(unittest.IsolatedAsyncioTestCase):
+    """Test suite for the consolidated health_check diagnostic."""
 
     async def asyncSetUp(self):
-        """Set up test fixtures for async tests."""
         try:
-            from utility_tools import nowtest, now_test_oauth, now_auth_info
-            self.utility_available = True
-            self.nowtest = nowtest
-            self.now_test_oauth = now_test_oauth
-            self.now_auth_info = now_auth_info
+            from utility_tools import health_check
+            self.health_check = health_check
+            self.available = True
         except ImportError as e:
-            self.utility_available = False
+            self.available = False
             self.import_error = str(e)
 
-    def test_nowtest_success(self):
-        """Test basic server status check."""
-        if not self.utility_available:
+    @patch("utility_tools.make_nws_request", new_callable=AsyncMock)
+    @patch("utility_tools.get_auth_info")
+    async def test_connectivity_probe_ok(self, mock_auth, mock_request):
+        """A reachable instance reports server running, connection ok, and config."""
+        if not self.available:
             self.skipTest(f"Utility tools not available: {self.import_error}")
-        
-        result = self.nowtest()
-        
-        self.assertIsInstance(result, str)
-        self.assertIn("Server is running", result)
 
-    @patch('utility_tools.test_oauth_connection', new_callable=AsyncMock)
-    async def test_now_test_oauth_success(self, mock_test_oauth):
-        """Test OAuth connection test with successful result."""
-        if not self.utility_available:
-            self.skipTest(f"Utility tools not available: {self.import_error}")
-        
-        mock_test_oauth.return_value = {'status': 'success'}
-        
-        result = await self.now_test_oauth()
-        
-        mock_test_oauth.assert_called_once()
-        self.assertIsInstance(result, dict)
+        mock_auth.return_value = _FAKE_AUTH
+        mock_request.return_value = {"result": [{"sys_id": "a" * 32, "name": "Someone"}]}
 
-    @patch('utility_tools.get_auth_info', new_callable=AsyncMock)
-    async def test_now_auth_info_success(self, mock_get_auth_info):
-        """Test getting authentication information successfully."""
-        if not self.utility_available:
+        result = await self.health_check()
+
+        mock_request.assert_called_once()
+        self.assertEqual(result["server"], "running")
+        self.assertEqual(result["connection"], "ok")
+        self.assertEqual(result["auth"], _FAKE_AUTH)
+
+    @patch("utility_tools.make_nws_request", new_callable=AsyncMock)
+    @patch("utility_tools.get_auth_info")
+    async def test_schema_probe_returns_sample_fields(self, mock_auth, mock_request):
+        if not self.available:
             self.skipTest(f"Utility tools not available: {self.import_error}")
-        
-        mock_get_auth_info.return_value = {
-            'auth_method': 'OAuth 2.0',
-            'client_configured': True
-        }
-        
-        result = await self.now_auth_info()
-        
-        mock_get_auth_info.assert_called_once()
-        self.assertIsInstance(result, dict)
+
+        mock_auth.return_value = _FAKE_AUTH
+        mock_request.return_value = {"result": [{"number": "INC1", "state": "1"}]}
+
+        result = await self.health_check(probe_table="incident")
+
+        self.assertEqual(result["connection"], "ok")
+        self.assertEqual(result["table"], "incident")
+        self.assertEqual(set(result["sample_fields"]), {"number", "state"})
 
 
 if __name__ == '__main__':
