@@ -44,9 +44,8 @@ _GUIDANCE_BLOCK = re.compile(
     r'(?=^[ \t]*[A-Z][A-Z ]+:|^[ \t]*$|\Z)'
 )
 
-
 def guidance_footer(name: str) -> str:
-    """The canonical three-line footer generated from a tool's guidance."""
+    """The canonical three-line guidance block generated from a tool's guidance."""
     g = TOOL_GUIDANCE[name]
     return (
         f"WHEN TO USE: {g.when_to_use}\n"
@@ -56,24 +55,65 @@ def guidance_footer(name: str) -> str:
 
 
 def apply_guidance(fn):
-    """Rewrite fn.__doc__ so its guidance comes from TOOL_GUIDANCE (idempotent)."""
-    body = _GUIDANCE_BLOCK.sub("", inspect.getdoc(fn) or "").strip()
+    """Rewrite fn.__doc__ so its guidance comes from TOOL_GUIDANCE (idempotent).
+
+    The block is inserted IMMEDIATELY AFTER THE SUMMARY (the first
+    blank-line-delimited paragraph), because FastMCP/griffe builds the served
+    tool description from the summary plus the paragraphs directly under it, and
+    truncates at the first section-like block (FOOTGUNS:/TABLES:/Args:/…) —
+    verified against fastmcp 3.3.1. A footer placed after those blocks (or after
+    Args) parses fine into `inspect.getdoc`, so every getdoc-based test passes,
+    yet silently vanishes from the wire — the PR #75 regression. Placing it right
+    under the summary is where Tier 1 had it and where it reaches the model.
+    """
+    doc = _GUIDANCE_BLOCK.sub("", inspect.getdoc(fn) or "").strip()
     footer = guidance_footer(fn.__name__)
-    fn.__doc__ = f"{body}\n\n{footer}" if body else footer
+    if not doc:
+        fn.__doc__ = footer
+        return fn
+    summary, _, rest = doc.partition("\n\n")
+    summary = summary.rstrip()
+    rest = rest.strip()
+    fn.__doc__ = f"{summary}\n\n{footer}\n\n{rest}" if rest else f"{summary}\n\n{footer}"
     return fn
 
 
 def register_tools(mcp, fns):
     """Inject guidance into each tool and register it with the FastMCP server.
 
-    Fails loudly if a registered tool has no guidance entry — that is what makes
-    the WHEN/WHEN-NOT/PREFER protocol mandatory rather than merely conventional.
+    Fails loudly if a registered tool has no guidance entry, or has one whose
+    three fields are not all non-blank — that fail-closed gate is what makes the
+    WHEN/WHEN-NOT/PREFER protocol mandatory rather than merely conventional (a
+    blank field would register a tool with an empty guidance line, so the check
+    that lived only in unit tests is mirrored here).
+
+    SIDE EFFECT: `apply_guidance` mutates `fn.__doc__` in place on the live
+    function objects imported from other modules, so importing the MCP entrypoint
+    permanently rewrites those docstrings process-wide (intentional — the served
+    description is generated from the registry).
     """
     missing = [fn.__name__ for fn in fns if fn.__name__ not in TOOL_GUIDANCE]
     if missing:
         raise ValueError(
             f"register_tools: no TOOL_GUIDANCE entry for {missing}. Every tool must "
             f"declare when_to_use / when_not / prefer_over (plan §3.3)."
+        )
+    blank = [
+        fn.__name__
+        for fn in fns
+        if not all(
+            v and v.strip()
+            for v in (
+                TOOL_GUIDANCE[fn.__name__].when_to_use,
+                TOOL_GUIDANCE[fn.__name__].when_not,
+                TOOL_GUIDANCE[fn.__name__].prefer_over,
+            )
+        )
+    ]
+    if blank:
+        raise ValueError(
+            f"register_tools: TOOL_GUIDANCE for {blank} has a blank when_to_use / "
+            f"when_not / prefer_over field. All three are required (plan §3.3)."
         )
     for fn in fns:
         apply_guidance(fn)

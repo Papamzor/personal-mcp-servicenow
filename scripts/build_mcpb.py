@@ -36,6 +36,7 @@ ROOT_FILES = [
     "auth_middleware.py",
     "param_coercion.py",
     "table_spec.py",
+    "tool_registry.py",
     "manifest.json",
     "pyproject.toml",
     "LICENSE",
