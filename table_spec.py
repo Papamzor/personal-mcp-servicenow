@@ -27,12 +27,17 @@ well-formed.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Optional, Tuple
 
 # Default free-text search column, and the task_sla dot-walk override. task_sla
 # carries no short_description of its own — the text lives on the referenced task.
-_DEFAULT_TEXT_SEARCH_FIELD = "short_description"
-_TASK_SLA_TEXT_SEARCH_FIELD = "task.short_description"
+# Public (not underscored) because constants.TEXT_SEARCH_FIELD /
+# TASK_SLA_TEXT_SEARCH_FIELD are derived from these SAME literals — the exact
+# columns whose mismatch historically caused silent ServiceNow drops live in one
+# place, not two independent copies.
+DEFAULT_TEXT_SEARCH_FIELD = "short_description"
+TASK_SLA_TEXT_SEARCH_FIELD = "task.short_description"
 
 
 @dataclass(frozen=True)
@@ -62,17 +67,45 @@ class TableSpec:
         """True when the table can be addressed by a record number."""
         return self.number_field is not None
 
+    def __post_init__(self) -> None:
+        """Enforce the number_field / number_prefix co-movement invariant.
+
+        The old hand-maintained exclusion list implicitly tied "no number" to "no
+        prefix". Splitting them into two fields would let a future edit desync
+        them — `number_prefix="X"` with `number_field=None` (guard refuses
+        identity tools while the prefix looks real), or the reverse. Both are
+        nonsense; refuse them at construction so `has_record_identity` and the
+        prefix consumers can never disagree.
+        """
+        if (self.number_field is None) != (self.number_prefix is None):
+            raise ValueError(
+                f"{self.key}: number_field and number_prefix must both be set "
+                f"or both be None (got number_field={self.number_field!r}, "
+                f"number_prefix={self.number_prefix!r})"
+            )
+        if self.number_field is not None:
+            if self.number_field != "number":
+                raise ValueError(
+                    f"{self.key}: an addressable table's number_field must be "
+                    f"'number', got {self.number_field!r}"
+                )
+            if not self.number_prefix:
+                raise ValueError(f"{self.key}: an addressable table needs a non-empty number_prefix")
+
 
 def _spec(**kwargs) -> TableSpec:
     # Every table addressable by number uses the literal `number` field, and
     # short_description as its text-search column; the two exceptions (task_sla)
     # pass explicit values. Defaults keep the registry below readable.
     kwargs.setdefault("number_field", "number")
-    kwargs.setdefault("text_search_field", _DEFAULT_TEXT_SEARCH_FIELD)
+    kwargs.setdefault("text_search_field", DEFAULT_TEXT_SEARCH_FIELD)
     return TableSpec(**kwargs)
 
 
-TABLE_SPECS = {
+# Read-only mapping: the SSOT registry is the one structure that most benefits
+# from immutability, since constants.py snapshots derived views at import — an
+# accidental TABLE_SPECS[...] = ... / .pop after import would desync them.
+TABLE_SPECS = MappingProxyType({
     "incident": _spec(
         key="incident",
         display_name="Incident",
@@ -191,7 +224,7 @@ TABLE_SPECS = {
         number_field=None,  # no record number -> structurally lacks record identity
         priority_field=None,
         state_field="stage",
-        text_search_field=_TASK_SLA_TEXT_SEARCH_FIELD,  # no short_description of its own
+        text_search_field=TASK_SLA_TEXT_SEARCH_FIELD,  # no short_description of its own
         supports_work_notes=False,
         supports_comments=False,
         essential_fields=("task", "sla", "stage", "business_percentage", "active", "sys_created_on"),
@@ -202,4 +235,4 @@ TABLE_SPECS = {
         ),
         error_message="SLA record not found.",
     ),
-}
+})

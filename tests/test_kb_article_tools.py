@@ -76,6 +76,7 @@ class TestUnwrapKbWriteResponse:
     def test_unwrap_with_inner_result(self):
         result = _unwrap_kb_write_response({"result": {"number": "KB0001234"}}, "update")
         assert result["record"] == {"number": "KB0001234"}
+        assert result["message"] == "KB article update succeeded."
 
     def test_unwrap_empty_dict_is_unconfirmed_not_success(self):
         """An empty write response cannot establish that the write landed."""
@@ -108,6 +109,7 @@ class TestWriteKbArticle:
             )
 
             assert result["record"] == {"number": "KB0001234", "workflow_state": "published"}
+            assert result["message"] == "KB article publish succeeded."
             mock_request.assert_called_once_with(
                 "https://test.service-now.com/api/now/table/kb_knowledge/abc123",
                 method="PATCH",
@@ -231,6 +233,7 @@ class TestUpdateKnowledgeArticle:
             result = await update_knowledge_article("KB0001234", {"short_description": "Updated"})
 
             assert result["record"]["number"] == "KB0001234"
+            assert result["message"] == "KB article update succeeded."
             kwargs = mock_request.call_args.kwargs
             assert kwargs["method"] == "PATCH"
             assert kwargs["json_data"] == {"short_description": "Updated"}
@@ -505,6 +508,7 @@ class TestRetireKnowledgeArticle:
             result = await retire_knowledge_article("KB0001234")
 
             assert result["record"]["workflow_state"] == "retired"
+            assert result["message"] == "KB article retire succeeded."
             call_url = mock_request.call_args.args[0]
             call_kwargs = mock_request.call_args.kwargs
             assert "/api/qonv/mateco_knowledge/articles/abc123/retire" in call_url
