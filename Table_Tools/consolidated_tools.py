@@ -16,6 +16,7 @@ from .generic_table_tools import (
     TableFilterParams
 )
 from .read_helpers import carry_partial, carry_partial_after_filter, is_read_failure
+from .response import error_response, list_response
 from .date_utils import (
     validate_date_format,
     build_date_filter,
@@ -45,7 +46,7 @@ def _validate_date_param(date_string: Optional[str], param_name: str) -> Optiona
     is_valid, error = validate_date_format(date_string)
     if not is_valid:
         logger.error("Invalid %s format: %s - %s", param_name, date_string, error)
-        return {"error": f"Invalid {param_name}: {error}"}
+        return error_response("VALIDATION", f"Invalid {param_name}: {error}")
     return None
 
 
@@ -88,9 +89,12 @@ def _build_metadata(
     record_count = len(records)
     date_range = {"start": start_date, "end": end_date} if start_date or end_date else None
 
-    return {
-        "result": records,
-        "metadata": {
+    # List-contract shape (result + returned_count + truncated); the descriptive
+    # block stays under `metadata` (nested, not a top-level message dialect).
+    return list_response(
+        records,
+        truncated=bool(result.get("truncated", False)),
+        metadata={
             "count": record_count,
             "priorities_queried": priorities,
             "date_range": date_range,
@@ -98,9 +102,9 @@ def _build_metadata(
             "query_timestamp": query_timestamp,
             "message": _build_priority_result_message(
                 record_count, priorities, start_date, end_date
-            )
-        }
-    }
+            ),
+        },
+    )
 
 
 async def get_priority_incidents(
@@ -329,18 +333,13 @@ async def get_kb_articles_by_state(
     # "No matching KB articles." from pages that never arrived would be the same
     # confident-wrong answer this tier removes, so that case reports the failure.
     if not deduped:
-        return carry_partial_after_filter({
-            "result": [],
-            "message": "No matching KB articles.",
-            "returned_count": 0,
-            "truncated": raw.get("truncated", False),
-        }, raw)
+        return carry_partial_after_filter(
+            list_response([], truncated=bool(raw.get("truncated", False))), raw
+        )
 
-    return carry_partial({
-        "result": deduped,
-        "returned_count": len(deduped),
-        "truncated": raw.get("truncated", False),
-    }, raw)
+    return carry_partial(
+        list_response(deduped, truncated=bool(raw.get("truncated", False))), raw
+    )
 
 
 # ---------------------------------------------------------------------------

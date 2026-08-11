@@ -61,8 +61,8 @@ class TestIdentityToolsRejectTaskSla:
         with patch("http_layer.request_dispatcher.make_oauth_request", new=capture):
             result = await call()
 
-        assert "error" in result
-        assert "task_sla" in result["error"]
+        assert result["error"]["code"] == "VALIDATION"
+        assert "task_sla" in result["error"]["message"]
         assert capture.urls == [], "must refuse before touching ServiceNow"
 
     @pytest.mark.asyncio
@@ -70,7 +70,7 @@ class TestIdentityToolsRejectTaskSla:
         """A refusal that does not say what to use instead just moves the dead end."""
         result = await get_record("task_sla", "SLA0001")
 
-        message = result["error"]
+        message = result["error"]["message"]
         assert "get_sla_details" in message
         assert "query_slas_by_task" in message
         assert "filter_records" in message
@@ -89,7 +89,7 @@ class TestIdentityToolsRejectTaskSla:
         """The identity guard must not mask the plain unsupported-table error."""
         result = await get_record("not_a_real_table", "X0001")
 
-        assert "Invalid table" in result["error"]
+        assert "Invalid table" in result["error"]["message"]
 
 
 class TestFilterRecordsStillAcceptsTaskSla:

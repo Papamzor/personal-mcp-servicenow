@@ -14,6 +14,7 @@ from filter import QueryValueError, encode_query_value
 from typing import Any, Dict
 import anyio
 import httpx
+from .response import error_response
 from .write_helpers import map_http_error, unwrap_write_response
 from constants import (
     ERROR_SHORT_DESC_REQUIRED,
@@ -30,8 +31,8 @@ from constants import (
     VTB_UPDATABLE_FIELDS
 )
 
-def _handle_http_error(error: httpx.HTTPStatusError, operation: str) -> str:
-    """Handle HTTP errors consistently."""
+def _handle_http_error(error: httpx.HTTPStatusError, operation: str) -> Dict[str, Any]:
+    """Map an HTTP error to the {"error": {code, message}} contract shape."""
     error_map = {
         401: ERROR_PRIVATE_TASK_AUTH_FAILED.format(operation=operation),
         403: ERROR_PRIVATE_TASK_ACCESS_DENIED.format(operation=operation),
@@ -42,10 +43,12 @@ def _handle_http_error(error: httpx.HTTPStatusError, operation: str) -> str:
         error, error_map, ERROR_PRIVATE_TASK_SERVER_ERROR.format(operation=operation)
     )
 
-def _unwrap_write_response(result: Any, operation: str) -> Dict[str, Any] | str:
-    """Extract the inner result payload from a write response."""
+def _unwrap_write_response(result: Any, operation: str) -> Dict[str, Any]:
+    """Extract the inner result payload into the §3.1 write shape."""
     return unwrap_write_response(
-        result, ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation=operation)
+        result,
+        ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation=operation),
+        success_message=f"Private task {operation} succeeded.",
     )
 
 async def _write_private_task(
@@ -53,7 +56,7 @@ async def _write_private_task(
     url: str,
     payload: Dict[str, Any],
     operation: str,
-) -> Dict[str, Any] | str:
+) -> Dict[str, Any]:
     """Send a write request through make_nws_request, mapping errors locally."""
     try:
         with anyio.fail_after(VTB_WRITE_TIMEOUT_SECONDS):
@@ -61,7 +64,7 @@ async def _write_private_task(
     except httpx.HTTPStatusError as e:
         return _handle_http_error(e, operation)
     except Exception:
-        return ERROR_PRIVATE_TASK_REQUEST_FAILED.format(operation=operation)
+        return error_response("INTERNAL", ERROR_PRIVATE_TASK_REQUEST_FAILED.format(operation=operation))
 
     return _unwrap_write_response(result, operation)
 
@@ -108,7 +111,7 @@ async def _get_task_sys_id(task_number: str) -> str | None:
 
     return sys_id_data['result'][0]['sys_id']
 
-async def create_private_task(task_data: Dict[str, Any]) -> dict[str, Any] | str:
+async def create_private_task(task_data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a NEW private task (vtb_task) record.
 
     WHEN TO USE: the user wants a brand-new private task opened.
@@ -125,17 +128,18 @@ async def create_private_task(task_data: Dict[str, Any]) -> dict[str, Any] | str
                   Optional fields: description, priority, assigned_to, assignment_group, due_date, parent, etc.
 
     Returns:
-        A dictionary containing the created private task details or an error message if the request fails.
+        {"record": {...created task...}, "message": ...} on success, or
+        {"error": {"code", "message"}} on failure.
     """
     if not task_data.get('short_description'):
-        return ERROR_SHORT_DESC_REQUIRED
+        return error_response("VALIDATION", ERROR_SHORT_DESC_REQUIRED)
 
     create_data = _prepare_task_create_data(task_data)
     url = f"{NWS_API_BASE}/api/now/table/vtb_task"
 
     return await _write_private_task("POST", url, create_data, "creation")
 
-async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> dict[str, Any] | str:
+async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
     """Update / change an EXISTING private task (vtb_task), addressed by number.
 
     WHEN TO USE: the task already exists and the user wants to set, close,
@@ -152,14 +156,17 @@ async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> 
         update_data: Dictionary containing the fields to update.
 
     Returns:
-        A dictionary containing the updated private task details or an error message if the request fails.
+        {"record": {...updated task...}, "message": ...} on success, or
+        {"error": {"code", "message"}} on failure.
     """
     if not update_data:
-        return ERROR_NO_UPDATE_DATA
+        return error_response("VALIDATION", ERROR_NO_UPDATE_DATA)
 
     bad = [k for k in update_data if k not in VTB_UPDATABLE_FIELDS]
     if bad:
-        return f"Rejected non-updatable field(s): {', '.join(bad)}"
+        return error_response(
+            "VALIDATION", f"Rejected non-updatable field(s): {', '.join(bad)}"
+        )
 
     try:
         sys_id = await _get_task_sys_id(task_number)
@@ -170,7 +177,7 @@ async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> 
         # and both types expose the same `to_error_dict()`.
         return error.to_error_dict()
     if not sys_id:
-        return PRIVATE_TASK_NOT_FOUND_UPDATE
+        return error_response("NOT_FOUND", PRIVATE_TASK_NOT_FOUND_UPDATE)
 
     url = f"{NWS_API_BASE}/api/now/table/vtb_task/{sys_id}"
     return await _write_private_task("PATCH", url, update_data, "update")

@@ -47,45 +47,51 @@ class TestHandleKbError:
 
     def test_401_returns_auth_failed(self):
         result = _handle_kb_error(_make_http_status_error(401), "publish")
-        assert "Authentication failed" in result
+        assert result["error"]["code"] == "AUTH"
+        assert "Authentication failed" in result["error"]["message"]
 
     def test_403_returns_access_denied(self):
         result = _handle_kb_error(_make_http_status_error(403), "retire")
-        assert "Access denied" in result
+        assert result["error"]["code"] == "FORBIDDEN"
+        assert "Access denied" in result["error"]["message"]
 
     def test_400_returns_invalid_request(self):
         result = _handle_kb_error(_make_http_status_error(400), "update")
-        assert "Invalid request" in result
+        assert result["error"]["code"] == "VALIDATION"
+        assert "Invalid request" in result["error"]["message"]
 
     def test_404_returns_not_found(self):
         result = _handle_kb_error(_make_http_status_error(404), "update")
-        assert "not found" in result.lower()
+        assert result["error"]["code"] == "NOT_FOUND"
+        assert "not found" in result["error"]["message"].lower()
 
     def test_500_returns_server_error(self):
         result = _handle_kb_error(_make_http_status_error(500), "publish")
-        assert "server error" in result.lower()
+        assert result["error"]["code"] == "HTTP"
+        assert "server error" in result["error"]["message"].lower()
 
 
 class TestUnwrapKbWriteResponse:
 
     def test_unwrap_with_inner_result(self):
         result = _unwrap_kb_write_response({"result": {"number": "KB0001234"}}, "update")
-        assert result == {"number": "KB0001234"}
+        assert result["record"] == {"number": "KB0001234"}
+        assert result["message"] == "KB article update succeeded."
 
     def test_unwrap_empty_dict_is_unconfirmed_not_success(self):
         """An empty write response cannot establish that the write landed."""
         result = _unwrap_kb_write_response({}, "publish")
-        assert result == ERROR_KB_WRITE_UNCONFIRMED.format(operation="publish")
-        assert "successful" not in result
+        assert result == {"error": {"code": "INTERNAL", "message": ERROR_KB_WRITE_UNCONFIRMED.format(operation="publish")}}
+        assert "successful" not in result["error"]["message"]
 
     def test_unwrap_none_is_unconfirmed_not_success(self):
         result = _unwrap_kb_write_response(None, "retire")
-        assert result == ERROR_KB_WRITE_UNCONFIRMED.format(operation="retire")
-        assert "successful" not in result
+        assert result == {"error": {"code": "INTERNAL", "message": ERROR_KB_WRITE_UNCONFIRMED.format(operation="retire")}}
+        assert "successful" not in result["error"]["message"]
 
-    def test_unwrap_dict_without_result_key_returns_as_is(self):
+    def test_unwrap_dict_without_result_key_is_unconfirmed(self):
         result = _unwrap_kb_write_response({"some": "value"}, "update")
-        assert result == {"some": "value"}
+        assert result["error"]["code"] == "INTERNAL"
 
 
 class TestWriteKbArticle:
@@ -102,7 +108,8 @@ class TestWriteKbArticle:
                 "publish",
             )
 
-            assert result == {"number": "KB0001234", "workflow_state": "published"}
+            assert result["record"] == {"number": "KB0001234", "workflow_state": "published"}
+            assert result["message"] == "KB article publish succeeded."
             mock_request.assert_called_once_with(
                 "https://test.service-now.com/api/now/table/kb_knowledge/abc123",
                 method="PATCH",
@@ -115,8 +122,8 @@ class TestWriteKbArticle:
             mock_request.return_value = None
 
             result = await _write_kb_article("PATCH", "http://x", {}, "update")
-            assert result == ERROR_KB_WRITE_UNCONFIRMED.format(operation="update")
-            assert "successful" not in result
+            assert result == {"error": {"code": "INTERNAL", "message": ERROR_KB_WRITE_UNCONFIRMED.format(operation="update")}}
+            assert "successful" not in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_http_status_error_mapped(self):
@@ -124,7 +131,8 @@ class TestWriteKbArticle:
             mock_request.side_effect = _make_http_status_error(401)
 
             result = await _write_kb_article("PATCH", "http://x", {}, "publish")
-            assert "Authentication failed" in result
+            assert result["error"]["code"] == "AUTH"
+            assert "Authentication failed" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_generic_exception_returns_request_failed(self):
@@ -132,7 +140,8 @@ class TestWriteKbArticle:
             mock_request.side_effect = Exception("Network error")
 
             result = await _write_kb_article("PATCH", "http://x", {}, "retire")
-            assert "Request failed" in result
+            assert result["error"]["code"] == "INTERNAL"
+            assert "Request failed" in result["error"]["message"]
 
 
 class TestGetKbArticleSysId:
@@ -201,7 +210,8 @@ class TestUpdateKnowledgeArticle:
     @pytest.mark.asyncio
     async def test_empty_update_data_returns_error(self):
         result = await update_knowledge_article("KB0001234", {})
-        assert "No update data provided" in result
+        assert result["error"]["code"] == "VALIDATION"
+        assert "No update data provided" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_article_not_found_returns_error(self):
@@ -209,8 +219,9 @@ class TestUpdateKnowledgeArticle:
             mock_sys_id.return_value = None
 
             result = await update_knowledge_article("KB9999999", {"short_description": "x"})
-            assert "KB9999999" in result
-            assert "not found" in result.lower()
+            assert result["error"]["code"] == "NOT_FOUND"
+            assert "KB9999999" in result["error"]["message"]
+            assert "not found" in result["error"]["message"].lower()
 
     @pytest.mark.asyncio
     async def test_success_returns_updated_record(self):
@@ -221,7 +232,8 @@ class TestUpdateKnowledgeArticle:
 
             result = await update_knowledge_article("KB0001234", {"short_description": "Updated"})
 
-            assert result["number"] == "KB0001234"
+            assert result["record"]["number"] == "KB0001234"
+            assert result["message"] == "KB article update succeeded."
             kwargs = mock_request.call_args.kwargs
             assert kwargs["method"] == "PATCH"
             assert kwargs["json_data"] == {"short_description": "Updated"}
@@ -241,9 +253,11 @@ class TestUpdateKnowledgeArticle:
         result = await update_knowledge_article(
             "KB0001234", {"workflow_state": "published", "sys_id": "x"}
         )
-        assert "Rejected non-updatable field(s)" in result
-        assert "workflow_state" in result
-        assert "sys_id" in result
+        message = result["error"]["message"]
+        assert result["error"]["code"] == "VALIDATION"
+        assert "Rejected non-updatable field(s)" in message
+        assert "workflow_state" in message
+        assert "sys_id" in message
 
     @pytest.mark.asyncio
     async def test_accepts_meta_and_meta_description(self):
@@ -264,8 +278,8 @@ class TestUpdateKnowledgeArticle:
 
             result = await update_knowledge_article("KB0001234", payload)
 
-            assert result["meta"] == "leave, absence, policy"
-            assert result["meta_description"] == "How to request leave"
+            assert result["record"]["meta"] == "leave, absence, policy"
+            assert result["record"]["meta_description"] == "How to request leave"
             assert mock_request.call_args.kwargs["json_data"] == payload
 
 
@@ -424,7 +438,8 @@ class TestPublishKnowledgeArticle:
             mock_meta.return_value = None
 
             result = await publish_knowledge_article("KB9999999")
-            assert "KB9999999" in result
+            assert result["error"]["code"] == "NOT_FOUND"
+            assert "KB9999999" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_duplicate_found_blocks_publish(self):
@@ -459,7 +474,7 @@ class TestPublishKnowledgeArticle:
 
             result = await publish_knowledge_article("KB0001234")
 
-            assert result["workflow_state"] == "Published"
+            assert result["record"]["workflow_state"] == "Published"
             assert "/api/qonv/mateco_knowledge/articles/abc123/publish" in post_url["url"]
 
     @pytest.mark.asyncio
@@ -480,7 +495,8 @@ class TestRetireKnowledgeArticle:
             mock_sys_id.return_value = None
 
             result = await retire_knowledge_article("KB9999999")
-            assert "KB9999999" in result
+            assert result["error"]["code"] == "NOT_FOUND"
+            assert "KB9999999" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_success_posts_to_scripted_rest_retire(self):
@@ -491,7 +507,8 @@ class TestRetireKnowledgeArticle:
 
             result = await retire_knowledge_article("KB0001234")
 
-            assert result["workflow_state"] == "retired"
+            assert result["record"]["workflow_state"] == "retired"
+            assert result["message"] == "KB article retire succeeded."
             call_url = mock_request.call_args.args[0]
             call_kwargs = mock_request.call_args.kwargs
             assert "/api/qonv/mateco_knowledge/articles/abc123/retire" in call_url
@@ -512,13 +529,13 @@ class TestCheckKbDuplicatesTool:
     @pytest.mark.asyncio
     async def test_empty_list_returns_empty_result(self):
         result = await check_kb_duplicates([])
-        assert result == {"result": []}
+        assert result["result"] == []
 
     @pytest.mark.asyncio
     async def test_over_50_returns_error(self):
         result = await check_kb_duplicates([f"KB{i:07d}" for i in range(51)])
-        assert "error" in result
-        assert "50" in result["error"]
+        assert result["error"]["code"] == "VALIDATION"
+        assert "50" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_single_article_no_duplicates(self):
@@ -606,9 +623,13 @@ class TestNormalizePublishResult:
         assert row["blockers"] == [{"number": "KB999"}]
 
     def test_success_record_becomes_published_row(self):
+        # Publish success is now the §3.1 write shape: {"record": {...}, "message": ...}.
         row = _normalize_publish_result(
             "KB001",
-            {"number": "KB001", "sys_id": "abc", "workflow_state": "published", "short_description": "x"},
+            {
+                "record": {"number": "KB001", "sys_id": "abc", "workflow_state": "published", "short_description": "x"},
+                "message": "KB article KB001 published.",
+            },
         )
         assert row == {"number": "KB001", "status": "published", "workflow_state": "published"}
 
@@ -618,13 +639,13 @@ class TestPublishKnowledgeArticles:
     @pytest.mark.asyncio
     async def test_empty_list_returns_empty_result(self):
         result = await publish_knowledge_articles([])
-        assert result == {"result": []}
+        assert result["result"] == []
 
     @pytest.mark.asyncio
     async def test_over_20_returns_error(self):
         result = await publish_knowledge_articles([f"KB{i:07d}" for i in range(21)])
-        assert "error" in result
-        assert "20" in result["error"]
+        assert result["error"]["code"] == "VALIDATION"
+        assert "20" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_mixed_batch_yields_per_article_status(self):
@@ -761,7 +782,7 @@ class TestPublishWithVerify:
              patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock):
             result = await _publish_with_verify("abc123", "KB0001234")
             assert isinstance(result, dict)
-            assert result["number"] == "KB0001234"
+            assert result["record"]["number"] == "KB0001234"
 
     @pytest.mark.asyncio
     async def test_fire_timeout_but_verify_finds_published(self):
@@ -775,7 +796,7 @@ class TestPublishWithVerify:
              patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock):
             result = await _publish_with_verify("abc123", "KB0001234")
             assert isinstance(result, dict)
-            assert result["number"] == "KB0001234"
+            assert result["record"]["number"] == "KB0001234"
 
     @pytest.mark.asyncio
     async def test_fire_anyio_timeout_but_verify_finds_published(self):
@@ -791,7 +812,7 @@ class TestPublishWithVerify:
              patch('Table_Tools.kb_article_tools.asyncio.sleep', new_callable=AsyncMock):
             result = await _publish_with_verify("abc123", "KB0001234")
             assert isinstance(result, dict)
-            assert result["number"] == "KB0001234"
+            assert result["record"]["number"] == "KB0001234"
 
     @pytest.mark.asyncio
     async def test_fire_http_error_but_verify_finds_published(self):
@@ -838,8 +859,8 @@ class TestPublishWithVerify:
              patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_refresh:
             mock_refresh.return_value = "abc123"
             result = await _publish_with_verify("abc123", "KB0001234")
-            assert isinstance(result, str)
-            assert "could not be confirmed" in result
+            assert result["error"]["code"] == "INTERNAL"
+            assert "could not be confirmed" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_returns_http_error_string_when_both_attempts_fail(self):
@@ -855,8 +876,8 @@ class TestPublishWithVerify:
              patch('Table_Tools.kb_article_tools._get_kb_article_sys_id') as mock_refresh:
             mock_refresh.return_value = "abc123"
             result = await _publish_with_verify("abc123", "KB0001234")
-            assert isinstance(result, str)
-            assert "Authentication failed" in result
+            assert result["error"]["code"] == "AUTH"
+            assert "Authentication failed" in result["error"]["message"]
 
 
 class TestWritePathTimeoutPropagation:

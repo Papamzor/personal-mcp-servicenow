@@ -164,7 +164,7 @@ class TestPublishGuardIsFailClosed:
             new=AsyncMock(return_value=None),
         ):
             result = await publish_knowledge_article("KB9999999")
-        assert result == ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number="KB9999999")
+        assert result == {"error": {"code": "NOT_FOUND", "message": ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number="KB9999999")}}
 
 
 class TestDuplicateCheckOutcomes:
@@ -391,7 +391,10 @@ class TestNormalizePublishResultNeverInventsSuccess:
         assert row["blockers"] == [{"number": "KB0009999"}]
 
     def test_a_published_row_is_still_published(self):
-        row = _normalize_publish_result("KB0001234", PUBLISHED_ROW)
+        # Publish success is the §3.1 write shape now: {"record": {...}, "message": ...}.
+        row = _normalize_publish_result(
+            "KB0001234", {"record": PUBLISHED_ROW, "message": "KB article KB0001234 published."}
+        )
         assert row["status"] == "published"
         assert row["workflow_state"] == "Published"
 
@@ -543,7 +546,7 @@ class TestPreWriteReadsDistinguishAbsentFromFailed:
             new=AsyncMock(return_value=None),
         ):
             result = await update_knowledge_article("KB9999999", {"short_description": "x"})
-        assert result == ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number="KB9999999")
+        assert result == {"error": {"code": "NOT_FOUND", "message": ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number="KB9999999")}}
 
     @pytest.mark.asyncio
     async def test_retire_failed_lookup_is_not_not_found(self):
@@ -565,7 +568,7 @@ class TestPreWriteReadsDistinguishAbsentFromFailed:
             new=AsyncMock(return_value=None),
         ):
             result = await retire_knowledge_article("KB9999999")
-        assert result == ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number="KB9999999")
+        assert result == {"error": {"code": "NOT_FOUND", "message": ERROR_KB_ARTICLE_NOT_FOUND_OP.format(number="KB9999999")}}
 
 
 class TestEndToEndThroughTheRealDispatcher:
@@ -646,7 +649,7 @@ class TestEndToEndThroughTheRealDispatcher:
 
         assert len(writes) == 1
         assert writes[0][0] == "POST"
-        assert result == PUBLISHED_ROW
+        assert result["record"] == PUBLISHED_ROW
 
     @pytest.mark.asyncio
     async def test_verify_timeout_leaves_exactly_one_write(self, transport):

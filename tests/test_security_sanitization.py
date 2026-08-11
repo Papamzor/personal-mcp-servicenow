@@ -93,7 +93,7 @@ def _status_error(status: int, body: str) -> httpx.HTTPStatusError:
 
 def test_map_http_error_does_not_leak_body_on_default():
     err = _status_error(500, "Traceback: internal ACL failure at sys_id=abc")
-    msg = map_http_error(err, {}, "Server error.", detail_on_default=True)
+    msg = map_http_error(err, {}, "Server error.", detail_on_default=True)["error"]["message"]
     assert msg == "Server error."
     assert "sys_id" not in msg
     assert "Traceback" not in msg
@@ -101,7 +101,7 @@ def test_map_http_error_does_not_leak_body_on_default():
 
 def test_map_http_error_does_not_leak_body_on_detail_code():
     err = _status_error(400, "invalid field xyz")
-    msg = map_http_error(err, {400: "Bad request."}, "Server error.", detail_codes={400})
+    msg = map_http_error(err, {400: "Bad request."}, "Server error.", detail_codes={400})["error"]["message"]
     assert msg == "Bad request."
     assert "xyz" not in msg
 

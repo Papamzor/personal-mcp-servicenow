@@ -234,6 +234,98 @@ class TestSLATokenFootprint:
         assert tokens <= BUDGET_QUERY_SLAS_STANDARD_LIST
 
 
+# ---------------------------------------------------------------------------
+# Per-response envelope overhead (v5.0 "Boron" Tier 3.1).
+#
+# The §3.1 contract's headline risk is a re-introduced unconditional `meta`
+# envelope (tool/table/query/fields/duration_ms) — the v2 plan's worst error,
+# a 100-300% regression on a call like get_sla_details. These guards pin the
+# ENVELOPE OVERHEAD: tokens(response) minus tokens({"result": rows}) — i.e.
+# everything the tool adds around the data. list_response adds only
+# returned_count + truncated (+ max_results); record_response adds only the
+# `record` key. A meta envelope would blow straight past the ceiling.
+#
+# Measuring overhead, not an absolute count, keeps the guard immune to row-count
+# and per-row data churn while still catching a structural regression — exactly
+# the property the loose SLA budgets above were reaching for.
+# ---------------------------------------------------------------------------
+
+# list_response wraps rows in {result, returned_count, truncated, (max_results)}.
+# Those keys + small int/bool values tokenize to ~12; 40 leaves headroom for a
+# `suggestions` hint or a CMDB descriptor key, but not for a meta envelope.
+BUDGET_LIST_ENVELOPE_OVERHEAD = 40
+# record_response is just {"record": row} on a read — a handful of tokens.
+BUDGET_RECORD_ENVELOPE_OVERHEAD = 15
+
+_GENERIC_ROW = {
+    "number": "INC0010001",
+    "short_description": "Server crashed during nightly backup window",
+    "priority": "1",
+    "state": "2",
+    "assignment_group": "SN Fleet",
+    "sys_created_on": "2026-04-15 10:30:00",
+}
+_CI_ROW = {
+    "number": "SRV0001234",
+    "name": "host-app-01",
+    "sys_class_name": "cmdb_ci_server",
+    "operational_status": "1",
+    "install_status": "1",
+    "sys_created_on": "2026-04-15 10:30:00",
+    "sys_updated_on": "2026-04-20 09:00:00",
+}
+
+
+def _list_envelope_overhead(resp) -> int:
+    """tokens(resp) - tokens({"result": resp["result"]}) — the wrapper's cost."""
+    return _count_tokens(resp) - _count_tokens({"result": resp["result"]})
+
+
+class TestPerResponseEnvelopeFootprint:
+    """No unconditional meta envelope on the default read path (plan §3.1)."""
+
+    @pytest.mark.asyncio
+    async def test_filter_records_envelope_is_thin(self):
+        from Table_Tools.generic_tool_wrappers import filter_records
+        rows = [dict(_GENERIC_ROW) for _ in range(100)]
+        with patch("Table_Tools.generic_table_tools._make_paginated_request",
+                   return_value=rows):
+            resp = await filter_records("incident", {"priority": "1"})
+        assert resp["result"] and "message" not in resp
+        assert _list_envelope_overhead(resp) <= BUDGET_LIST_ENVELOPE_OVERHEAD
+
+    @pytest.mark.asyncio
+    async def test_search_records_envelope_is_thin(self):
+        from Table_Tools.generic_tool_wrappers import search_records
+        rows = [dict(_GENERIC_ROW) for _ in range(50)]
+        with patch("Table_Tools.generic_table_tools._make_paginated_request",
+                   return_value=rows):
+            resp = await search_records("incident", "server crash backup")
+        assert resp["result"] and "message" not in resp
+        assert _list_envelope_overhead(resp) <= BUDGET_LIST_ENVELOPE_OVERHEAD
+
+    @pytest.mark.asyncio
+    async def test_get_record_envelope_is_thin(self):
+        from Table_Tools.generic_tool_wrappers import get_record
+        with patch("Table_Tools.generic_table_tools.make_nws_request",
+                   return_value={"result": [dict(_GENERIC_ROW)]}):
+            resp = await get_record("incident", "INC0010001")
+        assert "record" in resp and "result" not in resp
+        overhead = _count_tokens(resp) - _count_tokens({"record": resp["record"]})
+        assert overhead <= BUDGET_RECORD_ENVELOPE_OVERHEAD
+
+    @pytest.mark.asyncio
+    async def test_cmdb_list_envelope_is_thin(self):
+        from Table_Tools.cmdb_tools import find_cis_by_type
+        rows = [dict(_CI_ROW) for _ in range(100)]
+        with patch("Table_Tools.cmdb_tools.make_nws_request",
+                   return_value={"result": rows}):
+            resp = await find_cis_by_type("cmdb_ci_server")
+        assert resp["result"] and "message" not in resp
+        # CMDB list carries a `ci_type` descriptor key; still well under budget.
+        assert _list_envelope_overhead(resp) <= BUDGET_LIST_ENVELOPE_OVERHEAD
+
+
 class TestSLATokenBudgetConstants:
     """Lock budget constants — accidental relaxation should fail review."""
 

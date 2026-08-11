@@ -44,7 +44,8 @@ class TestWritePrivateTask:
                 "creation",
             )
 
-            assert result == {"number": "VTB0001234", "short_description": "Test task"}
+            assert result["record"] == {"number": "VTB0001234", "short_description": "Test task"}
+            assert result["message"] == "Private task creation succeeded."
             mock_request.assert_called_once_with(
                 "https://test.service-now.com/api/now/table/vtb_task",
                 method="POST",
@@ -63,8 +64,8 @@ class TestWritePrivateTask:
                 "creation",
             )
 
-            assert result == ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="creation")
-            assert "successful" not in result
+            assert result == {"error": {"code": "INTERNAL", "message": ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="creation")}}
+            assert "successful" not in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_write_none_result_returns_fallback_string(self):
@@ -78,8 +79,8 @@ class TestWritePrivateTask:
                 "creation",
             )
 
-            assert result == ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="creation")
-            assert "successful" not in result
+            assert result == {"error": {"code": "INTERNAL", "message": ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="creation")}}
+            assert "successful" not in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_write_401_returns_auth_failed(self):
@@ -93,7 +94,8 @@ class TestWritePrivateTask:
                 "creation",
             )
 
-            assert "Authentication failed" in result
+            assert result["error"]["code"] == "AUTH"
+            assert "Authentication failed" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_write_403_returns_access_denied(self):
@@ -107,7 +109,8 @@ class TestWritePrivateTask:
                 "update",
             )
 
-            assert "Access denied" in result
+            assert result["error"]["code"] == "FORBIDDEN"
+            assert "Access denied" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_write_400_returns_invalid_request(self):
@@ -121,7 +124,8 @@ class TestWritePrivateTask:
                 "creation",
             )
 
-            assert "Invalid request" in result
+            assert result["error"]["code"] == "VALIDATION"
+            assert "Invalid request" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_write_404_returns_not_found(self):
@@ -135,7 +139,8 @@ class TestWritePrivateTask:
                 "update",
             )
 
-            assert "not found" in result
+            assert result["error"]["code"] == "NOT_FOUND"
+            assert "not found" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_write_500_returns_server_error(self):
@@ -149,7 +154,8 @@ class TestWritePrivateTask:
                 "creation",
             )
 
-            assert "server error" in result.lower()
+            assert result["error"]["code"] == "HTTP"
+            assert "server error" in result["error"]["message"].lower()
 
     @pytest.mark.asyncio
     async def test_write_generic_exception_returns_request_failed(self):
@@ -163,7 +169,8 @@ class TestWritePrivateTask:
                 "deletion",
             )
 
-            assert "request failed" in result.lower()
+            assert result["error"]["code"] == "INTERNAL"
+            assert "request failed" in result["error"]["message"].lower()
 
 
 class TestUnwrapWriteResponse:
@@ -171,22 +178,24 @@ class TestUnwrapWriteResponse:
 
     def test_unwrap_with_inner_result(self):
         result = _unwrap_write_response({"result": {"number": "VTB0001"}}, "creation")
-        assert result == {"number": "VTB0001"}
+        assert result["record"] == {"number": "VTB0001"}
+        assert result["message"] == "Private task creation succeeded."
 
     def test_unwrap_empty_dict_is_unconfirmed_not_success(self):
         """An empty write response cannot establish that the write landed."""
         result = _unwrap_write_response({}, "creation")
-        assert result == ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="creation")
-        assert "successful" not in result
+        assert result == {"error": {"code": "INTERNAL", "message": ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="creation")}}
+        assert "successful" not in result["error"]["message"]
 
     def test_unwrap_none_is_unconfirmed_not_success(self):
         result = _unwrap_write_response(None, "update")
-        assert result == ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="update")
-        assert "successful" not in result
+        assert result == {"error": {"code": "INTERNAL", "message": ERROR_PRIVATE_TASK_WRITE_UNCONFIRMED.format(operation="update")}}
+        assert "successful" not in result["error"]["message"]
 
-    def test_unwrap_dict_without_result_key(self):
+    def test_unwrap_dict_without_result_key_is_unconfirmed(self):
+        """A 2xx body with no `result` key is not a confirmed record — unconfirmed."""
         result = _unwrap_write_response({"some": "value"}, "creation")
-        assert result == {"some": "value"}
+        assert result["error"]["code"] == "INTERNAL"
 
 
 class TestHttpErrorHandler:
@@ -204,7 +213,8 @@ class TestHttpErrorHandler:
     )
     def test_handle_http_error(self, status_code, operation, expected, case_insensitive):
         result = _handle_http_error(_make_http_status_error(status_code), operation)
-        haystack = result.lower() if case_insensitive else result
+        message = result["error"]["message"]
+        haystack = message.lower() if case_insensitive else message
         assert expected in haystack
 
 
@@ -333,7 +343,7 @@ class TestCreatePrivateTask:
             task_data = {"short_description": "Test task"}
             result = await create_private_task(task_data)
 
-            assert result["number"] == "VTB0001234"
+            assert result["record"]["number"] == "VTB0001234"
             mock_request.assert_called_once()
             kwargs = mock_request.call_args.kwargs
             assert kwargs["method"] == "POST"
@@ -345,7 +355,8 @@ class TestCreatePrivateTask:
 
         result = await create_private_task(task_data)
 
-        assert "short_description is required" in result
+        assert result["error"]["code"] == "VALIDATION"
+        assert "short_description is required" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_create_private_task_with_all_fields(self):
@@ -365,7 +376,7 @@ class TestCreatePrivateTask:
 
             result = await create_private_task(task_data)
 
-            assert result["number"] == "VTB0001234"
+            assert result["record"]["number"] == "VTB0001234"
             mock_request.assert_called_once()
 
 
@@ -386,8 +397,9 @@ class TestUpdatePrivateTask:
             update_data = {"state": "3"}
             result = await update_private_task("VTB0001234", update_data)
 
-            assert result["number"] == "VTB0001234"
-            assert result["state"] == "3"
+            assert result["record"]["number"] == "VTB0001234"
+            assert result["record"]["state"] == "3"
+            assert result["message"] == "Private task update succeeded."
             mock_sys_id.assert_called_once_with("VTB0001234")
             mock_request.assert_called_once()
             kwargs = mock_request.call_args.kwargs
@@ -398,7 +410,8 @@ class TestUpdatePrivateTask:
         """Test update fails without update data."""
         result = await update_private_task("VTB0001234", {})
 
-        assert "No update data provided" in result
+        assert result["error"]["code"] == "VALIDATION"
+        assert "No update data provided" in result["error"]["message"]
 
     @pytest.mark.asyncio
     async def test_update_private_task_not_found(self):
@@ -409,4 +422,5 @@ class TestUpdatePrivateTask:
             update_data = {"state": "3"}
             result = await update_private_task("VTB9999999", update_data)
 
-            assert "not found" in result
+            assert result["error"]["code"] == "NOT_FOUND"
+            assert "not found" in result["error"]["message"]
