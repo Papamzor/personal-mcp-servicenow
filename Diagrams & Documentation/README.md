@@ -1,17 +1,26 @@
 # MCP ServiceNow Server — Architecture Documentation
 
-Mermaid diagrams for the Personal MCP ServiceNow server (**v4.3**). Packaging is Claude Desktop Extension (`.mcpb`); distribution is no longer Nuitka binaries.
+Mermaid diagrams for the Personal MCP ServiceNow server. Packaging is Claude Desktop Extension (`.mcpb`); distribution is no longer Nuitka binaries.
+
+> **⚠️ Pending v5.0 refresh.** The diagram bodies below still describe the pre-v5.0
+> surface (39 tools, the NL/`filter` intelligence engine, the v4 module layout).
+> **v5.0 "Boron"** culled the surface to **25 tools**, removed the NL engine, and
+> added the §3.1 response contract (`Table_Tools/response.py`), `table_spec.py`,
+> and `tool_registry.py`. Until these are redrawn, treat [CHANGELOG.md](../CHANGELOG.md),
+> [MIGRATION_v4_to_v5.md](../MIGRATION_v4_to_v5.md), and the root
+> [CLAUDE.md]/README as the source of truth for the current surface.
+> (`05-ai-intelligence-flow.md` was deleted in v5.0 — the NL engine it documented
+> is gone; natural language → filter is the host model's job.)
 
 ## Diagram Index
 
 | File | Description | Diagram Type | Status |
 |------|-------------|--------------|--------|
-| [01-architecture-overview.md](./01-architecture-overview.md) | Layered architecture: tools → filter → http_layer → oauth → ServiceNow | Component | **v4.3** |
-| [02-oauth-authentication-flow.md](./02-oauth-authentication-flow.md) | Client-credentials flow, token cache, 401 retry, pooled httpx | Sequence | **v4.3** |
-| [03-tool-organization.md](./03-tool-organization.md) | 39 tools by source module; generic wrappers + domain tools | Graph | **v4.3** |
-| [04-similarity-search-flow.md](./04-similarity-search-flow.md) | `search_records` / `intelligent_search` read path (OR-LIKE, pagination, GET params) | Flowchart | **v4.3** |
-| [05-ai-intelligence-flow.md](./05-ai-intelligence-flow.md) | NL → `filter/` pipeline (intelligence → validator → builder → explainer) | Flowchart | **v4.3** |
-| [06-sla-architecture-flow.md](./06-sla-architecture-flow.md) | 5 SLA tools, status presets, token-safe defaults | Architecture | **v4.3** |
+| [01-architecture-overview.md](./01-architecture-overview.md) | Layered architecture: tools → filter → http_layer → oauth → ServiceNow | Component | v4.3 · stale |
+| [02-oauth-authentication-flow.md](./02-oauth-authentication-flow.md) | Client-credentials flow, token cache, 401 retry, pooled httpx | Sequence | v4.3 (oauth layer unchanged in v5.0) |
+| [03-tool-organization.md](./03-tool-organization.md) | tools by source module; generic wrappers + domain tools | Graph | v4.3 · stale (was 39 tools; v5.0 = 25) |
+| [04-similarity-search-flow.md](./04-similarity-search-flow.md) | `search_records` read path (OR-LIKE, pagination, GET params) | Flowchart | v4.3 · stale |
+| [06-sla-architecture-flow.md](./06-sla-architecture-flow.md) | 5 SLA tools, status presets, token-safe defaults | Architecture | v4.3 · stale |
 
 ## How to View Diagrams
 
@@ -69,10 +78,11 @@ httpx → ServiceNow Table API
 |-----|---------|
 | [README.md](../README.md) | Install, config, Claude Desktop / Docker |
 | [docs/MCPB_BUILD.md](../docs/MCPB_BUILD.md) | `.mcpb` build and release |
+| [MIGRATION_v4_to_v5.md](../MIGRATION_v4_to_v5.md) | v4 → v5 tool cull + response contract (breaking) |
 | [MIGRATION_v3_to_v4.md](../MIGRATION_v3_to_v4.md) | v3 → v4 SLA + import path changes |
 | [OAUTH_SETUP_GUIDE.md](../OAUTH_SETUP_GUIDE.md) | ServiceNow OAuth client setup |
 | [CHANGELOG.md](../CHANGELOG.md) | Version history |
 
 ---
 
-*Last updated: 2026-08-10 · Project version: 4.5.0*
+*Last updated: 2026-08-11 · Project version: 5.0.0 · diagram bodies pending v5.0 refresh (see banner above)*
