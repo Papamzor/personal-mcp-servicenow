@@ -1,8 +1,8 @@
 # End-to-End MCP Test Prompts
 
 Natural-language prompts to paste into a chatbot that has this MCP server connected.
-They exercise the tool surface end-to-end against a real ServiceNow instance, with
-emphasis on the v4.2 speed/token refactor paths.
+They exercise the 25-tool v5.0 "Boron" surface end-to-end against a real ServiceNow
+instance.
 
 **Substitute placeholders** (`INC0012345`, sys_ids, `CI0001000`, `KB0001234`, `VTB0012345`)
 with real values from your instance.
@@ -13,7 +13,7 @@ sandbox / non-production instance.
 ---
 
 ## A. Search + filters
-*Validates T1.2 keyword-combine, connection pooling, filter operators.*
+*Validates keyword-combine, connection pooling, filter operators.*
 
 ```
 Search incidents for database server timeout
@@ -24,14 +24,16 @@ Show incidents with priority 1 created in the last 7 days
 Filter incidents where state is not resolved or closed, priority 1 or 2
 Find incidents assigned to group Fleet
 Get full details for incident INC0012345
-Get a quick summary of INC0012345
 Find incidents similar to INC0012345
+Show me the ServiceNow query syntax help
 ```
 
 **Watch for:** a multi-word search returns records matching *any* keyword (not just the
 first) in one round-trip. A reference-field query (`group Fleet`) that returns zero rows
 should include a hint about sys_id / dot-walk. `get_record` returns the full detail field
-set; `filter_records` / search return the lean essential set.
+set; `filter_records` / search return the lean essential set. The syntax-help prompt
+should flag that commas don't work in `IN` lists and that CONTAINS silently returns zero
+rows where LIKE is required.
 
 ---
 
@@ -40,15 +42,18 @@ set; `filter_records` / search return the lean essential set.
 ```
 Critical incidents from the last 7 days
 P1 and P2 incidents this week, include metadata
-Find knowledge articles about password reset
+Search knowledge articles for password reset
 List published KB articles in category Network
-Show active knowledge articles for "remote access"
+Search knowledge articles for "remote access"
 List KB articles by workflow state, deduplicated by number
 Check KB0001234 and KB0005678 for duplicates
 ```
 
-**Watch for:** `get_kb_articles_by_state` returns one row per number with `current_state`
-+ `version_count` (KB versioning collapsed). `check_kb_duplicates` is read-only and safe.
+**Watch for:** knowledge search now goes through `search_records`/`filter_records`
+(the smart-KB reads were culled in v5.0 — no `input_text` silently discarded when a
+category filter is set). `get_kb_articles_by_state` returns one row per number with
+`current_state` + `version_count` (KB versioning collapsed). `check_kb_duplicates` is
+read-only and safe.
 
 ---
 
@@ -71,7 +76,7 @@ Show SLAs for task INC0012345
 ---
 
 ## D. CMDB
-*Validates T1.3 concurrent table probe + T3.1 value-encoding fix.*
+*Validates the concurrent table probe + value-encoding fix.*
 
 ```
 List all CI types
@@ -85,45 +90,29 @@ Find CIs similar to CI0001000
 
 **Watch for:** `Get CI details` with no type specified resolves via a concurrent probe of
 the candidate tables. The location-with-space search returns rows (special characters in a
-value previously corrupted the query → silent zero-rows).
+value previously corrupted the query → silent zero-rows). An unknown `ci_type` on
+`find_cis_by_type` / `search_cis_by_attributes` should error, not silently downgrade to
+base `cmdb_ci`.
 
 ---
 
-## E. Intelligent / NLP query
-*Validates T1.5 debug-block gating.*
+## E. Health check
+*Validates the single-tool diagnostic that replaced the 5 v4.x auth/connectivity tools.*
 
 ```
-Intelligent search: high priority incidents from last week
-Intelligent search: unassigned critical tickets from today
-Explain this ServiceNow filter: {"priority": "1,2"}
-Build a smart filter for: resolved P1 incidents this month
-Show me the ServiceNow query syntax help
-Give me query examples
-Show the filter templates
+Is the ServiceNow connection up
+Check the ServiceNow connection and probe the incident table
+Show me the current auth config
 ```
 
-**Watch for:** the intelligent-search response carries the `intelligence` block
-(explanation / confidence / suggestions) but **no verbose `debug` sub-object** by default.
-The comma-filter explanation should flag that commas don't work and suggest `^OR`.
+**Watch for:** one `health_check` call returns `server` liveness, `auth` config, and
+`connection` status. A failed probe reports a classified `error` ({"code", "message"}) —
+it never blames auth for what was actually a timeout. With a table named, a successful
+probe adds `sample_fields` + `has_records`.
 
 ---
 
-## F. Auth / health
-*Validates T1.1 pooling — the first call warms the shared connection.*
-
-```
-Test the ServiceNow connection
-Show me the current auth info
-Run the auth test
-```
-
-**Watch for:** the first call authenticates; subsequent calls in the same session reuse
-the pooled connection (lower latency on a back-to-back sequence — run section A right
-after and notice the warm-up).
-
----
-
-## G. 🔴 WRITE / mutating — sandbox only
+## F. 🔴 WRITE / mutating — sandbox only
 *These change data. Use a non-production instance.*
 
 ```
@@ -141,13 +130,13 @@ status row per article.
 
 ---
 
-## Pass/fail checklist (mapped to the v4.2 refactor)
+## Pass/fail checklist
 
 | Area | Pass criterion |
 |------|----------------|
 | Connection pooling | No auth errors across a long multi-tool conversation; warm-call latency drops after the first request |
 | Keyword-combine | `Search incidents for database server timeout` returns any-keyword matches in a single request |
 | CMDB probe / encoding | Untyped `Get CI details` resolves; spaced-value CI search returns rows |
-| Debug-gate | Intelligent-search response has no `debug` blob by default |
+| Response contract | List success → `result`/`returned_count`/`truncated`; single record → `record` (never a 1-row `result` list); failure → `error: {code, message}` only |
 | Token shape | `filter_records` lean fields vs `get_record` full detail; SLA `critical`/`performance` curated |
 | Stdio invariant | The chatbot never sees protocol corruption / malformed tool responses |
