@@ -17,15 +17,9 @@ from typing import Any, Dict
 
 from constants import SERVICENOW_QUERY_OPERATORS, QUERY_SYNTAX_NOTES
 
-
 def get_query_syntax_help() -> Dict[str, Any]:
     """Return the authoritative ServiceNow encoded-query operator reference.
 
-    WHEN TO USE: you need the operator vocabulary in general — "which encoded
-        query operators does ServiceNow support".
-    WHEN NOT TO USE: running a query (search_records / filter_records);
-        inspecting the live connection (health_check).
-    PREFER OVER: guessing operator syntax when constructing a filter value.
     SIDE EFFECT: none — returns a static reference.
     EXAMPLE: which encoded query operators does ServiceNow support.
 

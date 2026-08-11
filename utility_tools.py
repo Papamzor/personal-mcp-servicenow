@@ -21,18 +21,9 @@ from http_layer import (
 )
 from constants import TABLE_CONFIGS
 
-
 async def health_check(probe_table: Optional[str] = None) -> Dict[str, Any]:
     """Check this server, its ServiceNow auth config, and the live connection.
 
-    WHEN TO USE: confirm the server is up and ServiceNow is reachable — "is the
-        ServiceNow connection up", "test ServiceNow authentication". Pass
-        probe_table to also list one supported table's field names.
-    WHEN NOT TO USE: querying records (filter_records / search_records);
-        building or explaining a filter (get_query_syntax_help).
-    PREFER OVER: nothing — this is the single diagnostic entry point. It
-        replaces the former nowtest / now_test_oauth / now_auth_info /
-        nowtestauth / nowtest_auth_input tools.
     TABLES: probe_table accepts any supported table; omit it for a plain
         connectivity check.
     SIDE EFFECT: read-only — one lightweight authenticated GET against

@@ -59,14 +59,22 @@ class TestGetPriorityIncidents:
             assert "result" in result
 
     @pytest.mark.asyncio
-    async def test_deprecated_kwargs(self):
-        with patch('Table_Tools.consolidated_tools.get_records_by_priority') as mock_priority, \
-             patch('Table_Tools.consolidated_tools.logger') as mock_logger:
+    async def test_extra_field_filters_go_through_additional_filters(self):
+        """v5.0 Tier 3.3 dropped the deprecated **kwargs path; extra field
+        filters are passed via additional_filters (the only supported way now,
+        and what lets the tool register without a **kwargs-stripping shim)."""
+        with patch('Table_Tools.consolidated_tools.get_records_by_priority') as mock_priority:
             mock_priority.return_value = {"result": [{"number": "INC001"}]}
-            result = await get_priority_incidents(["1", "2"], state="New")
-            mock_logger.warning.assert_called()
+            await get_priority_incidents(["1", "2"], additional_filters={"state": "New"})
             filters = mock_priority.call_args[0][2]
             assert filters.get("state") == "New"
+
+    @pytest.mark.asyncio
+    async def test_unknown_kwarg_is_rejected(self):
+        """The removed **kwargs path means a stray keyword is now a TypeError,
+        not a silently-merged filter."""
+        with pytest.raises(TypeError):
+            await get_priority_incidents(["1"], state="New")
 
 
 class TestGetPriorityIncidentsEnhanced:
