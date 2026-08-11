@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "personal-mcp-servicenow",
   "display_name": "ServiceNow for Claude",
-  "version": "4.5.0",
+  "version": "5.0.0",
   "description": "Query and manage ServiceNow incidents, changes, knowledge articles, SLAs and CMDB directly from Claude.",
   "long_description": "25 tools for ServiceNow: incident/change/request search, filtered queries, knowledge base management, SLA reporting, CMDB exploration and private task CRUD. Uses OAuth client credentials against your company's ServiceNow instance.",
   "author": {

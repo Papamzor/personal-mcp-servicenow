@@ -5,6 +5,97 @@ All notable changes to the Personal MCP ServiceNow project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] — Boron — 2026-08-11
+
+The MCP-surface redesign. **Breaking**: the tool surface is culled 39 → 25, and
+every tool now returns one minimal response contract instead of the previous mix
+of bare strings, `{"message": ...}` dialects, and `result`-is-sometimes-a-dict
+shapes. If you upgrade, read [MIGRATION_v4_to_v5.md](MIGRATION_v4_to_v5.md) — it
+lists every removed tool with its replacement and every response-shape change.
+
+**Why.** The v4 surface had grown 39 tools with overlapping intents and five
+different auth/health diagnostics; a host model wasted selection budget choosing
+between near-duplicates, and each tool answered in its own ad-hoc shape. v5 keeps
+only tools whose absence would lose capability, and gives the survivors one
+predictable envelope.
+
+### Removed (15 tools)
+
+- **5 diagnostics → 1.** `nowtest`, `now_test_oauth`, `now_auth_info`,
+  `nowtestauth`, `nowtest_auth_input` are replaced by a single
+  `health_check(probe_table=None)`.
+- **5 NL / filter tools.** `intelligent_search`, `explain_servicenow_filters`,
+  `build_smart_servicenow_filter`, `get_servicenow_filter_templates`,
+  `get_query_examples` — the host model does natural-language → filter natively,
+  so the in-repo NL engine (~2000 lines) was dead weight. Use `search_records` /
+  `filter_records`.
+- **3 smart-KB reads.** `similar_knowledge_for_text`, `get_knowledge_by_category`,
+  `get_active_knowledge_articles` (the old "smart" search silently discarded the
+  text when a category was set). Use `search_records("kb_knowledge", …)`,
+  `filter_records("kb_knowledge", {"kb_category": …})`, or
+  `get_kb_articles_by_state("published")`.
+- **`similar_slas_for_text`** — queried a `short_description` that `task_sla`
+  lacks, so ServiceNow silently returned an arbitrary page; it never worked. Use
+  `filter_records("task_sla", {"task.short_description": "LIKE…"})`.
+- **`get_record_summary`** — folded into `get_record`.
+
+### Changed (breaking)
+
+- **Response contract (§3.1) across every tool.** List success is
+  `{"result": [...], "returned_count": int, "truncated": bool}`; a single record
+  is `{"record": {...}}` (or `{"record": null}` for a miss) — never a one-row
+  `result` list; a write success is `{"record": {...}, "message": str}`; a failure
+  is `{"error": {"code": <VALIDATION|NOT_FOUND|AUTH|FORBIDDEN|TIMEOUT|HTTP|INTERNAL>,
+  "message": str}}` and nothing else. Bare-string returns and the
+  `{"result": [...], "message": "Found N records"}` dialect are gone.
+- **`get_record`** now returns `{"record": {...}}`, not `{"result": [{...}]}`.
+- **Write tools** (`create_private_task`, `update_private_task`,
+  `update_knowledge_article`, `publish_knowledge_article`,
+  `retire_knowledge_article`) return `{"record": {...}, "message": ...}` on success
+  and `{"error": {"code", "message"}}` on failure — no more `dict | str` unions. A
+  2xx write with no record body is reported as `error` (`INTERNAL`, unconfirmed),
+  not as success.
+- **CMDB tools** lost their 16 bare not-found strings: an empty result is a
+  success shape (`{"result": []}` / `{"record": null}`), and `get_ci_details`
+  returns the CI under `record`.
+- **`get_priority_incidents`** dropped its deprecated `**kwargs` filter path; pass
+  extra field filters via `additional_filters`.
+
+### Added
+
+- **`health_check(probe_table=None)`** — the single diagnostic entry point
+  (server liveness, auth config, live connection; optional table field peek).
+- **`Table_Tools/response.py`** — `error_response` / `list_response` /
+  `record_response`, the contract's constructors, plus a surface-wide
+  `tests/test_tool_response_contract.py` that drives every registered tool through
+  the real dispatcher.
+- **`table_spec.py`** — one `TableSpec` per table as the single source of truth;
+  `TABLE_CONFIGS` / `ESSENTIAL_FIELDS` / `DETAIL_FIELDS` / `TABLE_ERROR_MESSAGES` /
+  the identity and text-search maps are derived from it. `number_field` makes the
+  `task_sla` "no record identity" foot-gun structural.
+- **`tool_registry.py`** — the WHEN TO USE / WHEN NOT TO USE / PREFER OVER
+  selection guidance is now structured data, injected into each tool's docstring
+  (above the Args section, so it reaches the served MCP description) and mandatory
+  at registration.
+
+### Behavior changes to check before upgrading
+
+- Any client parsing tool output must handle the new shapes — most notably
+  `get_record` (`record`, not `result[0]`) and the write tools (`record` +
+  `message`, not a bare dict or string).
+- 15 tool names no longer exist; see the Removed list and MIGRATION_v4_to_v5.md
+  for the one-to-one replacements.
+
+### Internal
+
+- ~2000 lines of dead NL-engine code removed (`filter/intelligence.py`,
+  `filter/explainer.py`, `query_table_intelligently` + helpers).
+- Per-response token-footprint guards extended beyond SLA to
+  `filter_records` / `search_records` / `get_record` / a CMDB list, pinning the
+  envelope overhead so an unconditional `meta` block cannot creep back.
+- Suite: 1136 passing, 0 skipped. Tool-listing footprint 6743 tokens (ceiling
+  7200). Static tool-selection preferred-hit floor 28/30.
+
 ## [4.5.0] - 2026-08-10
 
 Tier 1 of the MCP-surface redesign: a **docstring protocol** on all 39 tools so a
