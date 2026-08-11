@@ -66,9 +66,12 @@ class TestSpecWellFormed:
 
     def test_required_string_fields_present(self):
         for name, spec in TABLE_SPECS.items():
-            assert spec.display_name and isinstance(spec.display_name, str), name
-            assert spec.state_field and isinstance(spec.state_field, str), name
-            assert spec.text_search_field and isinstance(spec.text_search_field, str), name
+            assert isinstance(spec.display_name, str), name
+            assert spec.display_name, name
+            assert isinstance(spec.state_field, str), name
+            assert spec.state_field, name
+            assert isinstance(spec.text_search_field, str), name
+            assert spec.text_search_field, name
             assert spec.error_message.endswith("."), name
 
     def test_field_lists_are_non_empty_and_start_with_essentials_subset(self):

@@ -89,7 +89,8 @@ class TestFooterInjection:
         assert once.count("WHEN TO USE:") == 1
         # The original prose guidance was replaced by the canonical footer.
         assert "original prose here" not in once
-        assert "A summary line." in once and "Args:" in once
+        assert "A summary line." in once
+        assert "Args:" in once
 
 
 class TestServedDescription:
@@ -129,8 +130,10 @@ class TestProtocolIsMandatory:
         async def brand_new_tool():
             """No guidance entry exists for this one."""
 
+        mcp = _FakeMcp()
+        candidates = [brand_new_tool]
         with pytest.raises(ValueError, match="no TOOL_GUIDANCE entry"):
-            register_tools(_FakeMcp(), [brand_new_tool])
+            register_tools(mcp, candidates)
 
     def test_register_tools_rejects_blank_guidance_field(self, monkeypatch):
         """A guidance entry with a blank field fails at the gate, not just in
@@ -146,5 +149,7 @@ class TestProtocolIsMandatory:
         patched["search_records"] = ToolGuidance(when_to_use="x", when_not="   ", prefer_over="y")
         monkeypatch.setattr("tool_registry.TOOL_GUIDANCE", patched)
 
+        mcp = _FakeMcp()
+        candidates = [search_records]
         with pytest.raises(ValueError, match="blank"):
-            register_tools(_FakeMcp(), [search_records])
+            register_tools(mcp, candidates)
