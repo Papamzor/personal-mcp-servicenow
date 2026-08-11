@@ -1,16 +1,16 @@
 # Graph Report - personal-mcp-servicenow  (2026-08-11)
 
 ## Corpus Check
-- 97 files · ~94,710 words
+- 97 files · ~95,335 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2819 nodes · 5535 edges · 133 communities (123 shown, 10 thin omitted)
+- 2819 nodes · 5535 edges · 134 communities (124 shown, 10 thin omitted)
 - Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 399 edges (avg confidence: 0.59)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `778e2d4e`
+- Built from commit: `5888cafe`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -95,8 +95,8 @@
 - 39 MCP Tools Inventory
 - test_no_stdout_pollution.py
 - _validate_regex_input
-- generic_table_tools Query Engine
-- Generic Tool Wrappers
+- ServiceNow Query Syntax Guide
+- query_table_by_text Engine
 - TestSpecWellFormed
 - test_query_validation.py
 - MCPB Build Guide
@@ -116,6 +116,7 @@
 - TestCallerExclusions
 - TestEdgeCasesAndErrorHandling
 - _FakeOAuthClient
+- SLA Tool Consolidation (Sprint 2)
 - TestReadFailuresPropagate
 - test_pyproject_sync.py
 - args
@@ -183,7 +184,7 @@
 - **GET Read-Path Pipeline** — diagrams_documentation_01_architecture_overview_generic_table_tools, diagrams_documentation_01_architecture_overview_make_nws_request, diagrams_documentation_04_similarity_search_flow_url_builder, diagrams_documentation_04_similarity_search_flow_response_parser, diagrams_documentation_02_oauth_request_executor [EXTRACTED 1.00]
 - **OAuth Authentication Stack** — diagrams_documentation_02_oauth_singleton, diagrams_documentation_02_oauth_client_facade, diagrams_documentation_02_oauth_token_store, diagrams_documentation_02_oauth_request_executor, diagrams_documentation_02_oauth_http_pool, diagrams_documentation_02_oauth_client_credentials [EXTRACTED 1.00]
 
-## Communities (133 total, 10 thin omitted)
+## Communities (134 total, 10 thin omitted)
 
 ### Community 0 - "ServiceNowOAuthClient"
 Cohesion: 0.05
@@ -386,8 +387,8 @@ Cohesion: 0.22
 Nodes (7): filter_records(), OptJsonList, Query a ServiceNow table with field-value filters. SIDE EFFECT: read-only.…, Dot-walking is how `task_sla` is queried at all — it must survive., The reachable surface, not just the internal function. v5.0: filter_records is…, A filters dict's KEYS come from the caller and nothing validated them.…, TestFieldNamesAreCallerSuppliedToo
 
 ### Community 50 - "Architecture Documentation Index (v4.3 Diagrams)"
-Cohesion: 0.13
-Nodes (20): Claude Desktop Extension (.mcpb) Packaging, OR-Combined LIKE Text Query, Release 4.3.0 — mcpb Packaging and Performance, SSE Transport Authentication, 01 Architecture Overview Diagram, Architecture Documentation Index (v4.3 Diagrams), Distribution via .mcpb or Docker SSE, 04 Similarity Search Flow Diagram (+12 more)
+Cohesion: 0.11
+Nodes (22): Claude Desktop Extension (.mcpb) Packaging, OR-Combined LIKE Text Query, Release 4.3.0 — mcpb Packaging and Performance, SSE Transport Authentication, 05 AI Intelligence Flow Diagram, 01 Architecture Overview Diagram, Architecture Documentation Index (v4.3 Diagrams), Distribution via .mcpb or Docker SSE (+14 more)
 
 ### Community 51 - "OAuth 2.0 Client Credentials Flow"
 Cohesion: 0.18
@@ -410,8 +411,8 @@ Cohesion: 0.12
 Nodes (21): _count_tokens(), _list_envelope_overhead(), asyncio, parametrize, Token-footprint regression tests for v4.0 SLA tools. The Sprint 2 acceptance…, Patch query_table_with_filters to return `response`, then call the tool., Per-tool token budgets — must not regress structurally., v3 bug returned 10K rows; v4 must return 1. (+13 more)
 
 ### Community 56 - "query_slas_by_status Presets"
-Cohesion: 0.29
-Nodes (8): query_slas_by_status Presets, SLA Token Optimization Strategy, E2E SLA Preset Prompts, Migration Guide v3 to v4, v3→v4 SLA Tool Name Mapping, v4.1 Test Patch Target Migration, HTTP Token-Budget Invariants Tests, tiktoken Token Footprint Tests
+Cohesion: 0.17
+Nodes (13): TABLE_CONFIGS Supported Tables, Table Extensibility via TABLE_CONFIGS, SLA Architecture Document, query_slas_custom Escape Hatch, query_slas_by_status Presets, task_sla Table, SLA Token Optimization Strategy, E2E SLA Preset Prompts (+5 more)
 
 ### Community 57 - "get_ci_details"
 Cohesion: 0.11
@@ -490,8 +491,8 @@ Cohesion: 0.09
 Nodes (16): get_records_by_priority(), Generic function to get records by priority for any table that supports…, Test edge cases and error handling., Test priority parsing with special characters., Test building query with suffix operators., Test that encoding preserves important ServiceNow characters., Test exception handling in find_similar_records., Test getting records by priority with additional filters. (+8 more)
 
 ### Community 77 - "39 MCP Tools Inventory"
-Cohesion: 0.15
-Nodes (15): get_sla_details v3 Bug Fix, SLA Tool Consolidation (Sprint 2), 05 AI Intelligence Flow Diagram, 06 SLA Architecture Flow Diagram, CMDB Tools Module, KB Article Write Tools, make_nws_request Dispatcher, VTB Private Task CRUD Tools (+7 more)
+Cohesion: 0.14
+Nodes (18): filter Intelligence-Builder Backref Discipline, CMDB Tools Module, filter/ Package Pipeline, generic_table_tools Query Engine, Generic Tool Wrappers, Intelligent Query Tools, KB Article Write Tools, make_nws_request Dispatcher (+10 more)
 
 ### Community 78 - "test_no_stdout_pollution.py"
 Cohesion: 0.19
@@ -501,13 +502,13 @@ Nodes (14): expr, _find_offending_prints(), _is_stderr_target(), _iter_runtime_m
 Cohesion: 0.17
 Nodes (10): Pre-validate input to prevent ReDoS attacks., _validate_regex_input(), Test ReDoS (Regular Expression Denial of Service) protection., Test validation accepts valid strings., Test validation rejects non-strings., Test validation rejects overly long strings., Test validation rejects strings with too many spaces., Test validation rejects strings with too many dashes. (+2 more)
 
-### Community 80 - "generic_table_tools Query Engine"
-Cohesion: 0.17
-Nodes (12): filter Intelligence-Builder Backref Discipline, consolidated_tools Module, filter/ Package Pipeline, generic_table_tools Query Engine, Intelligent Query Tools, filter_records Tool, pydantic Validation Dependency, ServiceNow Query Syntax Guide (+4 more)
+### Community 80 - "ServiceNow Query Syntax Guide"
+Cohesion: 0.33
+Nodes (6): consolidated_tools Module, ServiceNow Query Syntax Guide, _complete_query Filter Pattern, ServiceNow Date Range Filters, Encoded Query OR Syntax ^OR, get_priority_incidents Enhanced Queries
 
-### Community 81 - "Generic Tool Wrappers"
-Cohesion: 0.11
-Nodes (18): Generic Tool Wrappers, TABLE_CONFIGS Supported Tables, Tool Organization Document, Table Extensibility via TABLE_CONFIGS, find_similar Tool, search_records Tool, v3 Generic Wrapper Consolidation, Search and Query Flow Document (+10 more)
+### Community 81 - "query_table_by_text Engine"
+Cohesion: 0.20
+Nodes (10): find_similar Tool, search_records Tool, Search and Query Flow Document, Paginated Request with ORDERBYDESC, query_table_by_text Engine, Similarity Search Path, E2E MCP Test Prompts, E2E CMDB Prompts (+2 more)
 
 ### Community 83 - "test_query_validation.py"
 Cohesion: 0.10
@@ -560,6 +561,10 @@ Nodes (7): Test caller exclusion parsing., Test parsing known caller (logicmonit
 ### Community 99 - "TestEdgeCasesAndErrorHandling"
 Cohesion: 0.14
 Nodes (8): Test edge cases and error handling scenarios., Test ServiceNowQueryBuilder handles None inputs gracefully., Test ServiceNowQueryBuilder handles empty lists gracefully., Test priority filter validation with empty string., Test date range filter validation with empty string., Test result count validation with edge values., Test debug_query_construction handles None inputs., TestEdgeCasesAndErrorHandling
+
+### Community 101 - "SLA Tool Consolidation (Sprint 2)"
+Cohesion: 0.50
+Nodes (4): get_sla_details v3 Bug Fix, SLA Tool Consolidation (Sprint 2), 06 SLA Architecture Flow Diagram, SLA Management Tools (5)
 
 ### Community 102 - "TestReadFailuresPropagate"
 Cohesion: 0.24

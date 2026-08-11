@@ -60,7 +60,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
 <div class="container">
 
 <h1>personal-mcp-servicenow — Complete Call Flow &amp; Architecture Documentation</h1>
-<p class="subtitle">Generated from graphify knowledge graph: 2819 nodes, 5535 edges, 133 communities. Commit: 778e2d4</p>
+<p class="subtitle">Generated from graphify knowledge graph: 2819 nodes, 5535 edges, 134 communities. Commit: 5888caf</p>
 
 <div class="nav">
     <a href="#overview">Architecture Overview</a>
@@ -74,6 +74,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
     <a href="#migration-guide-v4-x-v5-0-boron">Migration Guide: v4.x → v5.0 &quot;Boron&quot;</a>
     <a href="#validate-and-correct-filters">validate_and_correct_filters</a>
     <a href="#read-failure-contract-servicenowrequesterror">Read-Failure Contract (ServiceNowRequestError)</a>
+    <a href="#sla-tool-consolidation-sprint-2">SLA Tool Consolidation (Sprint 2)</a>
     <a href="#paypal-sponsor-funding">PayPal Sponsor Funding</a>
     <a href="#personal-mcp-servicenow">personal-mcp-servicenow</a>
 </div>
@@ -89,15 +90,15 @@ flowchart LR
     class EXTRACT_PIPELINE_5F350230 module;
     BUILD_GRAPH_321CBB04("Graph Build<br/><small>85 nodes</small>")
     class BUILD_GRAPH_321CBB04 module;
-    ANALYSIS_CLUSTERING_C79796DA("Analysis &amp; Clustering<br/><small>28 nodes</small>")
+    ANALYSIS_CLUSTERING_C79796DA("Analysis &amp; Clustering<br/><small>22 nodes</small>")
     class ANALYSIS_CLUSTERING_C79796DA module;
     OUTPUTS_DOCS_ED82387C("Outputs &amp; Docs<br/><small>89 nodes</small>")
     class OUTPUTS_DOCS_ED82387C module;
     INGEST_CACHE_UPDATE_FF457338("Ingestion &amp; Updates<br/><small>12 nodes</small>")
     class INGEST_CACHE_UPDATE_FF457338 module;
-    SERVE_API_35EC8E86("Serving API<br/><small>77 nodes</small>")
+    SERVE_API_35EC8E86("Serving API<br/><small>87 nodes</small>")
     class SERVE_API_35EC8E86 module;
-    TESTS_FIXTURES_B84B1DCC("Tests &amp; Fixtures<br/><small>2498 nodes</small>")
+    TESTS_FIXTURES_B84B1DCC("Tests &amp; Fixtures<br/><small>2490 nodes</small>")
     class TESTS_FIXTURES_B84B1DCC module;
     MIGRATION_GUIDE_V4_X_V5_0_BORON_D2D35E87("Migration Guide: v4.x → v5.0 'Boron'<br/><small>8 nodes</small>")
     class MIGRATION_GUIDE_V4_X_V5_0_BORON_D2D35E87 module;
@@ -105,6 +106,8 @@ flowchart LR
     class VALIDATE_AND_CORRECT_FILTERS_205EF1A0 module;
     READ_FAILURE_CONTRACT_SERVICENOWREQUESTERROR_6DD2BEFD("Read-Failure Contract (ServiceNowRequestError)<br/><small>5 nodes</small>")
     class READ_FAILURE_CONTRACT_SERVICENOWREQUESTERROR_6DD2BEFD module;
+    SLA_TOOL_CONSOLIDATION_SPRINT_2_56A199AB("SLA Tool Consolidation (Sprint 2)<br/><small>4 nodes</small>")
+    class SLA_TOOL_CONSOLIDATION_SPRINT_2_56A199AB module;
     PAYPAL_SPONSOR_FUNDING_C671F29E("PayPal Sponsor Funding<br/><small>1 nodes</small>")
     class PAYPAL_SPONSOR_FUNDING_C671F29E module;
     PERSONAL_MCP_SERVICENOW_87392569("personal-mcp-servicenow<br/><small>1 nodes</small>")
@@ -112,15 +115,15 @@ flowchart LR
     SERVE_API_35EC8E86 -->|contains x100| TESTS_FIXTURES_B84B1DCC
     TESTS_FIXTURES_B84B1DCC -->|calls x92| SERVE_API_35EC8E86
     TESTS_FIXTURES_B84B1DCC -->|calls x7| EXTRACT_PIPELINE_5F350230
-    OUTPUTS_DOCS_ED82387C -->|relates x6| ANALYSIS_CLUSTERING_C79796DA
     TESTS_FIXTURES_B84B1DCC -->|imports x5| BUILD_GRAPH_321CBB04
+    ANALYSIS_CLUSTERING_C79796DA -->|relates x5| OUTPUTS_DOCS_ED82387C
     INGEST_CACHE_UPDATE_FF457338 -->|contains x4| BUILD_GRAPH_321CBB04
-    ANALYSIS_CLUSTERING_C79796DA -->|relates x4| OUTPUTS_DOCS_ED82387C
-    TESTS_FIXTURES_B84B1DCC -->|shares data with x4| OUTPUTS_DOCS_ED82387C
+    SERVE_API_35EC8E86 -->|relates x4| OUTPUTS_DOCS_ED82387C
     TESTS_FIXTURES_B84B1DCC -->|contains x3| VALIDATE_AND_CORRECT_FILTERS_205EF1A0
     VALIDATE_AND_CORRECT_FILTERS_205EF1A0 -->|calls x3| TESTS_FIXTURES_B84B1DCC
+    OUTPUTS_DOCS_ED82387C -->|relates x3| SLA_TOOL_CONSOLIDATION_SPRINT_2_56A199AB
+    OUTPUTS_DOCS_ED82387C -->|semantically similar to x3| ANALYSIS_CLUSTERING_C79796DA
     SERVE_API_35EC8E86 -->|imports x2| EXTRACT_PIPELINE_5F350230
-    SERVE_API_35EC8E86 -->|inherits| BUILD_GRAPH_321CBB04
     classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
     classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
     classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
@@ -137,19 +140,19 @@ flowchart LR
     <h4>Architecture Layers</h4>
     <table style="width:100%;font-size:0.85rem;">
       <tr><th>Layer</th><th>Nodes</th><th>Communities</th></tr>
-      <tr><td>Extraction Pipeline</td><td>9</td><td><code>88</code></td></tr><tr><td>Graph Build</td><td>85</td><td><code>39, 9, 104, 138, 139, 140, 141, 84, 149, 154</code></td></tr><tr><td>Analysis &amp; Clustering</td><td>28</td><td><code>69, 80</code></td></tr><tr><td>Outputs &amp; Docs</td><td>89</td><td><code>50, 81, 77, 51, 86, 109</code></td></tr><tr><td>Ingestion &amp; Updates</td><td>12</td><td><code>96</code></td></tr><tr><td>Serving API</td><td>77</td><td><code>2, 35, 112</code></td></tr><tr><td>Tests &amp; Fixtures</td><td>2498</td><td><code>3, 0, 63, 29, 15, 1, 7, 25, 18, 10, 6, 12, 21, 34, 46, 17, 37, 70, 14, 5, 54, 16, 57, 32, 55, 38, 4, 8, 19, 41, 27, 53, 20, 68, 22, 28, 30, 45, 83, 26, 115, 23, 43, 76, 90, 117, 42, 47, 97, 106, 124, 13, 44, 61, 103, 52, 31, 67, 33, 75, 79, 85, 48, 78, 58, 73, 99, 40, 24, 98, 102, 11, 105, 107, 118, 49, 59, 60, 62, 65, 116, 66, 125, 126, 129, 132, 159, 56, 72, 64, 74, 82, 145, 146, 87, 89, 91, 92, 93, 151, 94, 100, 152, 155, 95</code></td></tr><tr><td>Migration Guide: v4.x → v5.0 &quot;Boron&quot;</td><td>8</td><td><code>71</code></td></tr><tr><td>validate_and_correct_filters</td><td>6</td><td><code>36</code></td></tr><tr><td>Read-Failure Contract (ServiceNowRequestError)</td><td>5</td><td><code>147</code></td></tr><tr><td>PayPal Sponsor Funding</td><td>1</td><td><code>162</code></td></tr><tr><td>personal-mcp-servicenow</td><td>1</td><td><code>163</code></td></tr>
+      <tr><td>Extraction Pipeline</td><td>9</td><td><code>88</code></td></tr><tr><td>Graph Build</td><td>85</td><td><code>39, 9, 104, 138, 139, 140, 141, 84, 149, 154</code></td></tr><tr><td>Analysis &amp; Clustering</td><td>22</td><td><code>69, 80</code></td></tr><tr><td>Outputs &amp; Docs</td><td>89</td><td><code>50, 77, 51, 56, 86, 109</code></td></tr><tr><td>Ingestion &amp; Updates</td><td>12</td><td><code>96</code></td></tr><tr><td>Serving API</td><td>87</td><td><code>2, 35, 112, 81</code></td></tr><tr><td>Tests &amp; Fixtures</td><td>2490</td><td><code>3, 0, 63, 29, 15, 1, 7, 25, 18, 10, 6, 12, 21, 34, 46, 17, 37, 70, 14, 5, 54, 16, 57, 32, 55, 38, 4, 8, 19, 41, 27, 53, 20, 68, 22, 28, 30, 45, 83, 26, 115, 23, 43, 76, 90, 117, 42, 47, 97, 106, 124, 13, 44, 61, 103, 52, 31, 67, 33, 75, 79, 85, 48, 78, 58, 73, 99, 40, 24, 98, 102, 11, 105, 107, 118, 49, 59, 60, 62, 65, 116, 66, 125, 126, 129, 132, 159, 72, 64, 74, 82, 145, 146, 87, 89, 91, 92, 93, 151, 94, 100, 152, 155, 95</code></td></tr><tr><td>Migration Guide: v4.x → v5.0 &quot;Boron&quot;</td><td>8</td><td><code>71</code></td></tr><tr><td>validate_and_correct_filters</td><td>6</td><td><code>36</code></td></tr><tr><td>Read-Failure Contract (ServiceNowRequestError)</td><td>5</td><td><code>147</code></td></tr><tr><td>SLA Tool Consolidation (Sprint 2)</td><td>4</td><td><code>101</code></td></tr><tr><td>PayPal Sponsor Funding</td><td>1</td><td><code>162</code></td></tr><tr><td>personal-mcp-servicenow</td><td>1</td><td><code>163</code></td></tr>
     </table>
   </div>
   <div class="card">
     <h4>Core Flow</h4>
-    <div class="arrow-chain">Ingestion &amp; Updates -&gt; Graph Build -&gt; Outputs &amp; Docs -&gt; Analysis &amp; Clustering -&gt; Tests &amp; Fixtures -&gt; Serving API -&gt; Extraction Pipeline</div>
+    <div class="arrow-chain">Ingestion &amp; Updates -&gt; Graph Build -&gt; Outputs &amp; Docs -&gt; SLA Tool Consolidation (Sprint 2) -&gt; Extraction Pipeline -&gt; Analysis &amp; Clustering -&gt; Read-Failure Contract (ServiceNowRequestError)</div>
   </div>
 </div>
 <div class="grid">
   <div class="card">
     <h4>Graph Report Highlights</h4>
     <ul>
-      <li>2819 nodes · 5535 edges · 133 communities (123 shown, 10 thin omitted)</li>
+      <li>2819 nodes · 5535 edges · 134 communities (124 shown, 10 thin omitted)</li>
       <li>Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 399 edges (avg confidence: 0.59)</li>
       <li>Token cost: 0 input · 0 output</li>
       <li>1. `ServiceNowRequestError` - 99 edges</li>
@@ -653,59 +656,70 @@ flowchart LR
 
 <!-- ====== 4. Analysis & Clustering ====== -->
 <h2 id="analysis-clustering">4. Analysis &amp; Clustering</h2>
-<p>Analysis &amp; Clustering groups implementation around changelogmd, query, servicenow, value, mostly in CHANGELOG.md, Diagrams &amp; Documentation/01-architecture-overview.md, SERVICENOW_QUERY_GUIDE.md. This section covers 28 nodes and 27 internal edges; the diagram shows only representative relationships to stay readable.</p>
+<p>Analysis &amp; Clustering groups implementation around changelogmd, query, servicenow, value, mostly in CHANGELOG.md, SERVICENOW_QUERY_GUIDE.md, README.md. This section covers 22 nodes and 21 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
 %%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
 flowchart LR
-    %% Section: Analysis &amp; Clustering (28 nodes, 27 edges)
+    %% Section: Analysis &amp; Clustering (22 nodes, 21 edges)
     subgraph analysis_clustering_CHANGELOG_md_63a3c705["CHANGELOG.md"]
+        changelog_personal_mcp_servicenow_37df36bd("Personal MCP ServiceNow Project<br/><small>CHANGELOG.md</small>")
+        changelog_release_4_4_0_734e717f("Release 4.4.0 — Boron Tier 0 Correctness<br/><small>CHANGELOG.md</small>")
+        changelog_ampersand_escape_4a83525b("Ampersand (&amp;) Value Escape<br/><small>CHANGELOG.md</small>")
+        changelog_caret_refusal_57b364ea("Caret (^) Value Refusal<br/><small>CHANGELOG.md</small>")
+        changelog_encode_query_value_1f948bbe("value_encoding.py<br/><small>CHANGELOG.md</small>")
         changelog_encoded_query_value_boundary_13deaa7a("Encoded-Query Value Boundary Contract<br/><small>CHANGELOG.md</small>")
         changelog_kb_publish_fail_closed_78dd31c4("KB Publish Fail-Closed Duplicate Check<br/><small>CHANGELOG.md</small>")
-        changelog_structural_vs_terminal_handlers_e770b644("Structural vs Terminal Condition Handlers<br/><small>CHANGELOG.md</small>")
         changelog_nq_refusal_c2d1d1cf("^NQ New-Query-Reset Refusal<br/><small>CHANGELOG.md</small>")
+        changelog_structural_vs_terminal_handlers_e770b644("Structural vs Terminal Condition Handlers<br/><small>CHANGELOG.md</small>")
         changelog_has_operator_in_value_limitation_2347c6b7("_has_operator_in_value Equals Limitation<br/><small>CHANGELOG.md</small>")
-        changelog_encode_query_value_1f948bbe("value_encoding.py<br/><small>CHANGELOG.md</small>")
-        changelog_ampersand_escape_4a83525b("Ampersand (&amp;) Value Escape<br/><small>CHANGELOG.md</small>")
-    end
-    subgraph analysis_clustering_Diagrams_Documentation_01_ar_d0645173["Diagrams &amp; Documentation/01-architecture-overview.md"]
-        diagrams_documentation_01_architecture_overview_05586c1b("Intelligent Query Tools<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
-        diagrams_documentation_01_architecture_overview_64653f44("consolidated_tools Module<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
-        diagrams_documentation_01_architecture_overview_e12472c3("generic_table_tools Query Engine<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
-        diagrams_documentation_01_architecture_overview_96961e70("filter/ Package Pipeline<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        changelog_release_4_4_1_dc95fb2d("Release 4.4.1 — Encoded-Query Value Enc...<br/><small>CHANGELOG.md</small>")
     end
     subgraph analysis_clustering_SERVICENOW_QUERY_GUIDE_md_b3485f59["SERVICENOW_QUERY_GUIDE.md"]
-        servicenow_query_guide_or_syntax_db3d598c("Encoded Query OR Syntax ^OR<br/><small>SERVICENOW_QUERY_GUIDE.md</small>")
-        servicenow_query_guide_date_ranges_50afcc7b("ServiceNow Date Range Filters<br/><small>SERVICENOW_QUERY_GUIDE.md</small>")
+        servicenow_query_guide_d9bca0d2("ServiceNow Query Syntax Guide<br/><small>SERVICENOW_QUERY_GUIDE.md</small>")
         servicenow_query_guide_complete_query_2cb2d2ed("_complete_query Filter Pattern<br/><small>SERVICENOW_QUERY_GUIDE.md</small>")
+        servicenow_query_guide_date_ranges_50afcc7b("ServiceNow Date Range Filters<br/><small>SERVICENOW_QUERY_GUIDE.md</small>")
+        servicenow_query_guide_or_syntax_db3d598c("Encoded Query OR Syntax ^OR<br/><small>SERVICENOW_QUERY_GUIDE.md</small>")
         servicenow_query_guide_priority_incidents_d82ae102("get_priority_incidents Enhanced Queries<br/><small>SERVICENOW_QUERY_GUIDE.md</small>")
     end
-    diagrams_documentation_03_tool_organization_filt_52e69bf8("filter_records Tool<br/><small>Diagrams &amp; Documentation/03-tool-organization.md</small>")
+    diagrams_documentation_01_architecture_overview_64653f44("consolidated_tools Module<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
     readme_kb_write_tools_474e7112("Knowledge Base Write Tools (5)<br/><small>README.md</small>")
-    requirements_pydantic_c2da4970("pydantic Validation Dependency<br/><small>requirements.txt</small>")
-    diagrams_documentation_01_architecture_overview_64653f44 -->|calls| diagrams_documentation_01_architecture_overview_e12472c3
-    diagrams_documentation_01_architecture_overview_05586c1b -->|calls| diagrams_documentation_01_architecture_overview_e12472c3
-    diagrams_documentation_01_architecture_overview_05586c1b -->|calls| diagrams_documentation_01_architecture_overview_96961e70
-    diagrams_documentation_03_tool_organization_filt_52e69bf8 -->|calls| diagrams_documentation_01_architecture_overview_e12472c3
-    %% Omitted for readability: 10 nodes, 0 edges
+    servicenow_query_guide_d9bca0d2 -->|references| servicenow_query_guide_complete_query_2cb2d2ed
+    servicenow_query_guide_d9bca0d2 -->|references| servicenow_query_guide_date_ranges_50afcc7b
+    servicenow_query_guide_d9bca0d2 -->|references| servicenow_query_guide_or_syntax_db3d598c
+    servicenow_query_guide_d9bca0d2 -->|references| servicenow_query_guide_priority_incidents_d82ae102
+    changelog_personal_mcp_servicenow_37df36bd -->|relates| changelog_release_4_4_0_734e717f
+    changelog_personal_mcp_servicenow_37df36bd -->|relates| changelog_release_4_4_1_dc95fb2d
+    changelog_release_4_4_1_dc95fb2d -->|relates| changelog_encoded_query_value_boundary_13deaa7a
+    changelog_release_4_4_0_734e717f -->|relates| changelog_encoded_query_value_boundary_13deaa7a
+    changelog_release_4_4_0_734e717f -->|relates| changelog_kb_publish_fail_closed_78dd31c4
+    changelog_encode_query_value_1f948bbe -->|implements| changelog_encoded_query_value_boundary_13deaa7a
+    changelog_nq_refusal_c2d1d1cf -->|relates| changelog_encoded_query_value_boundary_13deaa7a
+    changelog_structural_vs_terminal_handlers_e770b644 -->|relates| changelog_encoded_query_value_boundary_13deaa7a
+    changelog_has_operator_in_value_limitation_2347c6b7 -->|relates| changelog_encoded_query_value_boundary_13deaa7a
+    changelog_caret_refusal_57b364ea -->|explains| changelog_encoded_query_value_boundary_13deaa7a
+    changelog_ampersand_escape_4a83525b -->|explains| changelog_encoded_query_value_boundary_13deaa7a
+    readme_kb_write_tools_474e7112 -->|relates| changelog_kb_publish_fail_closed_78dd31c4
+    servicenow_query_guide_priority_incidents_d82ae102 -->|relates| diagrams_documentation_01_architecture_overview_64653f44
+    %% Omitted for readability: 4 nodes, 0 edges
+    class changelog_personal_mcp_servicenow_37df36bd concept;
+    class changelog_release_4_4_0_734e717f concept;
+    class changelog_ampersand_escape_4a83525b concept;
+    class changelog_caret_refusal_57b364ea concept;
+    class changelog_encode_query_value_1f948bbe module;
     class changelog_encoded_query_value_boundary_13deaa7a klass;
     class changelog_kb_publish_fail_closed_78dd31c4 klass;
-    class changelog_structural_vs_terminal_handlers_e770b644 klass;
     class changelog_nq_refusal_c2d1d1cf function;
+    class changelog_structural_vs_terminal_handlers_e770b644 klass;
     class changelog_has_operator_in_value_limitation_2347c6b7 function;
-    class changelog_encode_query_value_1f948bbe module;
-    class changelog_ampersand_escape_4a83525b concept;
-    class diagrams_documentation_01_architecture_overview_05586c1b klass;
-    class diagrams_documentation_01_architecture_overview_64653f44 function;
-    class diagrams_documentation_01_architecture_overview_e12472c3 function;
-    class diagrams_documentation_01_architecture_overview_96961e70 function;
-    class servicenow_query_guide_or_syntax_db3d598c klass;
-    class servicenow_query_guide_date_ranges_50afcc7b klass;
+    class changelog_release_4_4_1_dc95fb2d concept;
+    class servicenow_query_guide_d9bca0d2 concept;
     class servicenow_query_guide_complete_query_2cb2d2ed function;
+    class servicenow_query_guide_date_ranges_50afcc7b klass;
+    class servicenow_query_guide_or_syntax_db3d598c klass;
     class servicenow_query_guide_priority_incidents_d82ae102 function;
-    class diagrams_documentation_03_tool_organization_filt_52e69bf8 function;
+    class diagrams_documentation_01_architecture_overview_64653f44 function;
     class readme_kb_write_tools_474e7112 klass;
-    class requirements_pydantic_c2da4970 function;
     classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
     classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
     classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
@@ -857,14 +871,6 @@ flowchart LR
 </tr>
 <tr>
   <td>17</td>
-  <td><code>generic_table_tools Query Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td><code>consolidated_tools Module</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br><code>filter_records Tool</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small><br><code>Generic Tool Wrappers</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br>+1 more</td>
-  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
-  <td>generic_table_tools Query Engine node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
-</tr>
-<tr>
-  <td>18</td>
   <td><code>consolidated_tools Module</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
   <td><span class="tag tag-func">Function</span></td>
   <td>External entry / no inbound edge</td>
@@ -872,39 +878,7 @@ flowchart LR
   <td>consolidated_tools Module node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
 </tr>
 <tr>
-  <td>19</td>
-  <td><code>Intelligent Query Tools</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
-  <td><span class="tag tag-class">Class</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>filter/ Package Pipeline</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br><code>generic_table_tools Query Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
-  <td>Intelligent Query Tools node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
-</tr>
-<tr>
-  <td>20</td>
-  <td><code>filter/ Package Pipeline</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td><code>Intelligent Query Tools</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
-  <td>No direct outbound edge</td>
-  <td>filter/ Package Pipeline node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
-</tr>
-<tr>
-  <td>21</td>
-  <td><code>filter Intelligence-Builder Backref Discipline</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
-  <td><span class="tag tag-func">Concept</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>Design note for filter Intelligence-Builder Backref Discipline.</td>
-</tr>
-<tr>
-  <td>22</td>
-  <td><code>filter_records Tool</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td><code>generic_table_tools Query Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
-  <td>filter_records Tool node in Diagrams &amp; Documentation/03-tool-organization.md.</td>
-</tr>
-<tr>
-  <td>23</td>
+  <td>18</td>
   <td><code>ServiceNow Query Syntax Guide</code><br><small style="color:var(--muted)">SERVICENOW_QUERY_GUIDE.md</small></td>
   <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
@@ -912,7 +886,7 @@ flowchart LR
   <td>Documentation node describing ServiceNow Query Syntax Guide.</td>
 </tr>
 <tr>
-  <td>24</td>
+  <td>19</td>
   <td><code>Encoded Query OR Syntax ^OR</code><br><small style="color:var(--muted)">SERVICENOW_QUERY_GUIDE.md</small></td>
   <td><span class="tag tag-class">Class</span></td>
   <td>External entry / no inbound edge</td>
@@ -920,7 +894,7 @@ flowchart LR
   <td>Encoded Query OR Syntax ^OR node in SERVICENOW_QUERY_GUIDE.md.</td>
 </tr>
 <tr>
-  <td>25</td>
+  <td>20</td>
   <td><code>ServiceNow Date Range Filters</code><br><small style="color:var(--muted)">SERVICENOW_QUERY_GUIDE.md</small></td>
   <td><span class="tag tag-class">Class</span></td>
   <td>External entry / no inbound edge</td>
@@ -928,7 +902,7 @@ flowchart LR
   <td>ServiceNow Date Range Filters node in SERVICENOW_QUERY_GUIDE.md.</td>
 </tr>
 <tr>
-  <td>26</td>
+  <td>21</td>
   <td><code>_complete_query Filter Pattern</code><br><small style="color:var(--muted)">SERVICENOW_QUERY_GUIDE.md</small></td>
   <td><span class="tag tag-func">Function</span></td>
   <td>External entry / no inbound edge</td>
@@ -936,20 +910,12 @@ flowchart LR
   <td>_complete_query Filter Pattern node in SERVICENOW_QUERY_GUIDE.md.</td>
 </tr>
 <tr>
-  <td>27</td>
+  <td>22</td>
   <td><code>get_priority_incidents Enhanced Queries</code><br><small style="color:var(--muted)">SERVICENOW_QUERY_GUIDE.md</small></td>
   <td><span class="tag tag-func">Function</span></td>
   <td>External entry / no inbound edge</td>
   <td>No direct outbound edge</td>
   <td>get_priority_incidents Enhanced Queries node in SERVICENOW_QUERY_GUIDE.md.</td>
-</tr>
-<tr>
-  <td>28</td>
-  <td><code>pydantic Validation Dependency</code><br><small style="color:var(--muted)">requirements.txt</small></td>
-  <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>Builds dependency relationships and graph data.</td>
 </tr>
 </table>
 
@@ -959,88 +925,84 @@ flowchart LR
     <table style="width:100%;font-size:0.85rem;">
       <tr><th>File</th><th>Coverage</th></tr>
       <tr><td><code>CHANGELOG.md</code></td><td>15 nodes</td></tr>
-<tr><td><code>Diagrams &amp; Documentation/01-architecture-overview.md</code></td><td>5 nodes</td></tr>
 <tr><td><code>SERVICENOW_QUERY_GUIDE.md</code></td><td>5 nodes</td></tr>
-<tr><td><code>Diagrams &amp; Documentation/03-tool-organization.md</code></td><td>1 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/01-architecture-overview.md</code></td><td>1 nodes</td></tr>
 <tr><td><code>README.md</code></td><td>1 nodes</td></tr>
-<tr><td><code>requirements.txt</code></td><td>1 nodes</td></tr>
     </table>
   </div>
   <div class="card">
     <h4>Design Notes</h4>
-    <p>This section comes from graphify community clustering. Relationship summary: relates x12, references x6, calls x4, explains x3. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+    <p>This section comes from graphify community clustering. Relationship summary: relates x12, references x6, explains x2, implements x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
   </div>
 </div>
 <hr>
 
 <!-- ====== 5. Outputs & Docs ====== -->
 <h2 id="outputs-docs">5. Outputs &amp; Docs</h2>
-<p>Outputs &amp; Docs groups implementation around documentation, diagrams, oauth, readmemd, mostly in README.md, CHANGELOG.md, Diagrams &amp; Documentation/01-architecture-overview.md. This section covers 89 nodes and 127 internal edges; the diagram shows only representative relationships to stay readable.</p>
+<p>Outputs &amp; Docs groups implementation around documentation, diagrams, oauth, architecture, mostly in README.md, Diagrams &amp; Documentation/01-architecture-overview.md, CHANGELOG.md. This section covers 89 nodes and 130 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
 %%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
 flowchart LR
-    %% Section: Outputs &amp; Docs (89 nodes, 127 edges)
+    %% Section: Outputs &amp; Docs (89 nodes, 130 edges)
     subgraph outputs_docs_Diagrams_Documentation_01_architect_d583a469["Diagrams &amp; Documentation/01-architecture-overview.md"]
+        diagrams_documentation_01_architecture_overview_05586c1b("Intelligent Query Tools<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
         diagrams_documentation_01_architecture_overview_765ece2d("tools.py Tool Registration<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
         diagrams_documentation_01_architecture_overview_281184d9("CMDB Tools Module<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
-        diagrams_documentation_01_architecture_overview_8f4fb370("KB Article Write Tools<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
-        diagrams_documentation_01_architecture_overview_c7130b03("VTB Private Task CRUD Tools<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_b11dc94b("Generic Tool Wrappers<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
         diagrams_documentation_01_architecture_overview_f2c225c5("AuthMiddleware SSE Bearer<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_e12472c3("generic_table_tools Query Engine<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
         diagrams_documentation_01_architecture_overview_603ff3ee("make_nws_request Dispatcher<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
-    end
-    subgraph outputs_docs_Diagrams_Documentation_04_similarit_f82f8926["Diagrams &amp; Documentation/04-similarity-search-flow.md"]
-        diagrams_documentation_04_similarity_search_flow_e075cc8e("response_parser Display-Value Flatten<br/><small>Diagrams &amp; Documentation/04-similarity-search-flow.md</small>")
-        diagrams_documentation_04_similarity_search_flow_87b83824("url_builder encode + default params<br/><small>Diagrams &amp; Documentation/04-similarity-search-flow.md</small>")
-        diagrams_documentation_04_similarity_search_flow_51e63dec("query_table_by_text Engine<br/><small>Diagrams &amp; Documentation/04-similarity-search-flow.md</small>")
-        diagrams_documentation_04_similarity_search_flow_d21d60f7("Paginated Request with ORDERBYDESC<br/><small>Diagrams &amp; Documentation/04-similarity-search-flow.md</small>")
-        diagrams_documentation_04_similarity_search_flow_b1af6e77("Similarity Search Path<br/><small>Diagrams &amp; Documentation/04-similarity-search-flow.md</small>")
+        diagrams_documentation_01_architecture_overview_c7130b03("VTB Private Task CRUD Tools<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_8f4fb370("KB Article Write Tools<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
+        diagrams_documentation_01_architecture_overview_96961e70("filter/ Package Pipeline<br/><small>Diagrams &amp; Documentation/01-architecture-overview.md</small>")
     end
     subgraph outputs_docs_Diagrams_Documentation_02_oauth_aut_2d8a9f13["Diagrams &amp; Documentation/02-oauth-authentication-flow.md"]
         diagrams_documentation_02_oauth_request_executor_f0f3c2de("RequestExecutor 401 Retry<br/><small>Diagrams &amp; Documentation/02-oauth-authentication-flow.md</small>")
         diagrams_documentation_02_oauth_token_store_598993fb("TokenStore Cache and Refresh<br/><small>Diagrams &amp; Documentation/02-oauth-authentication-flow.md</small>")
         diagrams_documentation_02_oauth_http_pool_ca189f20("oauth/http_pool Shared Client<br/><small>Diagrams &amp; Documentation/02-oauth-authentication-flow.md</small>")
     end
-    subgraph outputs_docs_CHANGELOG_md_e747afde["CHANGELOG.md"]
-        changelog_http_layer_package_c3dfa068("http_layer/ Package<br/><small>CHANGELOG.md</small>")
-        changelog_oauth_package_3388a415("oauth/ Package<br/><small>CHANGELOG.md</small>")
+    subgraph outputs_docs_Diagrams_Documentation_04_similarit_f82f8926["Diagrams &amp; Documentation/04-similarity-search-flow.md"]
+        diagrams_documentation_04_similarity_search_flow_e075cc8e("response_parser Display-Value Flatten<br/><small>Diagrams &amp; Documentation/04-similarity-search-flow.md</small>")
+        diagrams_documentation_04_similarity_search_flow_87b83824("url_builder encode + default params<br/><small>Diagrams &amp; Documentation/04-similarity-search-flow.md</small>")
     end
-    diagrams_documentation_03_tool_organization_sear_dd522d5f("search_records Tool<br/><small>Diagrams &amp; Documentation/03-tool-organization.md</small>")
+    changelog_http_layer_package_c3dfa068("http_layer/ Package<br/><small>CHANGELOG.md</small>")
+    diagrams_documentation_03_tool_organization_filt_52e69bf8("filter_records Tool<br/><small>Diagrams &amp; Documentation/03-tool-organization.md</small>")
     readme_audit_middleware_e80cbe7d("AuditMiddleware Structured Logging<br/><small>README.md</small>")
     diagrams_documentation_01_architecture_overview_765ece2d -->|calls| diagrams_documentation_01_architecture_overview_f2c225c5
     diagrams_documentation_01_architecture_overview_765ece2d -->|calls| readme_audit_middleware_e80cbe7d
+    diagrams_documentation_01_architecture_overview_b11dc94b -->|calls| diagrams_documentation_01_architecture_overview_e12472c3
+    diagrams_documentation_01_architecture_overview_e12472c3 -->|calls| diagrams_documentation_01_architecture_overview_603ff3ee
     diagrams_documentation_01_architecture_overview_c7130b03 -->|calls| diagrams_documentation_01_architecture_overview_603ff3ee
     diagrams_documentation_01_architecture_overview_8f4fb370 -->|calls| diagrams_documentation_01_architecture_overview_603ff3ee
+    diagrams_documentation_01_architecture_overview_05586c1b -->|calls| diagrams_documentation_01_architecture_overview_e12472c3
+    diagrams_documentation_01_architecture_overview_05586c1b -->|calls| diagrams_documentation_01_architecture_overview_96961e70
     diagrams_documentation_01_architecture_overview_603ff3ee -->|calls| diagrams_documentation_02_oauth_request_executor_f0f3c2de
     diagrams_documentation_01_architecture_overview_603ff3ee -->|calls| diagrams_documentation_04_similarity_search_flow_e075cc8e
     diagrams_documentation_01_architecture_overview_603ff3ee -->|calls| diagrams_documentation_04_similarity_search_flow_87b83824
     diagrams_documentation_02_oauth_token_store_598993fb -->|calls| diagrams_documentation_02_oauth_http_pool_ca189f20
     diagrams_documentation_02_oauth_request_executor_f0f3c2de -->|calls| diagrams_documentation_02_oauth_token_store_598993fb
     diagrams_documentation_02_oauth_request_executor_f0f3c2de -->|calls| diagrams_documentation_02_oauth_http_pool_ca189f20
-    diagrams_documentation_03_tool_organization_sear_dd522d5f -->|calls| diagrams_documentation_04_similarity_search_flow_51e63dec
-    diagrams_documentation_04_similarity_search_flow_51e63dec -->|calls| diagrams_documentation_04_similarity_search_flow_d21d60f7
-    diagrams_documentation_04_similarity_search_flow_d21d60f7 -->|calls| diagrams_documentation_01_architecture_overview_603ff3ee
-    diagrams_documentation_04_similarity_search_flow_b1af6e77 -->|calls| diagrams_documentation_04_similarity_search_flow_51e63dec
-    changelog_http_layer_package_c3dfa068 -->|calls| changelog_oauth_package_3388a415
+    diagrams_documentation_03_tool_organization_filt_52e69bf8 -->|calls| diagrams_documentation_01_architecture_overview_e12472c3
     diagrams_documentation_01_architecture_overview_281184d9 -->|calls| diagrams_documentation_01_architecture_overview_603ff3ee
     %% Omitted for readability: 71 nodes, 0 edges
+    class diagrams_documentation_01_architecture_overview_05586c1b klass;
     class diagrams_documentation_01_architecture_overview_765ece2d function;
     class diagrams_documentation_01_architecture_overview_281184d9 klass;
-    class diagrams_documentation_01_architecture_overview_8f4fb370 klass;
-    class diagrams_documentation_01_architecture_overview_c7130b03 klass;
+    class diagrams_documentation_01_architecture_overview_b11dc94b klass;
     class diagrams_documentation_01_architecture_overview_f2c225c5 async;
+    class diagrams_documentation_01_architecture_overview_e12472c3 function;
     class diagrams_documentation_01_architecture_overview_603ff3ee function;
-    class diagrams_documentation_04_similarity_search_flow_e075cc8e function;
-    class diagrams_documentation_04_similarity_search_flow_87b83824 function;
-    class diagrams_documentation_04_similarity_search_flow_51e63dec function;
-    class diagrams_documentation_04_similarity_search_flow_d21d60f7 klass;
-    class diagrams_documentation_04_similarity_search_flow_b1af6e77 klass;
+    class diagrams_documentation_01_architecture_overview_c7130b03 klass;
+    class diagrams_documentation_01_architecture_overview_8f4fb370 klass;
+    class diagrams_documentation_01_architecture_overview_96961e70 function;
     class diagrams_documentation_02_oauth_request_executor_f0f3c2de klass;
     class diagrams_documentation_02_oauth_token_store_598993fb ui;
     class diagrams_documentation_02_oauth_http_pool_ca189f20 entry;
+    class diagrams_documentation_04_similarity_search_flow_e075cc8e function;
+    class diagrams_documentation_04_similarity_search_flow_87b83824 function;
     class changelog_http_layer_package_c3dfa068 function;
-    class changelog_oauth_package_3388a415 function;
-    class diagrams_documentation_03_tool_organization_sear_dd522d5f function;
+    class diagrams_documentation_03_tool_organization_filt_52e69bf8 function;
     class readme_audit_middleware_e80cbe7d klass;
     classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
     classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
@@ -1121,6 +1083,14 @@ flowchart LR
 </tr>
 <tr>
   <td>8</td>
+  <td><code>Intelligent Query Tools (6)</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Intelligent Query Tools (6) node in README.md.</td>
+</tr>
+<tr>
+  <td>9</td>
   <td><code>stdio Transport Mode</code><br><small style="color:var(--muted)">README.md</small></td>
   <td><span class="tag tag-func">Function</span></td>
   <td>External entry / no inbound edge</td>
@@ -1128,7 +1098,7 @@ flowchart LR
   <td>stdio Transport Mode node in README.md.</td>
 </tr>
 <tr>
-  <td>9</td>
+  <td>10</td>
   <td><code>SSE Transport Mode</code><br><small style="color:var(--muted)">README.md</small></td>
   <td><span class="tag tag-async">Async</span></td>
   <td>External entry / no inbound edge</td>
@@ -1136,7 +1106,7 @@ flowchart LR
   <td>SSE Transport Mode node in README.md.</td>
 </tr>
 <tr>
-  <td>10</td>
+  <td>11</td>
   <td><code>Azure Container Apps + Key Vault Hosting</code><br><small style="color:var(--muted)">README.md</small></td>
   <td><span class="tag tag-class">Class</span></td>
   <td>External entry / no inbound edge</td>
@@ -1144,7 +1114,7 @@ flowchart LR
   <td>Azure Container Apps + Key Vault Hosting node in README.md.</td>
 </tr>
 <tr>
-  <td>11</td>
+  <td>12</td>
   <td><code>Claude Desktop .mcpb Easy Install</code><br><small style="color:var(--muted)">README.md</small></td>
   <td><span class="tag tag-class">Class</span></td>
   <td>External entry / no inbound edge</td>
@@ -1152,7 +1122,7 @@ flowchart LR
   <td>Claude Desktop .mcpb Easy Install node in README.md.</td>
 </tr>
 <tr>
-  <td>12</td>
+  <td>13</td>
   <td><code>ServiceNow REST Table API</code><br><small style="color:var(--muted)">README.md</small></td>
   <td><span class="tag tag-endpoint">API</span></td>
   <td>External entry / no inbound edge</td>
@@ -1160,7 +1130,7 @@ flowchart LR
   <td>ServiceNow REST Table API node in README.md.</td>
 </tr>
 <tr>
-  <td>13</td>
+  <td>14</td>
   <td><code>MIGRATION_v3_to_v4.md</code><br><small style="color:var(--muted)">README.md</small></td>
   <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
@@ -1168,7 +1138,7 @@ flowchart LR
   <td>Documentation node describing MIGRATION_v3_to_v4.md.</td>
 </tr>
 <tr>
-  <td>14</td>
+  <td>15</td>
   <td><code>OAUTH_SETUP_GUIDE.md</code><br><small style="color:var(--muted)">README.md</small></td>
   <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
@@ -1176,7 +1146,7 @@ flowchart LR
   <td>Documentation node describing OAUTH_SETUP_GUIDE.md.</td>
 </tr>
 <tr>
-  <td>15</td>
+  <td>16</td>
   <td><code>docs/MCPB_BUILD.md</code><br><small style="color:var(--muted)">README.md</small></td>
   <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
@@ -1184,7 +1154,7 @@ flowchart LR
   <td>Documentation node describing docs/MCPB_BUILD.md.</td>
 </tr>
 <tr>
-  <td>16</td>
+  <td>17</td>
   <td><code>Architecture Documentation Index (v4.3 Diagrams)</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/README.md</small></td>
   <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
@@ -1192,7 +1162,7 @@ flowchart LR
   <td>Documentation node describing Architecture Documentation Index (v4.3 Diagrams).</td>
 </tr>
 <tr>
-  <td>17</td>
+  <td>18</td>
   <td><code>01 Architecture Overview Diagram</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/README.md</small></td>
   <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
@@ -1200,7 +1170,7 @@ flowchart LR
   <td>Documentation node describing 01 Architecture Overview Diagram.</td>
 </tr>
 <tr>
-  <td>18</td>
+  <td>19</td>
   <td><code>03 Tool Organization Diagram</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/README.md</small></td>
   <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
@@ -1208,7 +1178,7 @@ flowchart LR
   <td>Documentation node describing 03 Tool Organization Diagram.</td>
 </tr>
 <tr>
-  <td>19</td>
+  <td>20</td>
   <td><code>04 Similarity Search Flow Diagram</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/README.md</small></td>
   <td><span class="tag tag-func">Concept</span></td>
   <td>External entry / no inbound edge</td>
@@ -1216,7 +1186,15 @@ flowchart LR
   <td>Documentation node describing 04 Similarity Search Flow Diagram.</td>
 </tr>
 <tr>
-  <td>20</td>
+  <td>21</td>
+  <td><code>05 AI Intelligence Flow Diagram</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 05 AI Intelligence Flow Diagram.</td>
+</tr>
+<tr>
+  <td>22</td>
   <td><code>Distribution via .mcpb or Docker SSE</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/README.md</small></td>
   <td><span class="tag tag-async">Async</span></td>
   <td>External entry / no inbound edge</td>
@@ -1224,7 +1202,7 @@ flowchart LR
   <td>Distribution via .mcpb or Docker SSE node in Diagrams &amp; Documentation/README.md.</td>
 </tr>
 <tr>
-  <td>21</td>
+  <td>23</td>
   <td><code>Generic Tool Wrappers</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
   <td><span class="tag tag-class">Class</span></td>
   <td>External entry / no inbound edge</td>
@@ -1232,76 +1210,60 @@ flowchart LR
   <td>Generic Tool Wrappers node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
 </tr>
 <tr>
-  <td>22</td>
-  <td><code>TABLE_CONFIGS Supported Tables</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
-  <td><span class="tag tag-class">Class</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>Reads, resolves, or persists project configuration.</td>
-</tr>
-<tr>
-  <td>23</td>
-  <td><code>Tool Organization Document</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small></td>
-  <td><span class="tag tag-func">Concept</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>Documentation node describing Tool Organization Document.</td>
-</tr>
-<tr>
   <td>24</td>
-  <td><code>v3 Generic Wrapper Consolidation</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small></td>
+  <td><code>generic_table_tools Query Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
   <td><span class="tag tag-func">Function</span></td>
-  <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>v3 Generic Wrapper Consolidation node in Diagrams &amp; Documentation/03-tool-organization.md.</td>
+  <td><code>consolidated_tools Module</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br><code>filter_records Tool</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small><br><code>Generic Tool Wrappers</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br>+1 more</td>
+  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>generic_table_tools Query Engine node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
 </tr>
 <tr>
   <td>25</td>
-  <td><code>search_records Tool</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small></td>
-  <td><span class="tag tag-func">Function</span></td>
+  <td><code>CMDB Tools Module</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
   <td>External entry / no inbound edge</td>
-  <td><code>query_table_by_text Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
-  <td>search_records Tool node in Diagrams &amp; Documentation/03-tool-organization.md.</td>
+  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>CMDB Tools Module node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
 </tr>
 <tr>
   <td>26</td>
-  <td><code>find_similar Tool</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small></td>
-  <td><span class="tag tag-func">Function</span></td>
+  <td><code>VTB Private Task CRUD Tools</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
   <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>find_similar Tool node in Diagrams &amp; Documentation/03-tool-organization.md.</td>
+  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>VTB Private Task CRUD Tools node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
 </tr>
 <tr>
   <td>27</td>
-  <td><code>Table Extensibility via TABLE_CONFIGS</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small></td>
-  <td><span class="tag tag-func">Concept</span></td>
+  <td><code>KB Article Write Tools</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
   <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>Design note for Table Extensibility via TABLE_CONFIGS.</td>
+  <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>KB Article Write Tools node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
 </tr>
 <tr>
   <td>28</td>
-  <td><code>Search and Query Flow Document</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
-  <td><span class="tag tag-func">Concept</span></td>
+  <td><code>Intelligent Query Tools</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
   <td>External entry / no inbound edge</td>
-  <td>No direct outbound edge</td>
-  <td>Documentation node describing Search and Query Flow Document.</td>
+  <td><code>filter/ Package Pipeline</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br><code>generic_table_tools Query Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>Intelligent Query Tools node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
 </tr>
 <tr>
   <td>29</td>
-  <td><code>query_table_by_text Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td><code>filter/ Package Pipeline</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
   <td><span class="tag tag-func">Function</span></td>
-  <td><code>search_records Tool</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/03-tool-organization.md</small><br><code>Similarity Search Path</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
-  <td><code>Paginated Request with ORDERBYDESC</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
-  <td>query_table_by_text Engine node in Diagrams &amp; Documentation/04-similarity-search-flow.md.</td>
+  <td><code>Intelligent Query Tools</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
+  <td>No direct outbound edge</td>
+  <td>filter/ Package Pipeline node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
 </tr>
 <tr>
   <td>30</td>
-  <td><code>Paginated Request with ORDERBYDESC</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
-  <td><span class="tag tag-class">Class</span></td>
-  <td><code>query_table_by_text Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
   <td><code>make_nws_request Dispatcher</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small></td>
-  <td>Paginated Request with ORDERBYDESC node in Diagrams &amp; Documentation/04-similarity-search-flow.md.</td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td><code>CMDB Tools Module</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br><code>generic_table_tools Query Engine</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br><code>KB Article Write Tools</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/01-architecture-overview.md</small><br>+2 more</td>
+  <td><code>RequestExecutor 401 Retry</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/02-oauth-authentication-flow.md</small><br><code>response_parser Display-Value Flatten</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small><br><code>url_builder encode + default params</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/04-similarity-search-flow.md</small></td>
+  <td>make_nws_request Dispatcher node in Diagrams &amp; Documentation/01-architecture-overview.md.</td>
 </tr>
 </table>
 
@@ -1310,19 +1272,19 @@ flowchart LR
     <h4>Key Files</h4>
     <table style="width:100%;font-size:0.85rem;">
       <tr><th>File</th><th>Coverage</th></tr>
-      <tr><td><code>README.md</code></td><td>18 nodes</td></tr>
-<tr><td><code>CHANGELOG.md</code></td><td>15 nodes</td></tr>
-<tr><td><code>Diagrams &amp; Documentation/01-architecture-overview.md</code></td><td>12 nodes</td></tr>
+      <tr><td><code>README.md</code></td><td>17 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/01-architecture-overview.md</code></td><td>16 nodes</td></tr>
+<tr><td><code>CHANGELOG.md</code></td><td>13 nodes</td></tr>
 <tr><td><code>Diagrams &amp; Documentation/02-oauth-authentication-flow.md</code></td><td>9 nodes</td></tr>
-<tr><td><code>Diagrams &amp; Documentation/README.md</code></td><td>9 nodes</td></tr>
-<tr><td><code>Diagrams &amp; Documentation/04-similarity-search-flow.md</code></td><td>6 nodes</td></tr>
-<tr><td><code>Diagrams &amp; Documentation/03-tool-organization.md</code></td><td>5 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/README.md</code></td><td>8 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/06-sla-architecture-flow.md</code></td><td>5 nodes</td></tr>
+<tr><td><code>MIGRATION_v3_to_v4.md</code></td><td>5 nodes</td></tr>
 <tr><td><code>OAUTH_SETUP_GUIDE.md</code></td><td>5 nodes</td></tr>
     </table>
   </div>
   <div class="card">
     <h4>Design Notes</h4>
-    <p>This section comes from graphify community clustering. Relationship summary: relates x55, references x32, calls x16, implements x9. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+    <p>This section comes from graphify community clustering. Relationship summary: relates x52, references x31, calls x17, implements x11. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
   </div>
 </div>
 <hr>
@@ -1506,12 +1468,12 @@ flowchart LR
 
 <!-- ====== 7. Serving API ====== -->
 <h2 id="serve-api">7. Serving API</h2>
-<p>Serving API groups implementation around table, generic, toolspy, tools, mostly in Table_Tools/generic_table_tools.py, filter/value_encoding.py, oauth/http_pool.py. This section covers 77 nodes and 115 internal edges; the diagram shows only representative relationships to stay readable.</p>
+<p>Serving API groups implementation around table, generic, toolspy, tools, mostly in Table_Tools/generic_table_tools.py, filter/value_encoding.py, oauth/http_pool.py. This section covers 87 nodes and 124 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
 %%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
 flowchart LR
-    %% Section: Serving API (77 nodes, 115 edges)
+    %% Section: Serving API (87 nodes, 124 edges)
     subgraph serve_api_Table_Tools_generic_table_tools_py_f1270553["Table_Tools/generic_table_tools.py"]
         table_tools_generic_table_tools_build_query_cond_1ca7e93c("_build_query_condition()<br/><small>Table_Tools/generic_table_tools.py</small>")
         table_tools_generic_table_tools_build_additional_0c22d458("_build_additional_filters()<br/><small>Table_Tools/generic_table_tools.py</small>")
@@ -1558,7 +1520,7 @@ flowchart LR
     table_tools_generic_table_tools_build_additional_0c22d458 -->|calls| table_tools_generic_table_tools_reject_unsafe_fi_20f1afbe
     table_tools_generic_table_tools_build_additional_0c22d458 -->|calls| filter_value_encoding_encode_query_value_554f33bf
     filter_value_encoding_encode_query_value_554f33bf -->|calls| filter_value_encoding_queryvalueerror_refused_c272b617
-    %% Omitted for readability: 59 nodes, 5 edges
+    %% Omitted for readability: 69 nodes, 5 edges
     class table_tools_generic_table_tools_build_query_cond_1ca7e93c function;
     class table_tools_generic_table_tools_build_additional_0c22d458 function;
     class table_tools_generic_table_tools_handle_date_rang_0c1677ee function;
@@ -1850,25 +1812,26 @@ flowchart LR
 <tr><td><code>oauth/http_pool.py</code></td><td>8 nodes</td></tr>
 <tr><td><code>oauth/client.py</code></td><td>7 nodes</td></tr>
 <tr><td><code>oauth/token_store.py</code></td><td>5 nodes</td></tr>
-<tr><td><code>tests/test_generic_table_tools.py</code></td><td>2 nodes</td></tr>
-<tr><td><code>tests/test_filtering.py</code></td><td>1 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/04-similarity-search-flow.md</code></td><td>4 nodes</td></tr>
+<tr><td><code>docs/E2E_TEST_PROMPTS.md</code></td><td>4 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/03-tool-organization.md</code></td><td>2 nodes</td></tr>
     </table>
   </div>
   <div class="card">
     <h4>Design Notes</h4>
-    <p>This section comes from graphify community clustering. Relationship summary: calls x32, explains x32, contains x19, imports x12. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+    <p>This section comes from graphify community clustering. Relationship summary: calls x35, explains x32, contains x19, references x14. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
   </div>
 </div>
 <hr>
 
 <!-- ====== 8. Tests & Fixtures ====== -->
 <h2 id="tests-fixtures">8. Tests &amp; Fixtures</h2>
-<p>Tests &amp; Fixtures groups implementation around test, tests, toolspy, table, mostly in tests/test_generic_table_tools.py, tests/test_query_validation.py, tests/test_kb_article_tools.py. This section covers 2498 nodes and 4884 internal edges; the diagram shows only representative relationships to stay readable.</p>
+<p>Tests &amp; Fixtures groups implementation around test, tests, toolspy, table, mostly in tests/test_generic_table_tools.py, tests/test_query_validation.py, tests/test_kb_article_tools.py. This section covers 2490 nodes and 4876 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
 %%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
 flowchart LR
-    %% Section: Tests &amp; Fixtures (2498 nodes, 4884 edges)
+    %% Section: Tests &amp; Fixtures (2490 nodes, 4876 edges)
     subgraph tests_fixtures_Table_Tools_cmdb_tools_py_7f217875["Table_Tools/cmdb_tools.py"]
         table_tools_cmdb_tools_find_cis_by_type_a13936fd("find_cis_by_type()<br/><small>Table_Tools/cmdb_tools.py</small>")
         table_tools_cmdb_tools_ci_type_error_ec9630c8("_ci_type_error()<br/><small>Table_Tools/cmdb_tools.py</small>")
@@ -1917,7 +1880,7 @@ flowchart LR
     tests_test_tool_response_contract_cases_2aeae617 -->|calls| table_tools_cmdb_tools_get_ci_details_f8b5bd25
     tests_test_tool_response_contract_cases_2aeae617 -->|calls| table_tools_cmdb_tools_similar_cis_for_ci_d0e6dd8c
     tests_test_query_value_encoding_2267015a -->|imports| table_tools_cmdb_tools_search_cis_by_attributes_0a9f7a2d
-    %% Omitted for readability: 2480 nodes, 7 edges
+    %% Omitted for readability: 2472 nodes, 7 edges
     class table_tools_cmdb_tools_find_cis_by_type_a13936fd function;
     class table_tools_cmdb_tools_ci_type_error_ec9630c8 function;
     class table_tools_cmdb_tools_search_cis_by_attributes_0a9f7a2d function;
@@ -2216,7 +2179,7 @@ flowchart LR
   </div>
   <div class="card">
     <h4>Design Notes</h4>
-    <p>This section comes from graphify community clustering. Relationship summary: calls x1216, explains x939, method x873, references x622. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+    <p>This section comes from graphify community clustering. Relationship summary: calls x1216, explains x938, method x873, references x619. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
   </div>
 </div>
 <hr>
@@ -2566,8 +2529,101 @@ flowchart LR
 </div>
 <hr>
 
-<!-- ====== 12. PayPal Sponsor Funding ====== -->
-<h2 id="paypal-sponsor-funding">12. PayPal Sponsor Funding</h2>
+<!-- ====== 12. SLA Tool Consolidation (Sprint 2) ====== -->
+<h2 id="sla-tool-consolidation-sprint-2">12. SLA Tool Consolidation (Sprint 2)</h2>
+<p>SLA Tool Consolidation (Sprint 2) groups implementation around sla, changelogmd, readmemd, tool, mostly in CHANGELOG.md, README.md, Diagrams &amp; Documentation/README.md. This section covers 4 nodes and 3 internal edges; the diagram shows only representative relationships to stay readable.</p>
+
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"fontSize": "15.0px", "fontFamily": "Segoe UI, system-ui, sans-serif", "primaryColor": "#1e293b", "primaryTextColor": "#e2e8f0", "primaryBorderColor": "#38bdf8", "secondaryColor": "#0f172a", "tertiaryColor": "#334155", "lineColor": "#64748b", "textColor": "#e2e8f0"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 48, "rankSpacing": 64, "padding": 14, "diagramPadding": 10, "useMaxWidth": true}}}%%
+flowchart LR
+    %% Section: SLA Tool Consolidation (Sprint 2) (4 nodes, 3 edges)
+    subgraph sla_tool_consolidation_sprint_2_CHANGELOG_md_6a6ed662["CHANGELOG.md"]
+        changelog_get_sla_details_bug_ac38811a("get_sla_details v3 Bug Fix<br/><small>CHANGELOG.md</small>")
+        changelog_sla_tool_consolidation_e8868a51("SLA Tool Consolidation (Sprint 2)<br/><small>CHANGELOG.md</small>")
+    end
+    diagrams_documentation_readme_sla_arch_flow_c8cbeb75("06 SLA Architecture Flow Diagram<br/><small>Diagrams &amp; Documentation/README.md</small>")
+    readme_sla_management_tools_13e6568b("SLA Management Tools (5)<br/><small>README.md</small>")
+    changelog_get_sla_details_bug_ac38811a -->|relates| changelog_sla_tool_consolidation_e8868a51
+    diagrams_documentation_readme_sla_arch_flow_c8cbeb75 -->|relates| readme_sla_management_tools_13e6568b
+    readme_sla_management_tools_13e6568b -->|semantically similar to| changelog_sla_tool_consolidation_e8868a51
+    class changelog_get_sla_details_bug_ac38811a function;
+    class changelog_sla_tool_consolidation_e8868a51 klass;
+    class diagrams_documentation_readme_sla_arch_flow_c8cbeb75 concept;
+    class readme_sla_management_tools_13e6568b klass;
+    classDef entry fill:#422006,stroke:#fbbf24,color:#fde68a,stroke-width:1px;
+    classDef api fill:#450a0a,stroke:#f87171,color:#fee2e2,stroke-width:1px;
+    classDef async fill:#2e1065,stroke:#a78bfa,color:#ede9fe,stroke-width:1px;
+    classDef klass fill:#064e3b,stroke:#34d399,color:#d1fae5,stroke-width:1px;
+    classDef ui fill:#831843,stroke:#f472b6,color:#fce7f3,stroke-width:1px;
+    classDef module fill:#172554,stroke:#60a5fa,color:#dbeafe,stroke-width:1px;
+    classDef test fill:#3f3f46,stroke:#a1a1aa,color:#f4f4f5,stroke-width:1px;
+    classDef concept fill:#292524,stroke:#a8a29e,color:#fafaf9,stroke-dasharray:4 3;
+    classDef function fill:#0f172a,stroke:#38bdf8,color:#e0f2fe,stroke-width:1px;
+</div>
+
+<h3>Call Details</h3>
+<table class="call-table">
+<tr>
+  <th style="width:5%">#</th>
+  <th style="width:28%">Node</th>
+  <th style="width:10%">Type</th>
+  <th style="width:17%">Caller</th>
+  <th style="width:20%">Callees</th>
+  <th style="width:20%">Description</th>
+</tr>
+<tr>
+  <td>1</td>
+  <td><code>SLA Tool Consolidation (Sprint 2)</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>SLA Tool Consolidation (Sprint 2) node in CHANGELOG.md.</td>
+</tr>
+<tr>
+  <td>2</td>
+  <td><code>get_sla_details v3 Bug Fix</code><br><small style="color:var(--muted)">CHANGELOG.md</small></td>
+  <td><span class="tag tag-func">Function</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>get_sla_details v3 Bug Fix node in CHANGELOG.md.</td>
+</tr>
+<tr>
+  <td>3</td>
+  <td><code>SLA Management Tools (5)</code><br><small style="color:var(--muted)">README.md</small></td>
+  <td><span class="tag tag-class">Class</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>SLA Management Tools (5) node in README.md.</td>
+</tr>
+<tr>
+  <td>4</td>
+  <td><code>06 SLA Architecture Flow Diagram</code><br><small style="color:var(--muted)">Diagrams &amp; Documentation/README.md</small></td>
+  <td><span class="tag tag-func">Concept</span></td>
+  <td>External entry / no inbound edge</td>
+  <td>No direct outbound edge</td>
+  <td>Documentation node describing 06 SLA Architecture Flow Diagram.</td>
+</tr>
+</table>
+
+<div class="grid">
+  <div class="card">
+    <h4>Key Files</h4>
+    <table style="width:100%;font-size:0.85rem;">
+      <tr><th>File</th><th>Coverage</th></tr>
+      <tr><td><code>CHANGELOG.md</code></td><td>2 nodes</td></tr>
+<tr><td><code>Diagrams &amp; Documentation/README.md</code></td><td>1 nodes</td></tr>
+<tr><td><code>README.md</code></td><td>1 nodes</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Design Notes</h4>
+    <p>This section comes from graphify community clustering. Relationship summary: relates x2, semantically similar to x1. The diagram prioritizes high-confidence calls or usage relationships; the table keeps the broader node inventory.</p>
+  </div>
+</div>
+<hr>
+
+<!-- ====== 13. PayPal Sponsor Funding ====== -->
+<h2 id="paypal-sponsor-funding">13. PayPal Sponsor Funding</h2>
 <p>PayPal Sponsor Funding groups implementation around paypal, sponsor, funding, github, mostly in .github/FUNDING.yml. This section covers 1 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
@@ -2622,8 +2678,8 @@ flowchart LR
 </div>
 <hr>
 
-<!-- ====== 13. personal-mcp-servicenow ====== -->
-<h2 id="personal-mcp-servicenow">13. personal-mcp-servicenow</h2>
+<!-- ====== 14. personal-mcp-servicenow ====== -->
+<h2 id="personal-mcp-servicenow">14. personal-mcp-servicenow</h2>
 <p>personal-mcp-servicenow groups implementation around personal, mcp, servicenow, pyprojecttoml, mostly in pyproject.toml. This section covers 1 nodes and 0 internal edges; the diagram shows only representative relationships to stay readable.</p>
 
 <div class="mermaid">
@@ -2749,8 +2805,8 @@ flowchart LR
       <tr><td>Nodes</td><td>2819</td></tr>
       <tr><td>Edges</td><td>5535</td></tr>
       <tr><td>Hyperedges</td><td>5</td></tr>
-      <tr><td>Communities</td><td>133</td></tr>
-      <tr><td>Documented Sections</td><td>12</td></tr>
+      <tr><td>Communities</td><td>134</td></tr>
+      <tr><td>Documented Sections</td><td>13</td></tr>
     </table>
   </div>
   <div class="card">
@@ -2765,7 +2821,7 @@ flowchart LR
 
 <div style="text-align:center; padding:40px 0; color: var(--muted); font-size:0.9rem;">
   <p>personal-mcp-servicenow — Architecture Documentation</p>
-  <p>Generated: 2026-08-11 14:23 UTC · graphify callflow-html</p>
+  <p>Generated: 2026-08-11 15:05 UTC · graphify callflow-html</p>
 </div>
 
 </div><!-- .container -->
