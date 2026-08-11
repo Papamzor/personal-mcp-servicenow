@@ -26,14 +26,17 @@ from typing import Any, Dict, Optional, List
 from constants import TABLE_ERROR_MESSAGES, TASK_NUMBER_FIELD
 from param_coercion import OptJsonList, OptJsonDict
 
-logger = logging.getLogger(__name__)
+# v5.0 "Boron" Tier 3.3: get_priority_incidents dropped its **deprecated_kwargs
+# backwards-compat path (deprecated since v4.0). Extra field filters go through
+# `additional_filters` now; the hand-rolled _mcp_get_priority_incidents shim in
+# tools.py (which only existed because fastmcp rejects **kwargs) is gone with it.
 
+logger = logging.getLogger(__name__)
 
 # Helper function to get table-specific error message
 def _get_error_message(table_name: str, default: str = "Record not found.") -> str:
     """Get table-specific error message with cognitive complexity < 15."""
     return TABLE_ERROR_MESSAGES.get(table_name, default)
-
 
 # ---------------------------------------------------------------------------
 # Priority Incidents (unique date logic + metadata)
@@ -49,24 +52,13 @@ def _validate_date_param(date_string: Optional[str], param_name: str) -> Optiona
         return error_response("VALIDATION", f"Invalid {param_name}: {error}")
     return None
 
-
 def _merge_filters(
     additional_filters: Optional[Dict[str, Any]],
-    deprecated_kwargs: Dict[str, Any],
     start_date: Optional[str],
     end_date: Optional[str]
 ) -> Dict[str, Any]:
-    """Merge additional filters, deprecated kwargs, and date filters into one dict."""
-    if deprecated_kwargs:
-        logger.warning(
-            "Passing filters as **kwargs is deprecated. "
-            "Use additional_filters dict instead. Got: %s",
-            list(deprecated_kwargs.keys())
-        )
-        merged = (additional_filters or {}).copy()
-        merged.update(deprecated_kwargs)
-    else:
-        merged = additional_filters.copy() if additional_filters else {}
+    """Merge additional filters and the date window into one filter dict."""
+    merged = additional_filters.copy() if additional_filters else {}
 
     date_filter = build_date_filter(start_date, end_date)
     if date_filter:
@@ -74,7 +66,6 @@ def _merge_filters(
         logger.debug("Built date filter: %s", date_filter)
 
     return merged
-
 
 def _build_metadata(
     result: Dict[str, Any],
@@ -106,24 +97,16 @@ def _build_metadata(
         },
     )
 
-
 async def get_priority_incidents(
     priorities: List[str],
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    additional_filters: Optional[Dict[str, Any]] = None,
+    additional_filters: OptJsonDict = None,
     include_metadata: bool = False,
-    **deprecated_kwargs
 ) -> Dict[str, Any]:
     """
     Get incidents filtered by priority value, with an optional date window.
 
-    WHEN TO USE: the user names a priority (P1/P2/"priority 1") and wants the
-        matching incidents, optionally within a date range.
-    WHEN NOT TO USE: free-text topic search ("incidents about X") — use
-        search_records; arbitrary field filters — use filter_records.
-    PREFER OVER: filter_records only for the priority-plus-date shape, which
-        this tool builds with reliable >= / <= operators.
     TABLES: incident only.
     SIDE EFFECT: read-only.
     EXAMPLE: show me all P1 incidents from last week.
@@ -150,7 +133,7 @@ async def get_priority_incidents(
             return error_result
 
     # Build merged filters
-    merged_filters = _merge_filters(additional_filters, deprecated_kwargs, start_date, end_date)
+    merged_filters = _merge_filters(additional_filters, start_date, end_date)
 
     logger.info(
         "Querying priority incidents: priorities=%s, start_date=%s, end_date=%s, filters=%s",
@@ -179,7 +162,6 @@ async def get_priority_incidents(
     )
     return carry_partial(enriched, result)
 
-
 def _build_priority_result_message(
     count: int,
     priorities: List[str],
@@ -199,7 +181,6 @@ def _build_priority_result_message(
 
     return msg
 
-
 # Convenience helper functions for common date range queries
 
 # ---------------------------------------------------------------------------
@@ -214,7 +195,6 @@ def _build_priority_result_message(
 # The old "smart" KB search silently discarded input_text when category/kb_base
 # was set; do not reintroduce it (plan §Tier 2).
 
-
 # Canonical workflow_state precedence for KB de-duplication.
 # Lower index = higher priority (= the row chosen as "current" when one number has multiple versions).
 # Rationale: published reflects live content; draft/review are in-flight; outdated is a versioning
@@ -225,7 +205,6 @@ _KB_DEDUP_FIELDS = [
     "number", "sys_id", "short_description", "workflow_state",
     "kb_category", "sys_updated_on",
 ]
-
 
 def _pick_canonical_kb_row(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     """De-duplicate kb_knowledge rows by `number`, keeping the highest-priority workflow_state row.
@@ -249,7 +228,6 @@ def _pick_canonical_kb_row(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
                 entry["rank"] = rank
     return by_number
 
-
 def _format_deduped_kb_row(number: str, info: Dict[str, Any]) -> Dict[str, Any]:
     """Render a de-duplicated KB row in the public response shape."""
     row = info["row"]
@@ -263,7 +241,6 @@ def _format_deduped_kb_row(number: str, info: Dict[str, Any]) -> Dict[str, Any]:
         "sys_updated_on": row.get("sys_updated_on"),
     }
 
-
 async def get_kb_articles_by_state(
     workflow_state: Optional[str] = None,
     category: Optional[str] = None,
@@ -272,12 +249,6 @@ async def get_kb_articles_by_state(
 ) -> Dict[str, Any]:
     """List kb_knowledge articles de-duplicated by article number.
 
-    WHEN TO USE: the user asks which articles are in a given publication state
-        ("currently in published state", "drafts", "retired KB").
-    WHEN NOT TO USE: subject search (search_records on kb_knowledge); one
-        category with no state question (filter_records with kb_category).
-    PREFER OVER: filter_records — this collapses ServiceNow's version rows that
-        a raw filter would return duplicated.
     TABLES: kb_knowledge only.
     SIDE EFFECT: read-only.
     EXAMPLE: which knowledge articles are currently in published state.
@@ -341,7 +312,6 @@ async def get_kb_articles_by_state(
         list_response(deduped, truncated=bool(raw.get("truncated", False))), raw
     )
 
-
 # ---------------------------------------------------------------------------
 # SLA tools — v4.0 consolidation (10 -> 5)
 # ---------------------------------------------------------------------------
@@ -363,20 +333,17 @@ _SLA_PERFORMANCE_FIELDS = [
     "business_time_left", "duration", "sys_created_on",
 ]
 
-
 # Per-preset filter builders. Each returns (filters, fields_or_None).
 # Extra filters and dispatch are handled by _build_sla_status_filter.
 
 def _sla_filter_active(**_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
     return {"active": "true"}, None
 
-
 def _sla_filter_breached(days: Optional[int] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
     return {
         "has_breached": "true",
         "sys_created_on": build_last_n_days_filter(days if days is not None else 7),
     }, None
-
 
 def _sla_filter_breaching(threshold_minutes: Optional[int] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
     threshold = (threshold_minutes if threshold_minutes is not None else 60) * 60
@@ -386,7 +353,6 @@ def _sla_filter_breaching(threshold_minutes: Optional[int] = None, **_kw) -> tup
         "has_breached": "false",
     }, None
 
-
 def _sla_filter_critical(**_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
     return {
         "active": "true",
@@ -394,19 +360,16 @@ def _sla_filter_critical(**_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
         "business_percentage": ">80",
     }, _SLA_CRITICAL_FIELDS
 
-
 def _sla_filter_by_stage(stage: Optional[str] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
     if not stage:
         raise ValueError("query_slas_by_status(status='by_stage') requires the 'stage' argument")
     return {"stage": stage}, None
-
 
 def _sla_filter_performance(days: Optional[int] = None, **_kw) -> tuple[Dict[str, str], Optional[List[str]]]:
     return (
         {"sys_created_on": build_last_n_days_filter(days if days is not None else 30)},
         _SLA_PERFORMANCE_FIELDS,
     )
-
 
 _SLA_STATUS_DISPATCH = {
     "active": _sla_filter_active,
@@ -416,7 +379,6 @@ _SLA_STATUS_DISPATCH = {
     "by_stage": _sla_filter_by_stage,
     "performance": _sla_filter_performance,
 }
-
 
 def _build_sla_status_filter(
     status: str,
@@ -436,20 +398,14 @@ def _build_sla_status_filter(
         filters.update(extra_filters)
     return filters, fields
 
-
 # v5.0 "Boron" (Tier 2): similar_slas_for_text was culled. It queried a bare
 # short_description that task_sla lacks, so ServiceNow dropped the condition and
 # returned an arbitrary page of SLAs — it never worked. For a free-text task
 # search use filter_records("task_sla", {"task.short_description": "LIKE..."}).
 
-
 async def get_sla_details(sla_sys_id: str) -> Dict[str, Any]:
     """Get one SLA record by its sys_id (task_sla lookup).
 
-    WHEN TO USE: you hold the SLA's 32-char sys_id and want that single row.
-    WHEN NOT TO USE: you have a task number rather than a sys_id — use
-        query_slas_by_task; a status or stage query — use query_slas_by_status.
-    PREFER OVER: query_slas_custom for a known-sys_id point lookup.
     TABLES: task_sla only.
     SIDE EFFECT: read-only.
     EXAMPLE: get SLA sys_id 26bc0f3b47c1... .
@@ -461,23 +417,15 @@ async def get_sla_details(sla_sys_id: str) -> Dict[str, Any]:
     params = TableFilterParams(filters={"sys_id": sla_sys_id})
     return await query_table_with_filters("task_sla", params)
 
-
 async def query_slas_by_task(task_number: str) -> Dict[str, Any]:
     """Get every SLA record attached to one task, addressed by task number.
 
-    WHEN TO USE: you have a task number (INC/CHG/RITM/SCTASK/...) and want the
-        SLAs attached to it.
-    WHEN NOT TO USE: matching SLAs by the task's wording — use
-        filter_records('task_sla', {'task.short_description': 'LIKE...'});
-        filtering by status or stage — use query_slas_by_status.
-    PREFER OVER: query_slas_custom for this exact task-number lookup.
     TABLES: task_sla (filters on the task reference).
     SIDE EFFECT: read-only.
     EXAMPLE: all SLA records attached to INC0012345.
     """
     params = TableFilterParams(filters={TASK_NUMBER_FIELD: task_number})
     return await query_table_with_filters("task_sla", params)
-
 
 async def query_slas_by_status(
     status: str,
@@ -488,12 +436,6 @@ async def query_slas_by_status(
 ) -> Dict[str, Any]:
     """Query SLA records by a named status preset.
 
-    WHEN TO USE: the intent maps to a preset — breached, breaching, active,
-        critical, by_stage, performance ("which SLAs are breached").
-    WHEN NOT TO USE: SLAs for one task number (query_slas_by_task); a filter no
-        preset covers (query_slas_custom).
-    PREFER OVER: query_slas_custom whenever a preset fits — presets carry
-        curated field lists that protect the token budget.
     TABLES: task_sla only.
     SIDE EFFECT: read-only.
     EXAMPLE: which SLAs are breached.
@@ -523,7 +465,6 @@ async def query_slas_by_status(
     params = TableFilterParams(filters=filters, fields=fields)
     return await query_table_with_filters("task_sla", params)
 
-
 async def query_slas_custom(
     filters: Dict[str, str],
     fields: OptJsonList = None,
@@ -531,12 +472,6 @@ async def query_slas_custom(
 ) -> Dict[str, Any]:
     """Custom SLA query — escape hatch for filter shapes the presets do not cover.
 
-    WHEN TO USE: the SLA filter you need is not one of query_slas_by_status's
-        presets, and it is not a plain task-number or task-text lookup.
-    WHEN NOT TO USE: a preset fits (query_slas_by_status); one task number
-        (query_slas_by_task).
-    PREFER OVER: filter_records only when you want task_sla ESSENTIAL_FIELDS
-        defaulting and the optional last-N-days convenience.
     TABLES: task_sla only.
     SIDE EFFECT: read-only.
     EXAMPLE: SLA query with a filter shape the presets do not cover.

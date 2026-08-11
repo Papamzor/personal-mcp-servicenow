@@ -62,7 +62,6 @@ from constants import (
 
 _log = structlog.get_logger("kb_write")
 
-
 class KbDuplicateCheckInconclusive(Exception):
     """The duplicate check could not produce a trustworthy answer.
 
@@ -76,7 +75,6 @@ class KbDuplicateCheckInconclusive(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
-
 
 def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> Dict[str, Any]:
     error_map = {
@@ -94,7 +92,6 @@ def _handle_kb_error(error: httpx.HTTPStatusError, operation: str) -> Dict[str, 
         detail_on_default=True,
     )
 
-
 def _unwrap_kb_write_response(result: Any, operation: str) -> Dict[str, Any]:
     return unwrap_write_response(
         result,
@@ -102,7 +99,6 @@ def _unwrap_kb_write_response(result: Any, operation: str) -> Dict[str, Any]:
         fields=KB_WRITE_RESPONSE_FIELDS,
         success_message=f"KB article {operation} succeeded.",
     )
-
 
 async def _write_kb_article(
     method: str,
@@ -121,7 +117,6 @@ async def _write_kb_article(
     except Exception:
         return error_response("INTERNAL", ERROR_KB_ARTICLE_REQUEST_FAILED.format(operation=operation))
     return _unwrap_kb_write_response(result, operation)
-
 
 async def _get_kb_article_sys_id(article_number: str, workflow_state: str | None = None) -> str | None:
     """Return the article's sys_id, or None if no such article exists.
@@ -145,7 +140,6 @@ async def _get_kb_article_sys_id(article_number: str, workflow_state: str | None
         return None
     return data['result'][0]['sys_id']
 
-
 async def _get_kb_article_meta(article_number: str, workflow_state: str | None = None) -> Dict[str, Any] | None:
     """Fetch sys_id + short_description in one GET — avoids a second round-trip in publish.
 
@@ -166,7 +160,6 @@ async def _get_kb_article_meta(article_number: str, workflow_state: str | None =
         return None
     return data['result'][0]
 
-
 def _dedup_query_defect(short_description: str) -> Optional[str]:
     """Why the dedup query would not faithfully carry *short_description*, if so.
 
@@ -184,7 +177,6 @@ def _dedup_query_defect(short_description: str) -> Optional[str]:
     if unsafe:
         return KB_DEDUP_REASON_UNSAFE_CHARS.format(chars=" ".join(unsafe))
     return None
-
 
 async def _check_kb_duplicates(short_description: str, exclude_number: str) -> list:
     """Return KB articles matching short_description exactly across live workflow states.
@@ -239,7 +231,6 @@ async def _check_kb_duplicates(short_description: str, exclude_number: str) -> l
         )
     return []
 
-
 async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any]:
     # Custom Scripted REST API (qonv/publish) — invokes KnowledgeUIAction server-side.
     # Direct Table API writes to workflow_state are ignored by ServiceNow.
@@ -249,7 +240,6 @@ async def _call_kb_workflow(sys_id: str, action: str) -> Dict[str, Any]:
         _log.error("kb_workflow_error", action=action, sys_id=sys_id, url=url, result=result)
     return result
 
-
 async def _call_kb_publish_workflow(sys_id: str) -> Dict[str, Any] | None:
     # Variant of _call_kb_workflow that propagates httpx exceptions instead
     # of mapping them to strings. _publish_with_verify needs the raw
@@ -257,7 +247,6 @@ async def _call_kb_publish_workflow(sys_id: str) -> Dict[str, Any] | None:
     url = f"{NWS_API_BASE}/api/qonv/mateco_knowledge/articles/{sys_id}/publish"
     with anyio.fail_after(KB_PUBLISH_TIMEOUT_SECONDS):
         return await make_nws_request(url, method="POST", json_data={})
-
 
 async def _verify_kb_published(article_number: str) -> Dict[str, Any] | None:
     """Return the published row for *article_number*, or None if not yet published.
@@ -281,7 +270,6 @@ async def _verify_kb_published(article_number: str) -> Dict[str, Any] | None:
         return None
     return data["result"][0]
 
-
 async def _fire_publish(sys_id: str) -> Any:
     """Fire the publish workflow. Returns None on success, or a fire-time failure.
 
@@ -299,7 +287,6 @@ async def _fire_publish(sys_id: str) -> Any:
         return "fire timeout"
     except httpx.HTTPStatusError as e:
         return _handle_kb_error(e, "publish")
-
 
 async def _publish_with_verify(sys_id: str, article_number: str) -> Dict[str, Any]:
     """Fire the publish workflow then verify by polling for a Published row.
@@ -336,7 +323,6 @@ async def _publish_with_verify(sys_id: str, article_number: str) -> Dict[str, An
 
     return _publish_failure(article_number, last_fire_error)
 
-
 def _publish_failure(article_number: str, last_fire_error: Any) -> Dict[str, Any]:
     """Normalise the exhausted-retries outcome into a coded error_response.
 
@@ -349,7 +335,6 @@ def _publish_failure(article_number: str, last_fire_error: Any) -> Dict[str, Any
         return last_fire_error
     code = "TIMEOUT" if last_fire_error == "fire timeout" else "INTERNAL"
     return error_response(code, ERROR_KB_PUBLISH_NOT_CONFIRMED.format(number=article_number))
-
 
 def _publish_unconfirmed(article_number: str, error: ServiceNowRequestError) -> Dict[str, Any]:
     """The publish fired but the confirming read failed — neither success nor failure.
@@ -367,7 +352,6 @@ def _publish_unconfirmed(article_number: str, error: ServiceNowRequestError) -> 
         "error": error.to_error_dict()["error"],
     }
 
-
 async def _refresh_draft_sys_id(article_number: str, current_sys_id: str) -> str:
     """Re-read the draft sys_id between publish attempts, best effort.
 
@@ -381,15 +365,9 @@ async def _refresh_draft_sys_id(article_number: str, current_sys_id: str) -> str
         return current_sys_id
     return refreshed or current_sys_id
 
-
 async def update_knowledge_article(article_number: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
     """Update fields on a knowledge article by article number (e.g. KB0001234).
 
-    WHEN TO USE: change an article's content or metadata — "update the body
-        text of KB0001234".
-    WHEN NOT TO USE: changing publication state — publish
-        (publish_knowledge_article) or retire (retire_knowledge_article).
-    PREFER OVER: nothing; this is the kb_knowledge field-write path.
     TABLES: kb_knowledge only.
     SIDE EFFECT: WRITE — PATCHes one draft article.
     EXAMPLE: update the body text of KB0001234.
@@ -433,15 +411,9 @@ async def update_knowledge_article(article_number: str, update_data: Dict[str, A
     print(f"[kb] {article_number} PATCH took {time.monotonic() - t1:.1f}s", file=sys.stderr)
     return result
 
-
 async def publish_knowledge_article(article_number: str) -> Dict[str, Any]:
     """Publish ONE knowledge article via the ServiceNow workflow endpoint.
 
-    WHEN TO USE: publish a single article — "publish knowledge article
-        KB0001234".
-    WHEN NOT TO USE: several articles at once (use publish_knowledge_articles);
-        only checking for duplicates without publishing (check_kb_duplicates).
-    PREFER OVER: publish_knowledge_articles when there is exactly one article.
     TABLES: kb_knowledge only.
     SIDE EFFECT: WRITE — runs the publish workflow. Fail-closed on the dup check.
     EXAMPLE: publish knowledge article KB0001234.
@@ -487,7 +459,6 @@ async def publish_knowledge_article(article_number: str) -> Dict[str, Any]:
 
     return await _publish_with_verify(meta['sys_id'], article_number)
 
-
 def _duplicate_check_inconclusive(article_number: str, reason: str) -> Dict[str, Any]:
     """Refuse the publish because the duplicate check could not answer.
 
@@ -504,7 +475,6 @@ def _duplicate_check_inconclusive(article_number: str, reason: str) -> Dict[str,
         "duplicates": [],
     }
 
-
 def _duplicate_row_inconclusive(article_number: str, reason: str) -> Dict[str, Any]:
     """A row for an article whose duplicate status could not be determined.
 
@@ -520,7 +490,6 @@ def _duplicate_row_inconclusive(article_number: str, reason: str) -> Dict[str, A
         "duplicates": [],
         "error": reason,
     }
-
 
 async def _check_single_kb_duplicate(article_number: str) -> Dict[str, Any]:
     """Lookup meta then check duplicates for one article. Used by check_kb_duplicates fan-out."""
@@ -551,7 +520,6 @@ async def _check_single_kb_duplicate(article_number: str) -> Dict[str, Any]:
         ],
     }
 
-
 def _outcome_error_message(outcome: BaseException) -> str:
     """Message for an exception that escaped a per-article coroutine."""
     if isinstance(outcome, (ServiceNowRequestError, QueryValueError)):
@@ -559,7 +527,6 @@ def _outcome_error_message(outcome: BaseException) -> str:
     if isinstance(outcome, KbDuplicateCheckInconclusive):
         return outcome.reason
     return f"{type(outcome).__name__}: {outcome}"
-
 
 def _rows_from_outcomes(numbers, outcomes, error_row) -> List[Dict[str, Any]]:
     """Zip gathered outcomes back onto their article numbers, exceptions included.
@@ -577,18 +544,12 @@ def _rows_from_outcomes(numbers, outcomes, error_row) -> List[Dict[str, Any]]:
             rows.append(outcome)
     return rows
 
-
 async def check_kb_duplicates(
     article_numbers: JsonList,
     concurrency: int = 5,
 ) -> Dict[str, Any]:
     """Check for duplicate KB articles without publishing.
 
-    WHEN TO USE: confirm an article has no duplicates before publishing —
-        "check whether KB0001234 has duplicates before I publish it".
-    WHEN NOT TO USE: actually publishing (publish_knowledge_article /
-        publish_knowledge_articles run this check themselves first).
-    PREFER OVER: nothing; this is the standalone duplicate probe.
     TABLES: kb_knowledge only.
     SIDE EFFECT: read-only — never writes.
     EXAMPLE: check whether KB0001234 has duplicates before I publish it.
@@ -629,7 +590,6 @@ async def check_kb_duplicates(
         *(_bounded(n) for n in article_numbers), return_exceptions=True
     )
     return list_response(_rows_from_outcomes(article_numbers, outcomes, _duplicate_row_inconclusive))
-
 
 def _normalize_publish_result(article_number: str, result: Dict[str, Any] | str) -> Dict[str, Any]:
     """Normalize publish_knowledge_article output into a flat batch-result row.
@@ -681,19 +641,12 @@ def _normalize_publish_result(article_number: str, result: Dict[str, Any] | str)
         "workflow_state": (result.get("record") or {}).get("workflow_state"),
     }
 
-
 async def publish_knowledge_articles(
     article_numbers: JsonList,
     concurrency: int = KB_PUBLISH_BATCH_CONCURRENCY,
 ) -> Dict[str, Any]:
     """Publish MULTIPLE KB articles in one tool call (batch).
 
-    WHEN TO USE: two or more articles to publish together — "publish KB0001234,
-        KB0001235 and KB0001236 in one go".
-    WHEN NOT TO USE: exactly one article (use publish_knowledge_article);
-        checking duplicates without publishing (check_kb_duplicates).
-    PREFER OVER: calling publish_knowledge_article in a loop — this batches and
-        never lets one failure abort the rest.
     TABLES: kb_knowledge only.
     SIDE EFFECT: WRITE — runs the publish workflow per article.
     EXAMPLE: publish KB0001234, KB0001235 and KB0001236 in one go.
@@ -740,15 +693,9 @@ async def publish_knowledge_articles(
     )
     return list_response(_rows_from_outcomes(article_numbers, outcomes, _error_row))
 
-
 async def retire_knowledge_article(article_number: str) -> Dict[str, Any]:
     """Retire a knowledge article via the ServiceNow workflow endpoint.
 
-    WHEN TO USE: take a published article out of service — "retire knowledge
-        article KB0004321".
-    WHEN NOT TO USE: publishing (publish_knowledge_article); editing content
-        (update_knowledge_article).
-    PREFER OVER: nothing; this is the kb_knowledge retire path.
     TABLES: kb_knowledge only.
     SIDE EFFECT: WRITE — runs the retire workflow.
     EXAMPLE: retire knowledge article KB0004321.

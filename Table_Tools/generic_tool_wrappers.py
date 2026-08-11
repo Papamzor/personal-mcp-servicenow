@@ -26,7 +26,6 @@ from .generic_table_tools import (
 SUPPORTED_TABLES = sorted(TABLE_CONFIGS.keys())
 INVALID_TABLE_ERROR = "Invalid table '{table}'. Supported tables: {tables}"
 
-
 def _validate_table(table: str) -> Optional[Dict[str, Any]]:
     """Return a VALIDATION error dict if *table* is not in TABLE_CONFIGS, else None."""
     if table not in TABLE_CONFIGS:
@@ -35,7 +34,6 @@ def _validate_table(table: str) -> Optional[Dict[str, Any]]:
             INVALID_TABLE_ERROR.format(table=table, tables=", ".join(SUPPORTED_TABLES)),
         )
     return None
-
 
 def _validate_identity_table(table: str) -> Optional[Dict[str, Any]]:
     """Table validation for the tools that address records by number or description.
@@ -56,16 +54,9 @@ def _validate_identity_table(table: str) -> Optional[Dict[str, Any]]:
         return error_response("VALIDATION", TABLE_LACKS_RECORD_IDENTITY.format(table=table))
     return None
 
-
 async def search_records(table: str, query: str) -> Dict[str, Any]:
     """Search records in a ServiceNow table by free-text over short_description.
 
-    WHEN TO USE: the user describes a topic or symptom and wants matching
-        records — "incidents about a server crashing during backup".
-    WHEN NOT TO USE: you already know the record number (get_record); you need
-        field filters like state or priority (filter_records); a
-        priority-plus-date list (get_priority_incidents).
-    PREFER OVER: filter_records when the ask is words, not field values.
     FOOTGUNS: matching uses LIKE, never CONTAINS — CONTAINS is a GlideRecord
         scripting operator, silently ignored in an encoded query, and returns
         zero rows with no error. Reference fields (assignment_group,
@@ -91,16 +82,9 @@ async def search_records(table: str, query: str) -> Dict[str, Any]:
         return error
     return await query_table_by_text(table, query)
 
-
 async def get_record(table: str, number: str) -> Dict[str, Any]:
     """Get full detail fields for a single known record by number.
 
-    WHEN TO USE: you know the record number and want its complete detail —
-        "give me the full details of incident INC0012345".
-    WHEN NOT TO USE: a list view over many rows (filter_records); text search
-        (search_records).
-    PREFER OVER: filter_records when you have the number and want every field of
-        that one record; search_records when you have the number, not keywords.
     TABLES: incident, change_request, sc_req_item, sc_task, universal_request,
         kb_knowledge, vtb_task. NOT task_sla — that table has no number field;
         use get_sla_details(sla_sys_id) or query_slas_by_task(task_number).
@@ -119,15 +103,9 @@ async def get_record(table: str, number: str) -> Dict[str, Any]:
         return error
     return await get_record_details(table, number)
 
-
 async def find_similar(table: str, number: str) -> Dict[str, Any]:
     """Find records similar to an existing record (by short_description).
 
-    WHEN TO USE: you have one record's number and want others like it —
-        "find other incidents similar to this one".
-    WHEN NOT TO USE: you have search words, not a seed record (search_records);
-        you want that record's own fields (get_record).
-    PREFER OVER: search_records when the seed is an existing record, not text.
     TABLES: incident, change_request, sc_req_item, sc_task, universal_request,
         kb_knowledge, vtb_task. NOT task_sla — it has neither number nor
         short_description; use query_slas_by_task or filter_records('task_sla').
@@ -149,7 +127,6 @@ async def find_similar(table: str, number: str) -> Dict[str, Any]:
         return error
     return await find_similar_records(table, number)
 
-
 async def filter_records(
     table: str,
     filters: Dict[str, str],
@@ -158,14 +135,6 @@ async def filter_records(
 ) -> Dict[str, Any]:
     """Query a ServiceNow table with field-value filters.
 
-    WHEN TO USE: the user gives field conditions — state, priority, category,
-        date ranges — "list change requests where state is 3 and category is
-        network".
-    WHEN NOT TO USE: free-text topic search (search_records); a single record
-        by number (get_record); a priority-plus-date incident list
-        (get_priority_incidents); KB version rollups (get_kb_articles_by_state).
-    PREFER OVER: the table-specific tools when you need an arbitrary filter
-        shape they do not expose.
     SIDE EFFECT: read-only.
     EXAMPLE: list change requests where state is 3 and category is network.
 

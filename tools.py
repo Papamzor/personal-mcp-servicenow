@@ -46,33 +46,10 @@ from Table_Tools.cmdb_tools import (
 )
 from utility_tools import health_check
 from Table_Tools.intelligent_query_tools import get_query_syntax_help
-from param_coercion import OptJsonDict
+from tool_registry import register_tools
 
-from typing import Any, Dict, List, Optional
-
-
-# fastmcp v3 rejects functions with **kwargs as tools. get_priority_incidents
-# uses **deprecated_kwargs for backwards-compat warnings; expose a clean
-# signature to MCP that forwards to the real implementation. Don't use
-# functools.wraps — it sets __wrapped__, which fastmcp follows back to the
-# original signature.
-async def _mcp_get_priority_incidents(
-    priorities: List[str],
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    additional_filters: OptJsonDict = None,
-    include_metadata: bool = False,
-) -> Dict[str, Any]:
-    return await get_priority_incidents(
-        priorities,
-        start_date=start_date,
-        end_date=end_date,
-        additional_filters=additional_filters,
-        include_metadata=include_metadata,
-    )
-
-_mcp_get_priority_incidents.__name__ = "get_priority_incidents"
-_mcp_get_priority_incidents.__doc__ = get_priority_incidents.__doc__
+# v5.0 "Boron" Tier 3.3: get_priority_incidents no longer needs a hand-rolled
+# **kwargs-stripping shim — it dropped **deprecated_kwargs and registers directly.
 
 
 mcp = FastMCP("personalmcpservicenow")
@@ -89,8 +66,8 @@ tools = [
     # Generic table tools (replace 24 table-specific wrappers)
     search_records, get_record, find_similar, filter_records,
 
-    # Priority incidents (unique date logic) — wrapper strips **deprecated_kwargs for fastmcp v3
-    _mcp_get_priority_incidents,
+    # Priority incidents (unique date logic) — registers directly (no **kwargs shim)
+    get_priority_incidents,
 
     # Knowledge read (version-collapsing state rollup)
     get_kb_articles_by_state,
@@ -113,8 +90,9 @@ tools = [
     get_query_syntax_help
 ]
 
-for tool in tools:
-    mcp.tool()(tool)
+# Inject the structured selection-guidance footer (tool_registry.TOOL_GUIDANCE)
+# into each docstring, then register. Fails loudly if any tool lacks guidance.
+register_tools(mcp, tools)
 
 if __name__ == "__main__":
     mcp.run()

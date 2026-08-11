@@ -114,10 +114,6 @@ async def _get_task_sys_id(task_number: str) -> str | None:
 async def create_private_task(task_data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a NEW private task (vtb_task) record.
 
-    WHEN TO USE: the user wants a brand-new private task opened.
-    WHEN NOT TO USE: to modify a task that already exists (its VTB number is
-        known) — use update_private_task instead.
-    PREFER OVER: nothing; this is the only insert path for vtb_task.
     TABLES: vtb_task only (the sole table with CRUD support).
     SIDE EFFECT: WRITE — inserts one record. Not idempotent.
     EXAMPLE: create a private task to review the firewall configuration.
@@ -142,11 +138,6 @@ async def create_private_task(task_data: Dict[str, Any]) -> Dict[str, Any]:
 async def update_private_task(task_number: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
     """Update / change an EXISTING private task (vtb_task), addressed by number.
 
-    WHEN TO USE: the task already exists and the user wants to set, close,
-        reassign, or otherwise change it. A VTB number together with a change
-        verb (set / close / update / reassign) is always this tool.
-    WHEN NOT TO USE: opening a brand-new task — use create_private_task.
-    PREFER OVER: create_private_task whenever the record already exists.
     TABLES: vtb_task only.
     SIDE EFFECT: WRITE — patches one record; resolves sys_id by number first.
     EXAMPLE: set private task VTB0001234 to closed complete.

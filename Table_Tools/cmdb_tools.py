@@ -62,7 +62,6 @@ _CI_TYPE_PATTERN = re.compile(r'cmdb_ci[a-z0-9_]*')
 #     no `partial` shape in this module; `truncated` is len == the limit.
 # ---------------------------------------------------------------------------
 
-
 def _ci_type_error(ci_type: str) -> Optional[str]:
     """Return an error message if ci_type is not a usable cmdb_ci* table, else None.
 
@@ -74,7 +73,6 @@ def _ci_type_error(ci_type: str) -> Optional[str]:
     if not _CI_TYPE_PATTERN.fullmatch(ci_type):
         return INVALID_CI_TYPE.format(ci_type=ci_type)
     return None
-
 
 # Essential fields for CI discovery
 ESSENTIAL_CI_FIELDS = [
@@ -93,11 +91,6 @@ DETAILED_CI_FIELDS = [
 async def find_cis_by_type(ci_type: str, detailed: bool = False) -> Dict[str, Any]:
     """Find all Configuration Items of a specific type/class.
 
-    WHEN TO USE: the user names a CI class — "list every Linux server
-        configuration item".
-    WHEN NOT TO USE: searching by attributes like location/IP/status
-        (search_cis_by_attributes); one CI by number (get_ci_details).
-    PREFER OVER: search_cis_by_attributes when the filter is purely the class.
     TABLES: any cmdb_ci* class table.
     SIDE EFFECT: read-only.
     EXAMPLE: list every Linux server configuration item.
@@ -147,11 +140,6 @@ async def search_cis_by_attributes(
 ) -> Dict[str, Any]:
     """Search Configuration Items by multiple attributes.
 
-    WHEN TO USE: the user filters CIs by attribute — location, IP, status,
-        name — "configuration items at location Brussels with status installed".
-    WHEN NOT TO USE: a whole class with no attribute filter (find_cis_by_type);
-        one CI by number (get_ci_details).
-    PREFER OVER: find_cis_by_type when the ask includes location/IP/status.
     TABLES: cmdb_ci (or a given cmdb_ci* class).
     SIDE EFFECT: read-only.
     EXAMPLE: configuration items at location Brussels with status installed.
@@ -243,15 +231,9 @@ async def _probe_ci_table(table: str, ci_number: str) -> Optional[Dict[str, Any]
         return data['result'][0]
     return None
 
-
 async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> Dict[str, Any]:
     """Get comprehensive details for a specific Configuration Item by number.
 
-    WHEN TO USE: you know the CI number and want its complete record — "get all
-        details for configuration item SRV0001234".
-    WHEN NOT TO USE: searching by class (find_cis_by_type) or attributes
-        (search_cis_by_attributes); a loose name/IP lookup (quick_ci_search).
-    PREFER OVER: quick_ci_search when you have an exact CI number.
     TABLES: probes the cmdb_ci* class tables (most-specific first).
     SIDE EFFECT: read-only.
     EXAMPLE: get all details for configuration item SRV0001234.
@@ -355,11 +337,6 @@ def _build_similar_ci_response(ci_number: str, search_attrs: Dict, filtered_resu
 async def similar_cis_for_ci(ci_number: str) -> Dict[str, Any]:
     """Find Configuration Items similar to a given CI, by shared attributes.
 
-    WHEN TO USE: you have one CI and want others like it (same class, location,
-        status).
-    WHEN NOT TO USE: attribute search from scratch (search_cis_by_attributes);
-        one CI's own detail (get_ci_details).
-    PREFER OVER: search_cis_by_attributes when the seed is an existing CI.
     TABLES: cmdb_ci* class tables.
     SIDE EFFECT: read-only.
     EXAMPLE: find configuration items similar to CI0001000.
@@ -430,11 +407,6 @@ async def similar_cis_for_ci(ci_number: str) -> Dict[str, Any]:
 async def get_all_ci_types() -> Dict[str, Any]:
     """Get all available CI types/classes in the CMDB.
 
-    WHEN TO USE: the user wants the list of CI classes this instance defines —
-        "which CI classes exist in this CMDB".
-    WHEN NOT TO USE: rows of one class (find_cis_by_type); a specific CI
-        (get_ci_details).
-    PREFER OVER: nothing; this is the class-discovery path.
     TABLES: sys_db_object (live class list).
     SIDE EFFECT: read-only.
     EXAMPLE: which CI classes exist in this CMDB.
@@ -477,10 +449,6 @@ async def get_all_ci_types() -> Dict[str, Any]:
 async def quick_ci_search(search_term: str) -> Dict[str, Any]:
     """Quick search for CIs by name, IP, or number (OR across all three).
 
-    WHEN TO USE: you have one loose term and don't know which field it is.
-    WHEN NOT TO USE: an exact CI number (get_ci_details); structured attribute
-        filters (search_cis_by_attributes); a whole class (find_cis_by_type).
-    PREFER OVER: get_ci_details only when the term may not be a CI number.
     TABLES: cmdb_ci (base).
     SIDE EFFECT: read-only.
     EXAMPLE: quickly find a CI by name, IP, or number.
