@@ -1,8 +1,16 @@
 """The minimal tool response contract (v5.0 "Boron", plan §3.1).
 
-Every registered tool answers in exactly one of these shapes. The discriminator
-is the presence of `error`; there is no `success`/`ok` boolean and no bare-string
-return. Pinned across the whole surface by tests/test_tool_response_contract.py.
+The target shapes for every tool. The discriminator is the presence of `error`;
+there is no `success`/`ok` boolean and no bare-string return.
+
+**Migration status:** as of this change, only the **CMDB tools** (`cmdb_tools.py`)
+are on this contract. The rest of the surface still carries its v4 shapes and is
+migrated in later Tier 3.1 work: the generic reads still use
+`{"result": [...], "message": ...}` for single-record misses, the generic
+validation errors use `{"error": <str>}`, the write tools return bare dicts, and
+`health_check` returns a status bag that can coexist with `error`. The promised
+surface-wide test (`tests/test_tool_response_contract.py`) lands with that pass,
+enumerating any deliberate exceptions.
 
 | case                  | shape                                                        |
 |-----------------------|--------------------------------------------------------------|

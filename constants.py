@@ -32,9 +32,10 @@ NO_VALID_PRIORITIES_ERROR = "No valid priorities provided"
 TABLE_NO_PRIORITY_SUPPORT_ERROR = "Table {table_name} does not support priority filtering"
 
 # CMDB-specific error messages
-NO_CIS_FOUND_FOR_TYPE = "No CIs found for type: {ci_type}"
-NO_CIS_FOUND_MATCHING_CRITERIA = "No CIs found matching search criteria"
-CI_NOT_FOUND = "CI {ci_number} not found in any CMDB table"
+# v5.0 "Boron" Tier 3.1 removed the CMDB bare not-found strings: empty is now a
+# success shape (list_response([]) / record_response(None)), so
+# NO_CIS_FOUND_FOR_TYPE, NO_CIS_FOUND_MATCHING_CRITERIA, CI_NOT_FOUND,
+# NO_SIMILAR_CIS_FOUND, NO_CI_TYPES_FOUND and NO_CIS_FOUND_FOR_SEARCH are gone.
 CI_TYPE_REQUIRED = "CI type is required"
 CI_NUMBER_REQUIRED = "CI number is required"
 # A rejected ci_type must never be silently downgraded to the base cmdb_ci
@@ -116,9 +117,6 @@ QUERY_SYNTAX_NOTES = (
     "assigned_to, caller_id, cmdb_ci, ...) store sys_ids; filter by sys_id or "
     "dot-walk (assignment_group.nameLIKEFleet)."
 )
-NO_SIMILAR_CIS_FOUND = "No similar CIs found for {ci_number}"
-NO_CI_TYPES_FOUND = "No CI types found"
-NO_CIS_FOUND_FOR_SEARCH = "No CIs found for search term: {search_term}"
 ERROR_SEARCHING_CIS = "Error searching CIs: Request failed"
 ERROR_SEARCHING_CIS_BY_TYPE = "Error searching CIS by type: Request failed"
 ERROR_FINDING_SIMILAR_CIS = "Error finding similar CIs: Request failed"

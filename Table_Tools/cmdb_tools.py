@@ -90,7 +90,7 @@ DETAILED_CI_FIELDS = [
     "manufacturer", "model_number", "cost_center", "environment"
 ]
 
-async def find_cis_by_type(ci_type: str, detailed: bool = False) -> dict[str, Any] | str:
+async def find_cis_by_type(ci_type: str, detailed: bool = False) -> Dict[str, Any]:
     """Find all Configuration Items of a specific type/class.
 
     WHEN TO USE: the user names a CI class — "list every Linux server
@@ -107,7 +107,7 @@ async def find_cis_by_type(ci_type: str, detailed: bool = False) -> dict[str, An
         detailed: If True, returns detailed CI information
 
     Returns:
-        Dictionary with CI results or error string
+        Dictionary with CI results or error dict
 
     ci_type is validated by shape (see _ci_type_error), not against a static
     class list — that list drifted from real instances and rejected valid,
@@ -144,7 +144,7 @@ async def search_cis_by_attributes(
     status: Optional[str] = None,
     ci_type: Optional[str] = None,
     detailed: bool = False
-) -> dict[str, Any] | str:
+) -> Dict[str, Any]:
     """Search Configuration Items by multiple attributes.
 
     WHEN TO USE: the user filters CIs by attribute — location, IP, status,
@@ -167,7 +167,7 @@ async def search_cis_by_attributes(
         detailed: If True, returns detailed CI information
 
     Returns:
-        Dictionary with CI results or error string
+        Dictionary with CI results or error dict
     """
     if not any([name, ip_address, location, status]):
         return error_response("VALIDATION", "At least one search attribute must be provided")
@@ -244,7 +244,7 @@ async def _probe_ci_table(table: str, ci_number: str) -> Optional[Dict[str, Any]
     return None
 
 
-async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[str, Any] | str:
+async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> Dict[str, Any]:
     """Get comprehensive details for a specific Configuration Item by number.
 
     WHEN TO USE: you know the CI number and want its complete record — "get all
@@ -263,7 +263,7 @@ async def get_ci_details(ci_number: str, ci_type: Optional[str] = None) -> dict[
             silent fall back to probing every table.
 
     Returns:
-        Dictionary with detailed CI information or error string
+        Dictionary with detailed CI information or error dict
 
     When ci_type is not given, the candidate tables are probed concurrently
     (bounded) instead of one-at-a-time; the most-specific-first priority is
@@ -352,7 +352,7 @@ def _build_similar_ci_response(ci_number: str, search_attrs: Dict, filtered_resu
         filtered_results, original_ci=ci_number, similar_criteria=search_attrs
     )
 
-async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
+async def similar_cis_for_ci(ci_number: str) -> Dict[str, Any]:
     """Find Configuration Items similar to a given CI, by shared attributes.
 
     WHEN TO USE: you have one CI and want others like it (same class, location,
@@ -368,7 +368,7 @@ async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
         ci_number: CI number to find similar CIs for
 
     Returns:
-        Dictionary with similar CIs or error string
+        Dictionary with similar CIs or error dict
 
     Complexity: 8 (reduced from ~15-17)
     """
@@ -393,6 +393,17 @@ async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
             ci_details['record'], ci_details['ci_table']
         )
 
+        # search_cis_by_attributes requires at least one of name/ip_address/
+        # location/status; _extract_ci_search_attributes only ever yields
+        # ci_type plus optional location/status. A seed with a class but no
+        # location and no operational_status leaves only ci_type, which that
+        # tool rejects as VALIDATION. Pre-contract the bare validation string
+        # fell through to a soft "no similar CIs"; converting it to a typed
+        # error made that a hard failure. A seed with no basis for similarity is
+        # an empty list, not an error.
+        if not any(k in search_attrs for k in ("name", "ip_address", "location", "status")):
+            return list_response([], original_ci=ci_number, similar_criteria=search_attrs)
+
         similar_cis = await search_cis_by_attributes(**search_attrs, detailed=True)
         # A failed search has no rows to filter. Without this,
         # _filter_and_limit_ci_results returns [] and the caller is told there
@@ -416,7 +427,7 @@ async def similar_cis_for_ci(ci_number: str) -> dict[str, Any] | str:
     except Exception:
         return error_response("INTERNAL", ERROR_FINDING_SIMILAR_CIS)
 
-async def get_all_ci_types() -> dict[str, Any] | str:
+async def get_all_ci_types() -> Dict[str, Any]:
     """Get all available CI types/classes in the CMDB.
 
     WHEN TO USE: the user wants the list of CI classes this instance defines —
@@ -438,7 +449,7 @@ async def get_all_ci_types() -> dict[str, Any] | str:
     configuration, NOT a row count. It was previously surfaced as
     ``record_count``, which invited callers to treat an unrelated reference as
     a population figure. The Table API returns no row count here; use
-    ``find_cis_by_type(ci_type)`` and read ``count`` if you need one.
+    ``find_cis_by_type(ci_type)`` and read ``returned_count`` if you need one.
     """
     try:
         # Query sys_db_object to get all tables that extend cmdb_ci
@@ -463,7 +474,7 @@ async def get_all_ci_types() -> dict[str, Any] | str:
         return error_response("INTERNAL", ERROR_GETTING_CI_TYPES)
 
 # Convenience function for quick CI search
-async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
+async def quick_ci_search(search_term: str) -> Dict[str, Any]:
     """Quick search for CIs by name, IP, or number (OR across all three).
 
     WHEN TO USE: you have one loose term and don't know which field it is.
@@ -478,7 +489,7 @@ async def quick_ci_search(search_term: str) -> dict[str, Any] | str:
         search_term: Term to search for in CI name, IP, or number fields
     
     Returns:
-        Dictionary with CI results or error string
+        Dictionary with CI results or error dict
     """
     try:
         # Try multiple search approaches. The term is escaped at this boundary

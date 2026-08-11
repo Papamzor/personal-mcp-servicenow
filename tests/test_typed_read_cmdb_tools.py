@@ -243,6 +243,36 @@ class TestSimilarCis:
         assert result["original_ci"] == "CI0001000"
 
     @pytest.mark.asyncio
+    async def test_seed_with_only_a_class_is_empty_not_validation(self):
+        """Regression: a seed with sys_class_name but no location/status.
+
+        _extract_ci_search_attributes then yields only ci_type, which
+        search_cis_by_attributes rejects as VALIDATION. Pre-contract that bare
+        string fell through to a soft "no similar CIs"; the typed error would
+        make it a hard failure. The sparse-attrs guard must short-circuit to an
+        empty list BEFORE any request — so the real search is never reached.
+        """
+        details = {
+            "ci_table": "cmdb_ci_server",
+            "ci_number": "CI0001000",
+            "record": {"sys_class_name": "Server", "operational_status": ""},
+        }
+        capture_urls = []
+
+        async def capture(url, *a, **k):
+            capture_urls.append(url)
+            return {"result": []}
+
+        with patch(
+            "Table_Tools.cmdb_tools.get_ci_details", new=AsyncMock(return_value=details)
+        ), patch("Table_Tools.cmdb_tools.make_nws_request", new=capture):
+            result = await similar_cis_for_ci("CI0001000")
+
+        _assert_empty_list(result)
+        assert result["original_ci"] == "CI0001000"
+        assert capture_urls == [], "sparse attrs must not reach search_cis_by_attributes"
+
+    @pytest.mark.asyncio
     async def test_search_failure_is_not_no_similar_cis(self):
         details = {"ci_table": "cmdb_ci_server", "ci_number": "CI0001000", "record": {
             "sys_class_name": "Server", "location": "Brussels", "operational_status": "1",
@@ -282,8 +312,9 @@ class TestSimilarCis:
 
     @pytest.mark.asyncio
     async def test_unexpected_error_in_the_search_half_is_internal(self):
+        # location present so the sparse-attrs guard passes and search is reached.
         details = {"ci_table": "cmdb_ci_server", "ci_number": "CI0001000", "record": {
-            "sys_class_name": "Server",
+            "sys_class_name": "Server", "location": "Brussels",
         }}
         with patch(
             "Table_Tools.cmdb_tools.get_ci_details", new=AsyncMock(return_value=details)
