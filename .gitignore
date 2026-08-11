@@ -46,6 +46,7 @@ v3.0/
 v4.0/
 Testing/
 
-# graphify — keep graphify-out/ tracked; ignore caches + root temp scripts
+# graphify — keep graphify-out/ tracked; ignore caches, dated backups + root temp scripts
 .graphify_*
 graphify-out/cache/
+graphify-out/20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
