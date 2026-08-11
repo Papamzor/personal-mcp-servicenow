@@ -154,17 +154,17 @@ def _cases():
     return [
         ("health_check", lambda: health_check(), "diagnostic"),
         ("search_records", lambda: search_records("incident", "server down"), "list"),
-        ("get_record", lambda: get_record("incident", "INC0012345"), "record"),
+        ("get_record", lambda: get_record("incident", "INC0012345"), "record_read"),
         ("find_similar", lambda: find_similar("incident", "INC0012345"), "list"),
         ("filter_records", lambda: filter_records("incident", {"priority": "1"}), "list"),
         ("get_priority_incidents", lambda: get_priority_incidents(["1"]), "list"),
         ("get_kb_articles_by_state", lambda: get_kb_articles_by_state(), "list"),
-        ("create_private_task", lambda: create_private_task({"short_description": "x"}), "record"),
-        ("update_private_task", lambda: update_private_task("VTB0001234", {"comments": "x"}), "record"),
-        ("update_knowledge_article", lambda: update_knowledge_article("KB0001234", {"short_description": "x"}), "record"),
-        ("publish_knowledge_article", lambda: publish_knowledge_article("KB0001234"), "record"),
+        ("create_private_task", lambda: create_private_task({"short_description": "x"}), "record_write"),
+        ("update_private_task", lambda: update_private_task("VTB0001234", {"comments": "x"}), "record_write"),
+        ("update_knowledge_article", lambda: update_knowledge_article("KB0001234", {"short_description": "x"}), "record_write"),
+        ("publish_knowledge_article", lambda: publish_knowledge_article("KB0001234"), "record_write"),
         ("publish_knowledge_articles", lambda: publish_knowledge_articles(["KB0001234"]), "list"),
-        ("retire_knowledge_article", lambda: retire_knowledge_article("KB0001234"), "record"),
+        ("retire_knowledge_article", lambda: retire_knowledge_article("KB0001234"), "record_write"),
         ("check_kb_duplicates", lambda: check_kb_duplicates(["KB0001234"]), "list"),
         ("get_sla_details", lambda: get_sla_details(_ROW["sys_id"]), "list"),
         ("query_slas_by_task", lambda: query_slas_by_task("INC0012345"), "list"),
@@ -207,6 +207,15 @@ def assert_contract(resp, *, tool_name):
         assert isinstance(resp["result"], list), f"{tool_name}: result must be a list"
         assert isinstance(resp.get("returned_count"), int), f"{tool_name}: list needs int returned_count"
         assert isinstance(resp.get("truncated"), bool), f"{tool_name}: list needs bool truncated"
+        # A list success must NOT carry a top-level prose `message` — that is the
+        # {"result": [...], "message": "Found N records"} dialect this tier removed.
+        # `message` is legal only beside `record` (write success) or on a
+        # documented exception tool.
+        if tool_name not in _EXCEPTION_TOOLS:
+            assert "message" not in resp, (
+                f"{tool_name}: list success must not carry a prose `message` "
+                f"(reintroduced success dialect): {sorted(resp)}"
+            )
 
     if "record" in resp:
         rec = resp["record"]
@@ -227,8 +236,18 @@ async def test_success_shape_conforms(name, factory, kind, transport):
 
     if kind == "list":
         assert "result" in resp and isinstance(resp["result"], list)
-    elif kind == "record":
+    elif kind == "record_read":
+        # Read hit: {"record": {...}} with NO top-level message (reads never
+        # carry the write-success message).
         assert "record" in resp, f"{name} should return a single-record shape, got {sorted(resp)}"
+        assert "message" not in resp, f"{name}: a read must not carry a top-level message"
+    elif kind == "record_write":
+        # Write success: {"record": {...}, "message": str}. The §3.1 write shape
+        # REQUIRES the message, so dropping success_message= now fails here.
+        assert "record" in resp and resp["record"] is not None, f"{name}: write should return a record"
+        assert isinstance(resp.get("message"), str) and resp["message"], (
+            f"{name}: write success must carry a non-empty `message` (§3.1 write shape)"
+        )
     elif kind == "diagnostic":
         assert "connection" in resp  # health_check status bag
     elif kind == "reference":

@@ -45,6 +45,7 @@ class TestWritePrivateTask:
             )
 
             assert result["record"] == {"number": "VTB0001234", "short_description": "Test task"}
+            assert result["message"] == "Private task creation succeeded."
             mock_request.assert_called_once_with(
                 "https://test.service-now.com/api/now/table/vtb_task",
                 method="POST",
@@ -178,6 +179,7 @@ class TestUnwrapWriteResponse:
     def test_unwrap_with_inner_result(self):
         result = _unwrap_write_response({"result": {"number": "VTB0001"}}, "creation")
         assert result["record"] == {"number": "VTB0001"}
+        assert result["message"] == "Private task creation succeeded."
 
     def test_unwrap_empty_dict_is_unconfirmed_not_success(self):
         """An empty write response cannot establish that the write landed."""
@@ -397,6 +399,7 @@ class TestUpdatePrivateTask:
 
             assert result["record"]["number"] == "VTB0001234"
             assert result["record"]["state"] == "3"
+            assert result["message"] == "Private task update succeeded."
             mock_sys_id.assert_called_once_with("VTB0001234")
             mock_request.assert_called_once()
             kwargs = mock_request.call_args.kwargs

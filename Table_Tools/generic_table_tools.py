@@ -11,7 +11,6 @@ import re
 from constants import (
     ESSENTIAL_FIELDS,
     DETAIL_FIELDS,
-    RECORD_NOT_FOUND,
     CONNECTION_ERROR,
     REQUEST_FAILED_ERROR,
     NO_FIELD_CONFIG_ERROR,
@@ -195,9 +194,13 @@ def _text_search_envelope(rows: List[Dict[str, Any]]) -> dict[str, Any]:
 
 
 async def get_record_description(table_name: str, record_number: str) -> dict[str, Any]:
-    """Generic function to get short_description for any record."""
+    """Internal: fetch a record's short_description, in the §3.1 single-record shape.
+
+    Not a registered tool — the seed lookup behind find_similar. Returns
+    `{"record": row|None}`; a failed read maps to the error contract.
+    """
     if not _is_safe_record_number(record_number):
-        return {"result": [], "message": RECORD_NOT_FOUND}
+        return record_response(None)
     # `encode_query_value` cannot refuse here: `_is_safe_record_number` already
     # rejected `^`. It is applied for the `%` case — an unescaped "INC%41" used to
     # be decoded by the transport into "INCA", a lookup for a different record.
@@ -233,23 +236,27 @@ async def get_record_details(table_name: str, record_number: str) -> dict[str, A
 
 
 def _record_envelope(data: Optional[dict[str, Any]]) -> dict[str, Any]:
-    """Single-record read shape. A successful read with no rows is not-found.
+    """Single-record read shape (§3.1): {"record": row|None}.
 
-    Before v4.4 this label was also produced when the request itself failed
-    (the read path returned `None` for both). Failures are mapped by the caller
-    now, so RECORD_NOT_FOUND means only what it says.
+    A successful read with no rows is a miss (record None), never a failure —
+    failures are mapped by the caller. Tier 3.1-rest folded this onto
+    record_response so the module no longer carries the old
+    {"result": [], "message": RECORD_NOT_FOUND} dialect alongside the contract.
     """
-    if not data or not data.get("result"):
-        return {"result": [], "message": RECORD_NOT_FOUND}
-    return data
+    rows = data.get("result") if data else None
+    return record_response(rows[0] if rows else None)
 
 
 def _first_short_description(desc_data: dict[str, Any]) -> str:
-    """Pull the first row's short_description out of a description response."""
-    rows = desc_data.get('result') or []
-    if not rows:
-        return ""
-    return (rows[0].get('short_description') or "").strip()
+    """Pull the seed record's short_description out of a description response.
+
+    Reads the §3.1 `record` shape; still tolerates a legacy `result` list so a
+    caller passing either shape keeps working.
+    """
+    record = desc_data.get("record")
+    if record is None and desc_data.get("result"):
+        record = desc_data["result"][0]
+    return ((record or {}).get("short_description") or "").strip()
 
 
 def _exclude_original_record(similar_data: dict[str, Any], record_number: str) -> dict[str, Any]:
