@@ -1,6 +1,6 @@
 [project]
 name = "personal-mcp-servicenow"
-version = "5.0.0"
+version = "5.0.1"
 description = "MCP server for ServiceNow (incidents, changes, KB, SLA, CMDB)"
 requires-python = ">=3.11"
 dependencies = [

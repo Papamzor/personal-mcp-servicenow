@@ -16,10 +16,11 @@ MCP server for ServiceNow integration. Uses FastMCP over stdio transport, OAuth 
 
 ## Release highlights
 
-Current release: **5.0.0 "Boron"** (25 tools). Breaking — the tool surface was culled 39 → 25 and every tool now returns one minimal response contract. If upgrading, read [MIGRATION_v4_to_v5.md](MIGRATION_v4_to_v5.md). Full history in [CHANGELOG.md](CHANGELOG.md).
+Current release: **5.0.1** (25 tools). The 5.0.0 "Boron" surface was breaking — culled 39 → 25 with one minimal response contract. If upgrading from v4, read [MIGRATION_v4_to_v5.md](MIGRATION_v4_to_v5.md). Full history in [CHANGELOG.md](CHANGELOG.md).
 
 | Release | What changed |
 |---|---|
+| **5.0.1** | Two silent-data-loss fixes in `get_kb_articles_by_state`, both found live. A `draft` filter now finds drafts on **already-published** articles (the priority collapse hid them — live, 1 reported against 48 real); entries carry `states_present` and the state filter tests membership. The raw scan no longer inherits `max_results`, which had made a truncated fetch report the *wrong* `current_state`; a capped scan now says `scan_incomplete` instead of guessing. |
 | **5.0.0 "Boron"** | Breaking. Tool surface culled **39 → 25** (5 diagnostics folded into one `health_check`; the NL/filter and smart-KB/SLA read tools removed — the host model does NL→filter natively). One **minimal response contract** across every tool: list `{result, returned_count, truncated}`, single-record `{record}`, write `{record, message}`, failure `{error:{code, message}}` — no more bare-string returns or `result`-is-sometimes-a-dict. `TableSpec` makes per-table config one source of truth; tool selection guidance is a structured registry injected into each docstring. ~2000 lines of dead NL-engine code removed. See MIGRATION_v4_to_v5.md. |
 | **4.5.0** | Tool-selection docstring protocol on all 39 tools (WHEN TO USE / WHEN NOT TO USE / PREFER OVER / TABLES / SIDE EFFECT / EXAMPLE). Non-breaking — no tool added, removed, or re-signatured. The fatal footguns (LIKE-not-CONTAINS, reference fields hold sys_ids) now sit inline on `search_records` and `filter_records`. Static tool-selection preferred-hit rose 21/30 → 29/30, ambiguity 66 → 50 plausible paths. |
 | **4.4.1** | Encoded-query values are carried faithfully. A `&` or a literal `%XY` in a search value no longer silently changes the query into a broader one; a `^` is refused rather than answered, because ServiceNow's syntax cannot carry it inside a value. A KB title containing `&` or `%` no longer blocks a publish. |
@@ -195,7 +196,7 @@ Work across all supported tables: `incident`, `change_request`, `sc_req_item`, `
 
 ### Knowledge base — read (1)
 
-- `get_kb_articles_by_state(workflow_state, category, kb_base, max_results)` — collapses ServiceNow KB versioning to one row per `number`, with `current_state` and `version_count`. For topic search use `search_records("kb_knowledge", ...)`; for a category use `filter_records("kb_knowledge", {"kb_category": ...})`.
+- `get_kb_articles_by_state(workflow_state, category, kb_base, max_results)` — collapses ServiceNow KB versioning to one row per `number`, with `current_state` (the canonical/live state), `states_present` (every state that number has a version in) and `version_count`. `workflow_state` matches on `states_present` membership, so a draft on an already-published article is found. `max_results` caps the returned entries; the raw scan runs to its own 1000-row ceiling and sets `scan_incomplete` + `warning` if it hits it. For topic search use `search_records("kb_knowledge", ...)`; for a category use `filter_records("kb_knowledge", {"kb_category": ...})`.
 
 ### Knowledge base — write (5)
 

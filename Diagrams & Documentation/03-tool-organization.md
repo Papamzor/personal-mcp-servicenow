@@ -128,7 +128,7 @@ graph TB
 ### Consolidated tools — `consolidated_tools.py`
 
 - **Priority**: `get_priority_incidents` — date ranges + metadata; extra filters via `additional_filters` (no deprecated `**kwargs`)
-- **Knowledge state** (1): `get_kb_articles_by_state` — collapses KB versions to one row per `number` (published > draft > review > outdated > retired)
+- **Knowledge state** (1): `get_kb_articles_by_state` — collapses KB versions to one row per `number`; `current_state` is the priority winner (published > draft > review > outdated > retired), `states_present` lists all of them and is what the `workflow_state` filter tests
 - **SLA** (4): see [05-sla-architecture-flow.md](./05-sla-architecture-flow.md)
 
 Removed in v5.0: the three smart-KB reads (`similar_knowledge_for_text`, `get_knowledge_by_category`, `get_active_knowledge_articles`) — use `search_records` / `filter_records` / `get_kb_articles_by_state` instead.

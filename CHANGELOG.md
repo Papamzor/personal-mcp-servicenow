@@ -5,6 +5,65 @@ All notable changes to the Personal MCP ServiceNow project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.1] — 2026-08-12
+
+Two silent-data-loss defects in `get_kb_articles_by_state`, both found by live
+testing against a real KB (363 raw rows) rather than by the test suite. Neither
+raised an error — the tool returned confidently wrong data.
+
+### Fixed
+
+- **Drafts on already-published articles were invisible to a `draft` filter.**
+  The `workflow_state` filter tested equality against `current_state`, the
+  priority winner of `published > draft > review > outdated > retired`. Because
+  re-drafting an update leaves a `published` row beside the new `draft` one,
+  `published` won and the article dropped out of the filtered result. Measured
+  live: the tool reported **1** pending draft where a raw `filter_records` saw
+  **48** — 47 of 48 real work items silently missing, in the *common* KB-churn
+  case (edits to existing articles, not new ones).
+
+  Each entry now carries **`states_present`** — every distinct `workflow_state`
+  across that number's versions — and `workflow_state` filters on membership in
+  it. `current_state` keeps its meaning (the canonical/live state) for
+  post-publish verification. Because `published` is the top-priority state,
+  `current_state == "published"` already implies membership, so the published
+  view is unchanged; only the lower-priority states widen, which is the fix.
+
+- **A capped raw scan reported the wrong `current_state`, not merely fewer rows.**
+  `max_results` capped the *raw row fetch*, and de-duplication then ran on
+  whatever arrived. The scan sorts `sys_created_on` DESC, so a recent `draft`
+  row could land inside a 100-row cap while its older `published` sibling fell
+  off the end — and the article came back as `current_state: draft`. Rows for one
+  number are scattered across the sort, so truncation poisons *every* entry's
+  state, not just the omitted ones.
+
+  The raw scan is now decoupled from the output cap: it always runs to
+  `KB_STATE_SCAN_LIMIT` (1000 rows), while `max_results` caps the deduped
+  entries returned. If the scan itself hits its ceiling the response carries
+  `scan_incomplete: true` and a `warning` naming the risk, instead of serving a
+  guessed state as authoritative.
+
+- `max_results` outside 1..1000 now returns a `VALIDATION` error instead of
+  raising an unhandled pydantic `ValidationError`.
+
+### Behavior changes
+
+- `truncated` on this tool now means **the deduped output was capped at
+  `max_results`**. It previously reflected the raw fetch. A capped raw scan is
+  reported separately as `scan_incomplete` — the two were one flag, which
+  conflated "there are more articles than I returned" with "the states I
+  reported may be wrong". Only the second makes the returned rows untrustworthy.
+- `workflow_state="draft"` (and `review`, `outdated`, `retired`) now return
+  strictly more articles. `workflow_state="published"` is unchanged.
+
+### Added
+
+- `tests/test_kb_state_rollup.py` — 17 regression tests covering both defects.
+- Regression tests pinning that retired/outdated duplicates do **not** block a
+  publish while a live duplicate beside them still does. This behavior was
+  already correct but untested, and was flagged as unverified in the live-test
+  handoff.
+
 ## [5.0.0] — Boron — 2026-08-11
 
 The MCP-surface redesign. **Breaking**: the tool surface is culled 39 → 25, and
