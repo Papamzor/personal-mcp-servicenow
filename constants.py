@@ -327,6 +327,26 @@ KB_DEDUP_REASON_TRUNCATED = (
     "the search hit its {limit}-row cap, so a duplicate may have been left off the page"
 )
 
+# Raw-row ceiling for the `get_kb_articles_by_state` version rollup. Deliberately
+# DECOUPLED from the caller's `max_results`, which caps the deduped OUTPUT.
+#
+# Found live 2026-08-12: when `max_results` capped the raw scan, dedup ran on a
+# partial row set and reported the WRONG `current_state` — the scan sorts
+# sys_created_on DESC, so a recent `draft` row landed inside a 100-row cap while
+# its older `published` sibling fell off the end. Truncating the scan poisons
+# every number's state, not just the omitted ones, because rows for one number
+# are scattered across the sort order. 1000 is the ceiling
+# `TableFilterParams.max_results` validates to; past it the rollup says so
+# (`scan_incomplete`) instead of guessing.
+KB_STATE_SCAN_LIMIT = 1000
+
+# A capped raw scan cannot be silently served: the states it reports may be wrong.
+KB_STATE_SCAN_WARNING = (
+    "raw scan hit its {limit}-row cap, so `current_state` and `states_present` may be "
+    "incorrect for any article whose other version rows fell outside the scan. Narrow "
+    "the query with `category` or `kb_base` for a trustworthy rollup."
+)
+
 # ---------------------------------------------------------------------------
 # Encoded-query value boundary (v4.4.1)
 # ---------------------------------------------------------------------------

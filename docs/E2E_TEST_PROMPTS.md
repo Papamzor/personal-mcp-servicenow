@@ -52,8 +52,11 @@ Check KB0001234 and KB0005678 for duplicates
 **Watch for:** knowledge search now goes through `search_records`/`filter_records`
 (the smart-KB reads were culled in v5.0 — no `input_text` silently discarded when a
 category filter is set). `get_kb_articles_by_state` returns one row per number with
-`current_state` + `version_count` (KB versioning collapsed). `check_kb_duplicates` is
-read-only and safe.
+`current_state` + `states_present` + `version_count` (KB versioning collapsed). A draft
+filter must return articles that are *already published but have a pending draft* — that
+is the common re-draft case, and it was silently dropped before 5.0.1. Cross-check the
+count against `filter_records("kb_knowledge", {"workflow_state": "draft"})`: the deduped
+number must not be lower. `check_kb_duplicates` is read-only and safe.
 
 ---
 

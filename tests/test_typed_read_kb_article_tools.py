@@ -32,6 +32,7 @@ from urllib.parse import unquote
 from constants import (
     ERROR_KB_ARTICLE_NOT_FOUND_OP,
     KB_DEDUP_QUERY_LIMIT,
+    KB_DUPLICATE_IGNORED_STATES,
 )
 from http_layer.errors import ErrorCode, ServiceNowRequestError
 from Table_Tools.kb_article_tools import (
@@ -289,6 +290,37 @@ class TestDuplicateCheckOutcomes:
             await _check_kb_duplicates("How to reset a password", "KB0001234")
         url = request.call_args.args[0]
         assert f"sysparm_limit={KB_DEDUP_QUERY_LIMIT}" in url
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("ignored_state", sorted(KB_DUPLICATE_IGNORED_STATES))
+    async def test_retired_and_outdated_duplicates_do_not_block(self, ignored_state):
+        """An exact-title match in a dead state must not block a publish.
+
+        Retired = explicitly killed; outdated = the prior version ServiceNow
+        leaves behind after a newer publish. Blocking on either reintroduces the
+        false-positive publish blocks this exclusion was added to fix. Flagged as
+        unverified in the 2026-08-12 live-test handoff — the behaviour was already
+        correct, it just had no test.
+        """
+        with patch("Table_Tools.kb_article_tools.make_nws_request") as request:
+            request.return_value = {"result": [
+                {"number": "KB0009999", "short_description": "How to reset a password",
+                 "workflow_state": ignored_state},
+            ]}
+            assert await _check_kb_duplicates("How to reset a password", "KB0001234") == []
+
+    @pytest.mark.asyncio
+    async def test_a_live_duplicate_still_blocks_alongside_a_dead_one(self):
+        """Excluding dead states must not swallow a genuine blocker beside them."""
+        with patch("Table_Tools.kb_article_tools.make_nws_request") as request:
+            request.return_value = {"result": [
+                {"number": "KB0009998", "short_description": "How to reset a password",
+                 "workflow_state": "retired"},
+                {"number": "KB0009999", "short_description": "How to reset a password",
+                 "workflow_state": "draft"},
+            ]}
+            matches = await _check_kb_duplicates("How to reset a password", "KB0001234")
+        assert [m["number"] for m in matches] == ["KB0009999"]
 
 
 class TestUnreadableVerifyDoesNotRefire:

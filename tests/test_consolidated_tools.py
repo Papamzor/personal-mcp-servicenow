@@ -252,14 +252,24 @@ class TestGetKbArticlesByState:
             assert params.filters == {"kb_category": "IT", "kb_knowledge_base": "IT_KB"}
 
     @pytest.mark.asyncio
-    async def test_propagates_truncated_flag(self):
+    async def test_capped_raw_scan_reports_scan_incomplete_not_truncated(self):
+        """`truncated` is about the OUTPUT cap; a capped raw scan is a separate flag.
+
+        These were one flag until 2026-08-12, which conflated "there are more
+        articles than I returned" with "the states I reported may be wrong".
+        Only the second one makes the returned rows untrustworthy.
+        See tests/test_kb_state_rollup.py for the live case.
+        """
         with patch('Table_Tools.consolidated_tools.query_table_with_filters') as mock_query:
             mock_query.return_value = {
                 "result": [{"number": "KB001", "sys_id": "s1", "workflow_state": "published"}],
                 "truncated": True,
             }
             result = await get_kb_articles_by_state()
-            assert result["truncated"] is True
+            assert result["scan_incomplete"] is True
+            assert "warning" in result
+            # One deduped row, output cap 100 — the output itself is complete.
+            assert result["truncated"] is False
 
     @pytest.mark.asyncio
     async def test_empty_result_is_list_contract_shape(self):

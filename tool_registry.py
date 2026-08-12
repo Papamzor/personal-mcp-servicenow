@@ -153,9 +153,9 @@ TOOL_GUIDANCE = {
         prefer_over="filter_records only for the priority-plus-date shape, which this tool builds with reliable >= / <= operators.",
     ),
     "get_kb_articles_by_state": ToolGuidance(
-        when_to_use='the user asks which articles are in a given publication state ("currently in published state", "drafts", "retired KB").',
+        when_to_use='the user asks which articles are in a given publication state ("currently in published state", "drafts", "retired KB"). The state filter matches ANY version of an article, so a draft on an already-published article is found; `current_state` reports the canonical/live state and `states_present` lists every state found.',
         when_not="subject search (search_records on kb_knowledge); one category with no state question (filter_records with kb_category).",
-        prefer_over="filter_records — this collapses ServiceNow's version rows that a raw filter would return duplicated.",
+        prefer_over="filter_records — this collapses ServiceNow's version rows that a raw filter would return duplicated. Check `scan_incomplete` on the response: when set, the raw scan was capped and the reported states may be wrong, so narrow with category/kb_base.",
     ),
     "create_private_task": ToolGuidance(
         when_to_use="the user wants a brand-new private task opened.",
