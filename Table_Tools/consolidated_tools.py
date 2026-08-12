@@ -22,8 +22,13 @@ from .date_utils import (
     build_date_filter,
     build_last_n_days_filter,
 )
-from typing import Any, Dict, Optional, List
-from constants import TABLE_ERROR_MESSAGES, TASK_NUMBER_FIELD
+from typing import Any, Dict, Optional, List, Set
+from constants import (
+    TABLE_ERROR_MESSAGES,
+    TASK_NUMBER_FIELD,
+    KB_STATE_SCAN_LIMIT,
+    KB_STATE_SCAN_WARNING,
+)
 from param_coercion import OptJsonList, OptJsonDict
 
 # v5.0 "Boron" Tier 3.3: get_priority_incidents dropped its **deprecated_kwargs
@@ -209,7 +214,13 @@ _KB_DEDUP_FIELDS = [
 def _pick_canonical_kb_row(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     """De-duplicate kb_knowledge rows by `number`, keeping the highest-priority workflow_state row.
 
-    Returns a dict keyed by number with {canonical_row, version_count, canonical_rank}.
+    Returns a dict keyed by number with {row, rank, version_count, states}.
+
+    `states` — every distinct workflow_state seen for that number — is what makes
+    a draft on an already-published article discoverable. Collapsing to the
+    priority winner alone hid 47 of one KB's 48 pending drafts (see
+    tests/test_kb_state_rollup.py): re-drafting an update leaves a `published`
+    row beside the `draft` one, and `published` outranks it.
     """
     by_number: Dict[str, Dict[str, Any]] = {}
     for row in rows:
@@ -220,13 +231,22 @@ def _pick_canonical_kb_row(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
         rank = _KB_STATE_RANK.get(state, len(_KB_STATE_PRIORITY))
         entry = by_number.get(num)
         if entry is None:
-            by_number[num] = {"row": row, "rank": rank, "version_count": 1}
+            by_number[num] = {
+                "row": row, "rank": rank, "version_count": 1, "states": {state},
+            }
         else:
             entry["version_count"] += 1
+            entry["states"].add(state)
             if rank < entry["rank"]:
                 entry["row"] = row
                 entry["rank"] = rank
     return by_number
+
+def _order_states(states: Set[str]) -> List[str]:
+    """Distinct states in priority order (unknown states last, alphabetical)."""
+    return sorted(
+        states, key=lambda s: (_KB_STATE_RANK.get(s, len(_KB_STATE_PRIORITY)), s)
+    )
 
 def _format_deduped_kb_row(number: str, info: Dict[str, Any]) -> Dict[str, Any]:
     """Render a de-duplicated KB row in the public response shape."""
@@ -236,6 +256,7 @@ def _format_deduped_kb_row(number: str, info: Dict[str, Any]) -> Dict[str, Any]:
         "sys_id": row.get("sys_id"),
         "short_description": row.get("short_description"),
         "current_state": (row.get("workflow_state") or "").strip().lower(),
+        "states_present": _order_states(info["states"]),
         "version_count": info["version_count"],
         "kb_category": row.get("kb_category"),
         "sys_updated_on": row.get("sys_updated_on"),
@@ -255,33 +276,58 @@ async def get_kb_articles_by_state(
 
     ServiceNow KB versioning surfaces one article number across several
     workflow states (publish creates a new sys_id and marks the prior row
-    `outdated`). This collapses them to one entry per number: `current_state`
-    is the highest-priority state found, `version_count` the raw-row count.
-    Priority (highest first): published > draft > review > outdated > retired.
+    `outdated`). This collapses them to one entry per number:
+
+      * `current_state`   — the highest-priority state found (the canonical /
+        live view). Priority: published > draft > review > outdated > retired.
+      * `states_present`  — EVERY distinct state found for that number.
+      * `version_count`   — how many raw rows the number had.
+
+    `workflow_state` filters on `states_present` MEMBERSHIP, not on
+    `current_state`. Re-drafting an update leaves a `published` row beside the
+    new `draft` one, so an equality test on the priority winner hid the draft
+    entirely — live, that reported 1 pending draft where there were 48.
+    Membership only ever widens the non-published states: `published` is rank 0,
+    so `current_state == "published"` already implies membership.
 
     Args:
-        workflow_state: Optional canonical-state filter applied AFTER dedup
-            (e.g. "published" → numbers whose live version is published).
+        workflow_state: Optional state filter — matches any article carrying
+            that state in ANY of its versions (e.g. "draft" → articles with
+            pending draft work, including already-published ones).
         category: Optional kb_category filter (server-side).
         kb_base: Optional kb_knowledge_base filter (server-side).
-        max_results: Max raw rows fetched (default 100, max 1000); `truncated`
-            reflects the raw fetch, deduped output may be smaller.
+        max_results: Cap on the deduped entries RETURNED (1..1000, default 100).
+            The raw scan is separate and always runs to KB_STATE_SCAN_LIMIT —
+            capping the scan by this value used to corrupt `current_state`.
 
     Returns:
         {"result": [{"number","sys_id","short_description","current_state",
-                     "version_count","kb_category","sys_updated_on"}, ...],
+                     "states_present","version_count","kb_category",
+                     "sys_updated_on"}, ...],
          "returned_count": N, "truncated": bool}
+        `truncated` means the deduped output was capped at `max_results`.
+        A capped raw scan instead adds `scan_incomplete: true` + `warning`,
+        because then the reported states themselves may be wrong.
     """
+    if not 1 <= max_results <= KB_STATE_SCAN_LIMIT:
+        return error_response(
+            "VALIDATION",
+            f"max_results must be between 1 and {KB_STATE_SCAN_LIMIT}, got {max_results}.",
+        )
+
     filters: Dict[str, str] = {}
     if category:
         filters["kb_category"] = category
     if kb_base:
         filters["kb_knowledge_base"] = kb_base
 
+    # The scan ceiling, NOT max_results. Dedup over a partial row set reports the
+    # wrong `current_state` (rows for one number are scattered across the
+    # sys_created_on DESC sort), so the scan must not inherit an output cap.
     params = TableFilterParams(
         filters=filters or None,
         fields=_KB_DEDUP_FIELDS,
-        max_results=max_results,
+        max_results=KB_STATE_SCAN_LIMIT,
     )
     raw = await query_table_with_filters("kb_knowledge", params)
     # De-duplicating a failure would answer "No matching KB articles." for a
@@ -293,24 +339,33 @@ async def get_kb_articles_by_state(
     by_number = _pick_canonical_kb_row(rows)
 
     target_state = workflow_state.strip().lower() if workflow_state else None
-    deduped = []
+    matched = []
     for num, info in by_number.items():
         formatted = _format_deduped_kb_row(num, info)
-        if target_state and formatted["current_state"] != target_state:
+        # Membership, not equality against the priority winner — see the docstring.
+        if target_state and target_state not in formatted["states_present"]:
             continue
-        deduped.append(formatted)
+        matched.append(formatted)
+
+    deduped = matched[:max_results]
+    extra: Dict[str, Any] = {}
+    if raw.get("truncated"):
+        # Loud, not just a bool: a caller spot-checking a few fields must not read
+        # a poisoned state as authoritative.
+        extra["scan_incomplete"] = True
+        extra["warning"] = KB_STATE_SCAN_WARNING.format(limit=KB_STATE_SCAN_LIMIT)
+
+    response = list_response(
+        deduped, truncated=len(matched) > len(deduped), **extra
+    )
 
     # Dedup + the workflow_state filter can empty a partial set. Answering
     # "No matching KB articles." from pages that never arrived would be the same
     # confident-wrong answer this tier removes, so that case reports the failure.
     if not deduped:
-        return carry_partial_after_filter(
-            list_response([], truncated=bool(raw.get("truncated", False))), raw
-        )
+        return carry_partial_after_filter(response, raw)
 
-    return carry_partial(
-        list_response(deduped, truncated=bool(raw.get("truncated", False))), raw
-    )
+    return carry_partial(response, raw)
 
 # ---------------------------------------------------------------------------
 # SLA tools — v4.0 consolidation (10 -> 5)
