@@ -38,6 +38,7 @@ ROOT_FILES = [
     "table_spec.py",
     "tool_registry.py",
     "manifest.json",
+    "uv.lock",
     "pyproject.toml",
     "LICENSE",
 ]

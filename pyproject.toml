@@ -13,7 +13,7 @@ dependencies = [
     "httpcore>=1.0.9",
     "h11>=0.16.0",
     "python-dotenv>=1.0.0",
-    "fastmcp>=3.3.0",
+    "fastmcp>=3.3.0,<4",
     "anyio>=4.0.0",
     "structlog>=24.1.0",
     "zipp>=3.19.1",
@@ -74,4 +74,12 @@ markers = [
     "integration: marks tests as integration tests (may require external resources)",
     "unit: marks tests as unit tests",
     "asyncio: marks tests as async tests",
+]
+[dependency-groups]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.23.0",
+    "coverage[toml]>=7.0.0",
+    "tiktoken>=0.7.0",
 ]
