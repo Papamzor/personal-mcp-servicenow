@@ -5,6 +5,43 @@ All notable changes to the Personal MCP ServiceNow project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.2] — 2026-09-17
+
+Dependency hygiene and one protocol-level addition. No tool surface or
+response-shape change; 1158 tests.
+
+### Added
+
+- **`readOnlyHint` tool annotation on all 25 tools.** `ToolGuidance` gains a
+  required `read_only` flag, served via `mcp.tool(annotations=...)` — `True` on
+  the 19 read tools, `False` on the six writes (`create_private_task`,
+  `update_private_task`, `update_knowledge_article`, `publish_knowledge_article`,
+  `publish_knowledge_articles`, `retire_knowledge_article`). Without it the MCP
+  spec defaults present every tool as destructive and non-idempotent, so hosts
+  could not auto-approve a `filter_records`. Writes keep the spec defaults for
+  the other hints. The flag is cross-checked against each docstring's
+  `SIDE EFFECT:` line by a test, and a wire test asserts the served annotation.
+  No change to the description or input schema the model receives.
+
+### Changed
+
+- **`uv.lock` is the bundle's dependency truth.** The `.mcpb` stages the lock
+  and runs `uv run --frozen --no-dev`, so an end-user install reproduces the
+  exact set the suite ran against (fastmcp 3.4.7, starlette 1.6.0, pydantic
+  2.13.5, structlog 26.1.0) instead of resolving latest at install time.
+- **`fastmcp>=3.3.0,<4`.** FastMCP 4.0.x (2026-08-31, four patches in its first
+  16 days, MCP SDK v2, starlette ≥1.0.1) is deliberately deferred; nothing here
+  consumes its features.
+- **Direct dependencies pruned 20 → 6** (`fastmcp`, `httpx`, `pydantic`,
+  `structlog`, `anyio`, `python-dotenv`). The 14 removed lines were CVE floor
+  pins on transitive packages — or on packages nothing imported at all
+  (`fastapi`, `orjson`, `zipp`, `jinja2`, `requests`, `tqdm`, `urllib3`). That
+  role moves to the lock plus `pip-audit` on the exported lock before release:
+  74 runtime pins, no known vulnerabilities.
+- `[dependency-groups] dev` mirrors `requirements-dev.txt`; README documents
+  `uv sync` as the primary install path. Bitbucket CI and the Dockerfile keep
+  their `requirements*.txt` pip path.
+
 ## [5.0.1] — 2026-08-12
 
 Two silent-data-loss defects in `get_kb_articles_by_state`, both found by live
