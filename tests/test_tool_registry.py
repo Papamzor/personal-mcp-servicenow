@@ -124,7 +124,7 @@ class TestProtocolIsMandatory:
 
     def test_register_tools_rejects_ungoverned_tool(self):
         class _FakeMcp:
-            def tool(self):
+            def tool(self, **kwargs):
                 return lambda fn: fn
 
         async def brand_new_tool():
@@ -139,17 +139,53 @@ class TestProtocolIsMandatory:
         """A guidance entry with a blank field fails at the gate, not just in
         unit tests — the fail-closed check the module docstring promises."""
         class _FakeMcp:
-            def tool(self):
+            def tool(self, **kwargs):
                 return lambda fn: fn
 
         async def search_records():  # borrow a real, registered name
             """Doc."""
 
         patched = dict(TOOL_GUIDANCE)
-        patched["search_records"] = ToolGuidance(when_to_use="x", when_not="   ", prefer_over="y")
+        patched["search_records"] = ToolGuidance(when_to_use="x", when_not="   ", prefer_over="y", read_only=True)
         monkeypatch.setattr("tool_registry.TOOL_GUIDANCE", patched)
 
         mcp = _FakeMcp()
         candidates = [search_records]
         with pytest.raises(ValueError, match="blank"):
             register_tools(mcp, candidates)
+
+
+class TestReadOnlyAnnotation:
+    """`read_only` must agree with the docstring's SIDE EFFECT line and reach
+    the wire as the MCP `readOnlyHint` tool annotation. Without the hint every
+    tool presents to a client as destructive and non-idempotent (spec defaults),
+    so hosts cannot auto-approve the read-only majority."""
+
+    _SIDE_EFFECT = re.compile(r"^\s*SIDE EFFECT:\s*(\S+)", re.M)
+
+    def test_read_only_flag_matches_side_effect_docstring(self):
+        mismatched = {}
+        for fn in tools.tools:
+            m = self._SIDE_EFFECT.search(fn.__doc__ or "")
+            assert m, f"{fn.__name__}: docstring has no SIDE EFFECT: line"
+            declared_write = m.group(1).upper() == "WRITE"
+            if declared_write == TOOL_GUIDANCE[fn.__name__].read_only:
+                mismatched[fn.__name__] = m.group(0).strip()
+        assert not mismatched, (
+            "read_only disagrees with the SIDE EFFECT line for: "
+            f"{mismatched}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_read_only_hint_is_served(self):
+        from fastmcp import FastMCP
+        from Table_Tools.generic_tool_wrappers import search_records
+        from Table_Tools.vtb_task_tools import create_private_task
+
+        mcp = FastMCP("annotation-probe")
+        register_tools(mcp, [search_records, create_private_task])
+
+        read = await mcp.get_tool("search_records")
+        write = await mcp.get_tool("create_private_task")
+        assert read.annotations is not None and read.annotations.readOnlyHint is True
+        assert write.annotations is not None and write.annotations.readOnlyHint is False
