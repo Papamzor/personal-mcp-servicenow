@@ -16,10 +16,11 @@ MCP server for ServiceNow integration. Uses FastMCP over stdio transport, OAuth 
 
 ## Release highlights
 
-Current release: **5.0.1** (25 tools). The 5.0.0 "Boron" surface was breaking — culled 39 → 25 with one minimal response contract. If upgrading from v4, read [MIGRATION_v4_to_v5.md](MIGRATION_v4_to_v5.md). Full history in [CHANGELOG.md](CHANGELOG.md).
+Current release: **5.0.2** (25 tools). The 5.0.0 "Boron" surface was breaking — culled 39 → 25 with one minimal response contract. If upgrading from v4, read [MIGRATION_v4_to_v5.md](MIGRATION_v4_to_v5.md). Full history in [CHANGELOG.md](CHANGELOG.md).
 
 | Release | What changed |
 |---|---|
+| **5.0.2** | `readOnlyHint` served on all 25 tools (19 read / 6 write) so hosts can auto-approve reads. Dependencies locked: `uv.lock` shipped in the `.mcpb` (`uv run --frozen --no-dev`), `fastmcp<4` ceiling (4.0.x deferred), direct pins pruned 20 → 6, `pip-audit` clean. No tool-surface change. |
 | **5.0.1** | Two silent-data-loss fixes in `get_kb_articles_by_state`, both found live. A `draft` filter now finds drafts on **already-published** articles (the priority collapse hid them — live, 1 reported against 48 real); entries carry `states_present` and the state filter tests membership. The raw scan no longer inherits `max_results`, which had made a truncated fetch report the *wrong* `current_state`; a capped scan now says `scan_incomplete` instead of guessing. |
 | **5.0.0 "Boron"** | Breaking. Tool surface culled **39 → 25** (5 diagnostics folded into one `health_check`; the NL/filter and smart-KB/SLA read tools removed — the host model does NL→filter natively). One **minimal response contract** across every tool: list `{result, returned_count, truncated}`, single-record `{record}`, write `{record, message}`, failure `{error:{code, message}}` — no more bare-string returns or `result`-is-sometimes-a-dict. `TableSpec` makes per-table config one source of truth; tool selection guidance is a structured registry injected into each docstring. ~2000 lines of dead NL-engine code removed. See MIGRATION_v4_to_v5.md. |
 | **4.5.0** | Tool-selection docstring protocol on all 39 tools (WHEN TO USE / WHEN NOT TO USE / PREFER OVER / TABLES / SIDE EFFECT / EXAMPLE). Non-breaking — no tool added, removed, or re-signatured. The fatal footguns (LIKE-not-CONTAINS, reference fields hold sys_ids) now sit inline on `search_records` and `filter_records`. Static tool-selection preferred-hit rose 21/30 → 29/30, ambiguity 66 → 50 plausible paths. |
