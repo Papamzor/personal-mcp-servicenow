@@ -17,7 +17,7 @@
     "entry_point": "personal_mcp_servicenow_main.py",
     "mcp_config": {
       "command": "uv",
-      "args": ["run", "--directory", "${__dirname}", "personal_mcp_servicenow_main.py"],
+      "args": ["run", "--frozen", "--no-dev", "--directory", "${__dirname}", "personal_mcp_servicenow_main.py"],
       "env": {
         "SERVICENOW_INSTANCE": "${user_config.servicenow_instance}",
         "SERVICENOW_AUTH_TYPE": "oauth",
