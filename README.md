@@ -80,9 +80,15 @@ IT readers: see [docs/MCPB_BUILD.md](docs/MCPB_BUILD.md) for build, release and 
 ```bash
 git clone https://github.com/Papamzor/personal-mcp-servicenow.git
 cd personal-mcp-servicenow
+uv sync                   # reproducible install from uv.lock (runtime + dev group)
+```
+
+Without uv:
+
+```bash
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 ### Docker (cloud / network agents)
@@ -438,8 +444,9 @@ docker run -d \
 
 ## Dependencies
 
-Production: `requirements.txt`  
-Dev (pytest, coverage, tiktoken, pytest-asyncio): `requirements-dev.txt`  
+Locked: `uv.lock` — the exact resolved set; the `.mcpb` bundle runs `uv run --frozen --no-dev` against it.  
+Production floors: `requirements.txt` (mirrored in `pyproject.toml`) — only the six packages the code imports; transitive pins live in the lock.  
+Dev (pytest, coverage, tiktoken, pytest-asyncio): `requirements-dev.txt` / `[dependency-groups] dev` in `pyproject.toml`.  
 Dev dependencies are never installed in the Docker image.
 
 ---
